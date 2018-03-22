@@ -2,7 +2,33 @@
 
 POSIXLY_CORRECT=yes # Dane zadanim, ze ma byt nastavene
 
-DIRECTORY=$(pwd) # Priecinok, ak sa nezmeni -> aktualny pracovny
+#DIRECTORY=$(pwd) # Priecinok, ak sa nezmeni -> aktualny pracovny
+
+### VLASTNE FUNKCIE ###
+
+test_funkcia()
+{
+	echo Ja som iba test.
+}
+
+set_directory()
+{	
+	if [ $# -eq 1 ] && [ -d $1 ]
+	then
+		echo $1
+	elif [ $# -eq 2 ] && [ -d $2 ]
+	then
+		echo $2
+
+	elif [ $# -eq 3 ] && [ -d $3 ]
+	then
+		echo $3
+	else
+		echo $(pwd)
+	fi
+}
+
+#######################
 
 ### NASTAVENIE EDITORA ###
 
@@ -36,6 +62,11 @@ fi
 
 ###################################
 
+## NASTAVENIE DIRECTORY ##
+
+DIRECTORY=$(set_directory $@)
+echo dir is $DIRECTORY
+## NASTAVENIE DIRECTORY ##
 
 
 ### SPRACOVANIE ARGUMENTOV ###
@@ -43,43 +74,34 @@ fi
 # Ziadne argumenty
 if [ $# -eq 0 ]
 then
-    # Neboli zadane ziadne argumenty.
-	echo 0 args
+	# Neboli zadane ziadne argumenty.
+	echo 0 arg
+	## VYBER NAPOSLEDY UPRAVOVANY Z DIR ##
 
-	# Bude editovat posledne zmeneny subor v pwd
-	echo Vybrat z $DIRECTORY naposledy upraveny subor.
+	######################################
+
+	## EDITUJ TEN SUBOR ##
+
+	######################
 
 # Nejake argumenty
 else
-	echo 1+ args
 
-	## POKUS O NASTAVENIE DIRECTORY ##
-	if [ $# -eq 2 ] && [ -d $2 ]
-	then
-		DIRECTORY=$2
-	fi
-
-	if [ $# -eq 3 ] && [ -d $3 ]
-	then
-		DIRECTORY=$3
-	fi
 	##################################
 	
 	# $1 je subor
 	if [ -f $1 ]
 	then
-		echo Editovat subor $1.
+		echo edit file
 		## EDITOVANIE SUBORU ##		
-
+		test_funkcia
 		#######################
 
 	# $1 je priecinok
 	elif [ $# -eq 1 ] && [ -d $1 ]
     	then 
-		# Vyberie z adresara naposledy editovany subor
-		DIRECTORY=$1
-        	echo Vybrat z $DIRECTORY naposledy upraveny subor.
-
+		#DIRECTORY=$1
+		echo 1args dir
 		## VYBER NAPOSLEDY UPRAVOVANY ##
 
 		################################
@@ -91,26 +113,46 @@ else
 	# prepinac -m
 	elif [ $1 == "-m" ]
 	then
-		# Vyberie subor, ktory bol editovany najcastejsie
-		echo Vybrat z $DIRECTORY najcastejsie editovany subor.
+		echo -m
+		## VYBER NAJCASTEJSIE EDITOVANY ##
+
+		##################################
+
+		## EDITUJ TEN SUBOR ##
+
+		######################
 
 	# prepinac -l	
 	elif [ $1 == "-l" ]
 	then
+		echo -l
 		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane
-		echo Vypise zoznam suborov, ktore boli v $DIRECTORY editovane.
+
+		## VYPIS ZOZNAM EDITOVANYCH SUBOROV ##
+
+		######################################
 
 	# prepinac -b	
 	elif [ $1 == "-b" ] && [ $# -ge 2 ]
 	then
+		echo -b
 		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane pred datumom
-		echo Vypise zoznam suborov, ktore boli v $DIRECTORY editovane pred datumom.
+		
+		## VYPIS ZOZNAM SUBOROV EDITOVANYCH PRED DATUMOM ##
+
+		###################################################
 
 	# prepinac -a	
 	elif [ $1 == "-a" ] && [ $# -ge 2 ]
 	then
+		echo -a
 		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane po datume
-		echo Vypise zoznam suborov, ktore boli v $DIRECTORY editovane po datume.
+
+		## VYPIS ZOZNAM SUBOROV EDITOVANYCH PO DATUME ##
+
+		################################################
+	else
+		echo Niekde je chyba v argumentoch	
 	fi
 fi
 
