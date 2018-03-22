@@ -4,11 +4,6 @@ POSIXLY_CORRECT=yes # Dane zadanim, ze ma byt nastavene
 
 ### VLASTNE FUNKCIE ###
 
-test_funkcia()
-{
-	echo Ja som iba test.
-}
-
 set_directory()
 {	
 	if [ $# -eq 1 ] && [ -d $1 ]
@@ -28,12 +23,13 @@ set_directory()
 
 edit_file()
 {
+	cd $DIRECTORY
 	FILE=$1 # Nazov suboru (pre lepsiu orientaciu)
 	$EDITOR $1 # Editacia suboru
 	# Kontrola ci nenastala chyba pri pokuse o editovanie
 	if [ $? -eq 0 ]
 	then
-		#echo Successfully edited file $FILE
+		echo Successfully edited file $FILE
 		# Zapisanie do WEDI_RC ze subor bol editovany v nejakom case a zvysenie pocitadla editacii
 		if [ ! -s "$WEDI_RC" ] # Subor na zapisovanie je prazdny
 		then
@@ -43,9 +39,10 @@ edit_file()
 			echo LINE: $LINE
 			if [[ -z "$LINE" ]]; # ak ziaden riadok nevyhovuje
 			then
-				#echo Subor este nebol upravovany
+				echo Subor este nebol upravovany
 				echo $DIRECTORY $FILE `date '+%Y-%m-%d %H:%M:%S'` 1 >> $WEDI_RC
 			else # Subor bol uz predtym upravovany, nahradit riadok s LINE			
+				echo Subor bol predtym upravovany
 				sed -i "/$FILE/ c\ $LINE" $WEDI_RC # Nahradenie povodneho riadku	
 			fi
 		fi
@@ -76,6 +73,13 @@ print_edited_after()
 {
 	DATE=$1
 	awk -F ' ' -v date_after="$DATE" -v dir="$DIRECTORY" '{if (date_after <= $3 && dir == $1) {print $2}}' "$WEDI_RC"
+}
+
+find_last_edited()
+{
+	dateA='0000-00-00'
+	timeA='00:00:00'
+	awk -F ' ' -v dateLast="$dateA" -v timeLast="$timeA" -v dir="$DIRECTORY" -v file="" '{ if ($1 == dir) {if (dateLast<$3) {dateLast=$3; timeLast=$4; file=$2} else if (dateLast == $3 && timeLast < $4) {dateLast=$3; timeLast=$4; file=$2}} } END {print file}' "$WEDI_RC"
 }
 
 #######################
@@ -126,18 +130,18 @@ echo dir is $DIRECTORY # test spravnosti funkcie
 if [ $# -eq 0 ]
 then
 	# Neboli zadane ziadne argumenty.
-	echo 0 arg
+
 	## VYBER NAPOSLEDY UPRAVOVANY Z DIR ##
-
+	FILE=$(find_last_edited)
 	######################################
-
+	echo LAST EDITED FILE: $FILE
 	## EDITUJ TEN SUBOR ##
-
+	edit_file $FILE
 	######################
 
 # Nejake argumenty
 else
-
+	echo Some arg
 	##################################
 	
 	# $1 je subor
@@ -148,17 +152,28 @@ else
 		edit_file $1
 		#######################
 
+	# $1 je subor a $2 je priecinok
+	elif [ $# -eq 2 ] && [ -d $2 ] && [ $1 != "-l" ] && [ $1 != "-m" ]
+	then
+		FILE=$2"/"$1
+		if [ -f $FILE ]
+		then
+			## EDITUJ FILE ##
+			edit_file $1
+			#################		
+		fi
+
 	# $1 je priecinok
 	elif [ $# -eq 1 ] && [ -d $1 ]
     	then 
 		#DIRECTORY=$1
 		echo 1args dir
 		## VYBER NAPOSLEDY UPRAVOVANY ##
-
+		FILE=$(find_last_edited)
 		################################
 
 		## EDITUJ TEN SUBOR ##
-
+		edit_file $FILE
 		######################
 
 	# prepinac -m
@@ -207,7 +222,7 @@ else
 		print_edited_after $DATE
 		################################################
 	else
-		echo Niekde je chyba v argumentoch	
+		echo Wrong arguments!	
 	fi
 fi
 
