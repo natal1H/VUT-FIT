@@ -1,0 +1,117 @@
+#!/bin/bash
+
+POSIXLY_CORRECT=yes # Dane zadanim, ze ma byt nastavene
+
+DIRECTORY=$(pwd) # Priecinok, ak sa nezmeni -> aktualny pracovny
+
+### NASTAVENIE EDITORA ###
+
+if [ -z ${EDITOR} ] # EDITOR nie je nastaveny
+then
+	# Test ci je VISUAL nastaveny
+	if [ -z ${VISUAL} ] # VISUAL nie je nastaveny
+	then # nastavit na "vi"
+		EDITOR=vi
+	else # nastavit na VISUAL
+		EDITOR=$VISUAL
+	fi 
+fi
+
+##########################
+
+### KONTROLA NASTAVENIA WEDI_RC ###
+
+if [ -z ${WEDI_RC} ] # WEDI_RC nie je nastavena
+then
+	# CHYBA
+	echo Error! WEDI_RC is not set. 
+	exit 1 # 1 == chyba??
+else # WEDI_RC je nastavena
+	# Ak neexistuje subor, vytvorit prazdny
+	if [ ! -f $WEDI_RC ] # subor dany WEDI_RC neexistuje zatial, vytvorit prazdny
+	then
+		touch $WEDI_RC
+	fi
+fi
+
+###################################
+
+
+
+### SPRACOVANIE ARGUMENTOV ###
+
+# Ziadne argumenty
+if [ $# -eq 0 ]
+then
+    # Neboli zadane ziadne argumenty.
+	echo 0 args
+
+	# Bude editovat posledne zmeneny subor v pwd
+	echo Vybrat z $DIRECTORY naposledy upraveny subor.
+
+# Nejake argumenty
+else
+	echo 1+ args
+
+	## POKUS O NASTAVENIE DIRECTORY ##
+	if [ $# -eq 2 ] && [ -d $2 ]
+	then
+		DIRECTORY=$2
+	fi
+
+	if [ $# -eq 3 ] && [ -d $3 ]
+	then
+		DIRECTORY=$3
+	fi
+	##################################
+	
+	# $1 je subor
+	if [ -f $1 ]
+	then
+		echo Editovat subor $1.
+		## EDITOVANIE SUBORU ##		
+
+		#######################
+
+	# $1 je priecinok
+	elif [ $# -eq 1 ] && [ -d $1 ]
+    	then 
+		# Vyberie z adresara naposledy editovany subor
+		DIRECTORY=$1
+        	echo Vybrat z $DIRECTORY naposledy upraveny subor.
+
+		## VYBER NAPOSLEDY UPRAVOVANY ##
+
+		################################
+
+		## EDITUJ TEN SUBOR ##
+
+		######################
+
+	# prepinac -m
+	elif [ $1 == "-m" ]
+	then
+		# Vyberie subor, ktory bol editovany najcastejsie
+		echo Vybrat z $DIRECTORY najcastejsie editovany subor.
+
+	# prepinac -l	
+	elif [ $1 == "-l" ]
+	then
+		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane
+		echo Vypise zoznam suborov, ktore boli v $DIRECTORY editovane.
+
+	# prepinac -b	
+	elif [ $1 == "-b" ] && [ $# -ge 2 ]
+	then
+		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane pred datumom
+		echo Vypise zoznam suborov, ktore boli v $DIRECTORY editovane pred datumom.
+
+	# prepinac -a	
+	elif [ $1 == "-a" ] && [ $# -ge 2 ]
+	then
+		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane po datume
+		echo Vypise zoznam suborov, ktore boli v $DIRECTORY editovane po datume.
+	fi
+fi
+
+##############################
