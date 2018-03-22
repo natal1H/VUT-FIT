@@ -55,7 +55,7 @@ edit_file()
 # Netreba ziadne parametre, pretoze pracuje iba s DIRECTORY
 find_most_edited()
 {
-	echo Nedokoncene
+	awk -v dir=$DIRECTORY -v max=0 -v file="" '{if ($1 == dir && $5>max ) {max=$5; file=$2} else if ($1 == dir && $5 == max) { } } END {print file}'  $WEDI_RC
 }
 
 print_edited()
@@ -177,15 +177,27 @@ else
 		######################
 
 	# prepinac -m
-	elif [ $1 == "-m" ]
+	elif [ $# -eq 1 ] && [ $1 == "-m" ]
 	then
 		echo -m
 		## VYBER NAJCASTEJSIE EDITOVANY ##
-		find_most_edited
+		FILE=$(find_most_edited)
 		##################################
 
 		## EDITUJ TEN SUBOR ##
+		edit_file $FILE
+		######################
+	
+	# prepinac -m + adresar
+	elif [ $1 == "-m" ] && [ -d $2 ]
+	then
+		echo -m
+		## VYBER NAJCASTEJSIE EDITOVANY ##
+		FILE=$(find_most_edited)
+		##################################
 
+		## EDITUJ TEN SUBOR ##
+		edit_file $FILE
 		######################
 
 	# prepinac -l	
