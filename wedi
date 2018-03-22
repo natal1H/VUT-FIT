@@ -33,7 +33,7 @@ edit_file()
 	# Kontrola ci nenastala chyba pri pokuse o editovanie
 	if [ $? -eq 0 ]
 	then
-		echo Successfully edited file $FILE
+		#echo Successfully edited file $FILE
 		# Zapisanie do WEDI_RC ze subor bol editovany v nejakom case a zvysenie pocitadla editacii
 		if [ ! -s "$WEDI_RC" ] # Subor na zapisovanie je prazdny
 		then
@@ -50,8 +50,32 @@ edit_file()
 			fi
 		fi
 	else
-		echo Failed to edit file $FILE
+		echo Failed to edit file $FILE.
+		exit 1
 	fi
+}
+
+# Netreba ziadne parametre, pretoze pracuje iba s DIRECTORY
+find_most_edited()
+{
+	echo Nedokoncene
+}
+
+print_edited()
+{
+	awk -v dir=$DIRECTORY '{if ($1 == dir) {print $2} }'  $WEDI_RC | sort
+}
+
+print_edited_before()
+{
+	DATE=$1
+	awk -F ' ' -v date_before="$DATE" -v dir="$DIRECTORY" '{if (date_before > $3 && dir == $1) {print $2}}' "$WEDI_RC"
+}
+
+print_edited_after()
+{
+	DATE=$1
+	awk -F ' ' -v date_after="$DATE" -v dir="$DIRECTORY" '{if (date_after <= $3 && dir == $1) {print $2}}' "$WEDI_RC"
 }
 
 #######################
@@ -142,7 +166,7 @@ else
 	then
 		echo -m
 		## VYBER NAJCASTEJSIE EDITOVANY ##
-
+		find_most_edited
 		##################################
 
 		## EDITUJ TEN SUBOR ##
@@ -156,7 +180,7 @@ else
 		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane
 
 		## VYPIS ZOZNAM EDITOVANYCH SUBOROV ##
-
+		print_edited
 		######################################
 
 	# prepinac -b	
@@ -165,8 +189,10 @@ else
 		echo -b
 		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane pred datumom
 		
-		## VYPIS ZOZNAM SUBOROV EDITOVANYCH PRED DATUMOM ##
+		DATE=$2 # datum 
 
+		## VYPIS ZOZNAM SUBOROV EDITOVANYCH PRED DATUMOM ##
+		print_edited_before $DATE
 		###################################################
 
 	# prepinac -a	
@@ -175,8 +201,10 @@ else
 		echo -a
 		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane po datume
 
-		## VYPIS ZOZNAM SUBOROV EDITOVANYCH PO DATUME ##
+		DATE=$2 # datum 
 
+		## VYPIS ZOZNAM SUBOROV EDITOVANYCH PO DATUME ##
+		print_edited_after $DATE
 		################################################
 	else
 		echo Niekde je chyba v argumentoch	
