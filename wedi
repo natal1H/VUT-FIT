@@ -2,8 +2,6 @@
 
 POSIXLY_CORRECT=yes # Dane zadanim, ze ma byt nastavene
 
-#DIRECTORY=$(pwd) # Priecinok, ak sa nezmeni -> aktualny pracovny
-
 ### VLASTNE FUNKCIE ###
 
 test_funkcia()
@@ -25,6 +23,34 @@ set_directory()
 		echo $3
 	else
 		echo $(pwd)
+	fi
+}
+
+edit_file()
+{
+	FILE=$1 # Nazov suboru (pre lepsiu orientaciu)
+	$EDITOR $1 # Editacia suboru
+	# Kontrola ci nenastala chyba pri pokuse o editovanie
+	if [ $? -eq 0 ]
+	then
+		echo Successfully edited file $FILE
+		# Zapisanie do WEDI_RC ze subor bol editovany v nejakom case a zvysenie pocitadla editacii
+		if [ ! -s "$WEDI_RC" ] # Subor na zapisovanie je prazdny
+		then
+			echo $DIRECTORY $FILE `date '+%Y-%m-%d %H:%M:%S'` 1 >> $WEDI_RC
+		else
+			LINE=$(awk -F" " -v dir="$DIRECTORY" -v file="$FILE" -v date="$(date +"%Y-%m-%d %H:%M:%S")" '$1 == dir && $2 == file { print $1, $2, date, $5+1 }' $WEDI_RC) # Nacita a upravi spravny riadok		
+			echo LINE: $LINE
+			if [[ -z "$LINE" ]]; # ak ziaden riadok nevyhovuje
+			then
+				#echo Subor este nebol upravovany
+				echo $DIRECTORY $FILE `date '+%Y-%m-%d %H:%M:%S'` 1 >> $WEDI_RC
+			else # Subor bol uz predtym upravovany, nahradit riadok s LINE			
+				sed -i "/$FILE/ c\ $LINE" $WEDI_RC # Nahradenie povodneho riadku	
+			fi
+		fi
+	else
+		echo Failed to edit file $FILE
 	fi
 }
 
@@ -65,7 +91,8 @@ fi
 ## NASTAVENIE DIRECTORY ##
 
 DIRECTORY=$(set_directory $@)
-echo dir is $DIRECTORY
+echo dir is $DIRECTORY # test spravnosti funkcie
+
 ## NASTAVENIE DIRECTORY ##
 
 
@@ -94,7 +121,7 @@ else
 	then
 		echo edit file
 		## EDITOVANIE SUBORU ##		
-		test_funkcia
+		edit_file $1
 		#######################
 
 	# $1 je priecinok
