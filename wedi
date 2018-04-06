@@ -1,241 +1,267 @@
 #!/bin/bash
 
-POSIXLY_CORRECT=yes # Dane zadanim, ze ma byt nastavene
+# IOS - projekt 1
+# Autor: Natalia Holkova (xholko02)
+
+export POSIXLY_CORRECT=yes # Dane zadanim, ze ma byt nastavene
 
 ### VLASTNE FUNKCIE ###
 
+# Vypis chyboveho hlasenia na stderr a ukoncenie skriptu
+print_error_msg() {
+	echo "$1" >&2 # Vypis chybovej hlasky
+	exit $2 # Ukoncenie s chybovym kodom
+}
+
+# Kontrola formatu datumu
+validate_date() {
+	if [[ ! $1 == [0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9] ]]; then
+		print_error_msg "Error! Invalid date format." 1
+	fi
+}
+
+# Nastavenie priecinku ak je zadany medzi argumentami
 set_directory()
 {	
-	if [ $# -eq 1 ] && [ -d $1 ]
-	then
-		echo $1
-	elif [ $# -eq 2 ] && [ -d $2 ]
-	then
-		echo $2
-
-	elif [ $# -eq 3 ] && [ -d $3 ]
-	then
-		echo $3
+	if [ "$#" = "1" ] && [ -d "$1" ]; then
+		#echo $1
+		DIR=$(realpath "$1")
+	elif [ "$#" = "2" ] && [ -d "$2" ]; then
+		#echo $2
+		DIR=$(realpath "$2")
+	elif [ "$#" = "3" ] && [ -d "$3" ]; then
+		#echo $3
+		DIR=$(realpath "$3")
 	else
-		echo $(pwd)
+		#echo $(pwd)
+		DIR=$(realpath .)
 	fi
+	echo "$DIR"
 }
 
+# Nahradi riadok v logu
+sed_replace() {
+  sed -i "s/$(echo $1 | sed -e 's/\([[\/.*]\|\]\)/\\&/g')/$(echo $2 | sed -e 's/[\/&]/\\&/g')/g" $3
+}
+
+# Editacia suboru predaneho prvym argumentom
 edit_file()
 {
-	cd $DIRECTORY
-	FILE=$1 # Nazov suboru (pre lepsiu orientaciu)
-	$EDITOR $1 # Editacia suboru
+	cd $DIRECTORY  
+	FILE="$1" # Nazov suboru s cestou
+	BASE="$(basename $FILE)" # Nazov suboru bez cesty
+	REALPATH_TO_FILE=$(realpath "$(dirname $FILE)") # Iba cesta k suboru
+
+	$EDITOR "$FILE" # Editacia suboru
+	RET_VAR=$? # Chybovy kod editacie suboru
 	# Kontrola ci nenastala chyba pri pokuse o editovanie
-	if [ $? -eq 0 ]
-	then
-		echo Successfully edited file $FILE
+	if [ $RET_VAR -eq 0 ]; then
 		# Zapisanie do WEDI_RC ze subor bol editovany v nejakom case a zvysenie pocitadla editacii
-		if [ ! -s "$WEDI_RC" ] # Subor na zapisovanie je prazdny
-		then
-			echo $DIRECTORY $FILE `date '+%Y-%m-%d %H:%M:%S'` 1 >> $WEDI_RC
+		if [ ! -s "$WEDI_RC" ]; then # Subor na zapisovanie je prazdny
+			echo $REALPATH_TO_FILE $BASE 1 `date '+%Y-%m-%d-%H:%M:%S'` `date '+%Y-%m-%d-%H:%M:%S'`>> $WEDI_RC
 		else
-			LINE=$(awk -F" " -v dir="$DIRECTORY" -v file="$FILE" -v date="$(date +"%Y-%m-%d %H:%M:%S")" '$1 == dir && $2 == file { print $1, $2, date, $5+1 }' $WEDI_RC) # Nacita a upravi spravny riadok		
-			echo LINE: $LINE
-			if [[ -z "$LINE" ]]; # ak ziaden riadok nevyhovuje
-			then
-				echo Subor este nebol upravovany
-				echo $DIRECTORY $FILE `date '+%Y-%m-%d %H:%M:%S'` 1 >> $WEDI_RC
-			else # Subor bol uz predtym upravovany, nahradit riadok s LINE			
-				echo Subor bol predtym upravovany
-				sed -i "/$FILE/ c\ $LINE" $WEDI_RC # Nahradenie povodneho riadku	
+			#LINE=$(awk -F" " -v dir="$REALPATH_TO_FILE" -v file="$BASE" -v date="$(date +"%Y-%m-%d-%H:%M:%S")" '{if ( ($1 == dir) && ( $2 == file) ) {$3 = $3+1; print ; print date} }' "$WEDI_RC")
+			OLD_LINE=$(awk -F" " -v dir="$REALPATH_TO_FILE" -v file="$BASE" -v date="$(date +"%Y-%m-%d %H:%M:%S")" '{if ( ($1 == dir) && ( $2 == file) ) {print } }' "$WEDI_RC")
+
+			if [ -z "$OLD_LINE" ]; then # ak ziaden riadok nevyhovuje
+				echo $REALPATH_TO_FILE $BASE 1 `date '+%Y-%m-%d %H:%M:%S'` `date '+%Y-%m-%d %H:%M:%S'` >> "$WEDI_RC"
+			else # Subor bol uz predtym upravovany, nahradit riadok s LINE				
+				LINE=$(awk -F" " -v dir="$REALPATH_TO_FILE" -v file="$BASE" -v date="$(date +"%Y-%m-%d %H:%M:%S")" '{if ( ($1 == dir) && ( $2 == file) ) {$3 = $3+1; print $1, $2, $3, $4, $5, date;} }' "$WEDI_RC")
+				sed_replace "$OLD_LINE" "$LINE" "$WEDI_RC"
 			fi
 		fi
-	else
-		echo Failed to edit file $FILE.
-		exit 1
+		# Utriedenie WEDI_RC podla priecinkov a potom podla nazvov suborov
+		sort -k 1,1 -k 2,2 -o "$WEDI_RC" "$WEDI_RC"
+	else # Nepodarilo sa editovat file
+		print_error_msg "Failed to edit file $FILE." $RET_VAR
 	fi
 }
 
-# Netreba ziadne parametre, pretoze pracuje iba s DIRECTORY
+# Najdenie nazvu (bez cesty) najcastejsie editovaneho suboru
 find_most_edited()
 {
-	awk -v dir=$DIRECTORY -v max=0 -v file="" '{if ($1 == dir && $5>max ) {max=$5; file=$2} else if ($1 == dir && $5 == max) { } } END {print file}'  $WEDI_RC
+	awk -v dir=$DIRECTORY -v max=0 -v file="" '{if ($1 == dir && $3>max ) {max=$3; file=$2} } END {print file}'  $WEDI_RC
 }
 
+# Vypis editovanych suborov v zadanom adresary
 print_edited()
 {
 	awk -v dir=$DIRECTORY '{if ($1 == dir) {print $2} }'  $WEDI_RC | sort
 }
 
+# Vypisanie suborov, ktorych editacia je pred zadanym datumom - tu ber prvu editaciu
 print_edited_before()
 {
 	DATE=$1
-	awk -F ' ' -v date_before="$DATE" -v dir="$DIRECTORY" '{if (date_before > $3 && dir == $1) {print $2}}' "$WEDI_RC"
+	awk -F ' ' -v date_before="$DATE" -v dir="$DIRECTORY" '{if (date_before > $4 && dir == $1) {print $2}}' "$WEDI_RC"
 }
 
+# Vypisanie suborov, ktorych editacia je po zadanom datume - tu ber poslednu editaciu
 print_edited_after()
 {
 	DATE=$1
-	awk -F ' ' -v date_after="$DATE" -v dir="$DIRECTORY" '{if (date_after <= $3 && dir == $1) {print $2}}' "$WEDI_RC"
+	awk -F ' ' -v date_after="$DATE" -v dir="$DIRECTORY" '{if (date_after <= $6 && dir == $1) {print $2}}' "$WEDI_RC"
 }
 
+# Najdenie naposledy editovaneho suboru v zadanom priecinku
 find_last_edited()
 {
 	dateA='0000-00-00'
 	timeA='00:00:00'
-	awk -F ' ' -v dateLast="$dateA" -v timeLast="$timeA" -v dir="$DIRECTORY" -v file="" '{ if ($1 == dir) {if (dateLast<$3) {dateLast=$3; timeLast=$4; file=$2} else if (dateLast == $3 && timeLast < $4) {dateLast=$3; timeLast=$4; file=$2}} } END {print file}' "$WEDI_RC"
+	awk -F ' ' -v dateLast="$dateA" -v timeLast="$timeA" -v dir="$DIRECTORY" -v file="" '{if ($1 == dir) {if (dateLast<$6) {dateLast=$6; timeLast=$7; file=$2} else if (dateLast == $6 && timeLast < $7) {dateLast=$6; timeLast=$7; file=$2}} } END {print file}' "$WEDI_RC"
+}
+
+# Odstranenie zaznamov vo WEDI_RC o suboroch, ktore boli medzitym zmazane
+check_for_remove_files() {
+	NEW_CONTENT=$(awk -F ' ' '{file=$1"/"$2; if (system("[ ! -f "file" ]") == 1) {print ;} }' $WEDI_RC)
+	echo "$NEW_CONTENT" > $WEDI_RC
 }
 
 #######################
 
 ### NASTAVENIE EDITORA ###
 
-if [ -z ${EDITOR} ] # EDITOR nie je nastaveny
-then
+if [ -z ${EDITOR} ]; then # EDITOR nie je nastaveny
+
 	# Test ci je VISUAL nastaveny
-	if [ -z ${VISUAL} ] # VISUAL nie je nastaveny
-	then # nastavit na "vi"
-		EDITOR=vi
-	else # nastavit na VISUAL
-		EDITOR=$VISUAL
+	if [ -z ${VISUAL} ]; then  # VISUAL nie je nastaveny
+		EDITOR=vi # nastavit na "vi"
+	else 
+		EDITOR=$VISUAL # nastavit na VISUAL
 	fi 
 fi
 
-##########################
-
 ### KONTROLA NASTAVENIA WEDI_RC ###
 
-if [ -z ${WEDI_RC} ] # WEDI_RC nie je nastavena
-then
+if [ -z ${WEDI_RC} ]; then # WEDI_RC nie je nastavena
 	# CHYBA
-	echo Error! WEDI_RC is not set. 
-	exit 1 # 1 == chyba??
+	print_error_msg "Error! WEDI_RC is not set or does not exist." 1
 else # WEDI_RC je nastavena
 	# Ak neexistuje subor, vytvorit prazdny
-	if [ ! -f $WEDI_RC ] # subor dany WEDI_RC neexistuje zatial, vytvorit prazdny
-	then
+	if [ ! -f $WEDI_RC ]; then # subor dany WEDI_RC neexistuje zatial, vytvorit prazdny
 		touch $WEDI_RC
 	fi
 fi
 
-###################################
+## TEST PRITOMNOSTI REALPATH ##
+TEST_VAR=$(realpath .)
+RET_VAR=$?
+if [ $RET_VAR -eq 127 ]; then
+	print_error_msg "Error! realpath is missing." $RET_VAR
+fi
 
 ## NASTAVENIE DIRECTORY ##
-
 DIRECTORY=$(set_directory $@)
-echo dir is $DIRECTORY # test spravnosti funkcie
 
-## NASTAVENIE DIRECTORY ##
+## ODSTRANENIE VYMAZANYCH SUBOROV Z WEDI_RC ##
+check_for_remove_files
 
 
 ### SPRACOVANIE ARGUMENTOV ###
 
-# Ziadne argumenty
-if [ $# -eq 0 ]
-then
-	# Neboli zadane ziadne argumenty.
-
+# 0 argumentov
+if [ $# -eq 0 ]; then
 	## VYBER NAPOSLEDY UPRAVOVANY Z DIR ##
 	FILE=$(find_last_edited)
-	######################################
-	echo LAST EDITED FILE: $FILE
+	if [ -z "$FILE" ]; then # ak nenasiel nejaky subor
+		print_error_msg "Error! No file found." 1
+	fi
 	## EDITUJ TEN SUBOR ##
 	edit_file $FILE
-	######################
-
-# Nejake argumenty
-else
-	echo Some arg
-	##################################
-	
-	# $1 je subor
-	if [ -f $1 ]
-	then
-		echo edit file
-		## EDITOVANIE SUBORU ##		
-		edit_file $1
-		#######################
-
-	# $1 je subor a $2 je priecinok
-	elif [ $# -eq 2 ] && [ -d $2 ] && [ $1 != "-l" ] && [ $1 != "-m" ]
-	then
-		FILE=$2"/"$1
-		if [ -f $FILE ]
-		then
-			## EDITUJ FILE ##
-			edit_file $1
-			#################		
-		fi
-
-	# $1 je priecinok
-	elif [ $# -eq 1 ] && [ -d $1 ]
-    	then 
-		#DIRECTORY=$1
-		echo 1args dir
-		## VYBER NAPOSLEDY UPRAVOVANY ##
-		FILE=$(find_last_edited)
-		################################
-
-		## EDITUJ TEN SUBOR ##
-		edit_file $FILE
-		######################
-
-	# prepinac -m
-	elif [ $# -eq 1 ] && [ $1 == "-m" ]
-	then
-		echo -m
-		## VYBER NAJCASTEJSIE EDITOVANY ##
-		FILE=$(find_most_edited)
-		##################################
-
-		## EDITUJ TEN SUBOR ##
-		edit_file $FILE
-		######################
-	
-	# prepinac -m + adresar
-	elif [ $1 == "-m" ] && [ -d $2 ]
-	then
-		echo -m
-		## VYBER NAJCASTEJSIE EDITOVANY ##
-		FILE=$(find_most_edited)
-		##################################
-
-		## EDITUJ TEN SUBOR ##
-		edit_file $FILE
-		######################
-
-	# prepinac -l	
-	elif [ $1 == "-l" ]
-	then
-		echo -l
-		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane
-
+# 1 argument
+elif [ "$#" = "1" ]; then
+	if [ "$1" = "-l" ]; then
 		## VYPIS ZOZNAM EDITOVANYCH SUBOROV ##
 		print_edited
-		######################################
-
-	# prepinac -b	
-	elif [ $1 == "-b" ] && [ $# -ge 2 ]
-	then
-		echo -b
+	elif [ "$1" = "-m" ]; then
+		if [ ! -f "$WEDI_RC" ] || [ ! -s "$WEDI_RC" ]; then
+			print_error_msg "Error! $WEDI_RC does not exist or is empty." 1
+		fi
+		## VYBER NAJCASTEJSIE EDITOVANY ##
+		FILE=$(find_most_edited)
+		if [ -z "$FILE" ]; then # ak nenasiel nejaky subor
+			print_error_msg "Error! No file found." 1
+		fi
+		## EDITUJ TEN SUBOR ##
+		edit_file "$FILE"
+	else
+		#echo "$1" # pouzivane pri ladeni
+		# Argument: subor
+		if [ -f "$1" ]; then
+			FILE=$(realpath "$1")
+			## EDITOVANIE SUBORU ##		
+			edit_file "$FILE"
+		# Argument: adresar
+		elif [ -d "$1" ]; then
+			echo Vyberam
+			## VYBER NAPOSLEDY UPRAVOVANY ##
+			FILE=$(find_last_edited)
+			if [ -z "$FILE" ]; then # ak nenasiel nejaky subor
+				print_error_msg "Error! No file found." 1
+			else # nasiel nejaky subor
+				## EDITUJ TEN SUBOR ##
+				edit_file "$FILE"
+			fi
+		else
+			print_error_msg "Error! Wrong arguments!" 1
+		fi
+	fi
+# 2 argumenty
+elif [ "$#" = "2" ]; then
+	# prepinac -m + adresar
+	if [ "$1" = "-m" ] && [ -d $2 ]; then
+		if [ ! -f "$WEDI_RC" ] || [ ! -s "$WEDI_RC" ]; then
+			print_error_msg "Error! $WEDI does not exist or is empty." 1
+		fi
+		## VYBER NAJCASTEJSIE EDITOVANY ##
+		FILE=$(find_most_edited)
+		if [ -z "$FILE" ]; then # ak nenasiel nejaky subor
+			print_error_msg "Error! No file found." 1
+		fi
+		## EDITUJ TEN SUBOR ##
+		edit_file $FILE
+	# prepinac -l + adresar
+	elif [ "$1" = "-l" ] && [ -d $2 ]; then
+		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane
+		## VYPIS ZOZNAM EDITOVANYCH SUBOROV ##
+		print_edited
+	# prepinac -b + datum	
+	elif [ "$1" = "-b" ]; then
 		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane pred datumom
-		
 		DATE=$2 # datum 
-
+		validate_date $DATE
 		## VYPIS ZOZNAM SUBOROV EDITOVANYCH PRED DATUMOM ##
 		print_edited_before $DATE
-		###################################################
-
-	# prepinac -a	
-	elif [ $1 == "-a" ] && [ $# -ge 2 ]
-	then
-		echo -a
+	# prepinac -a + datum
+	elif [ "$1" = "-a" ]; then
 		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane po datume
-
 		DATE=$2 # datum 
-
+		validate_date $DATE
 		## VYPIS ZOZNAM SUBOROV EDITOVANYCH PO DATUME ##
-		print_edited_after $DATE
-		################################################
+		print_edited_after $DATE		
 	else
-		echo Wrong arguments!	
+		print_error_msg "Error! Wrong arguments!" 1
 	fi
+# 3 argumenty
+elif [ "$#" = "3" ]; then
+	# prepinac -b + datum + adresar
+	if [ "$1" = "-b" ]; then
+		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane pred datumom
+		DATE=$2 # datum 
+		validate_date $DATE
+		## VYPIS ZOZNAM SUBOROV EDITOVANYCH PRED DATUMOM ##
+		print_edited_before $DATE
+	# prepinac -a + datum + adresar
+	elif [ "$1" = "-a" ]; then
+		# Zobrazi zoznam adresarov, ktore boli v priecinku editovane po datume
+		DATE=$2 # datum 
+		validate_date $DATE
+		## VYPIS ZOZNAM SUBOROV EDITOVANYCH PO DATUME ##
+		print_edited_after $DATE	
+	else
+		print_error_msg "Error! Wrong arguments!" 1
+	fi
+# Nespravne argumenty
+else
+	print_error_msg "Error! Wrong arguments!" 1
 fi
-
-##############################
