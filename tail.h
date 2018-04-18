@@ -23,7 +23,6 @@ typedef struct element Element;
  */
 struct element {
     Element *pNext;
-    Element *pPrev;
     char data[];
 };
 
@@ -31,7 +30,7 @@ struct element {
  * @brief Defines structure linked list
  */
 typedef struct {
-    Element *pFirst;
+    Element *pLast;
 } List;
 
 /**
@@ -60,19 +59,6 @@ void pop(List *list);
 void free_list(List *list);
 
 /**
- * @brief Prints contents of list in reverse order
- * @param list Pointer to list to print
- */
-void print_all_reverse(List *list);
-
-/**
- * @brief Prints last X elements of list in reverse order
- * @param list Pointer to list to print
- * @param x Number of lines from end to print
- */
-void print_last_X_reverse(List *list, int x);
-
-/**
  * @brief Converts string to integer
  * @param p_number Pointer to number where to store output of conversion
  * @param str String which to convert to integer
@@ -86,11 +72,11 @@ int convert_str_to_int (int *p_number, char *str);
  * @param list Pointer to list in which store lines
  * @return Error code
  */
-int load_from_file(char *filename, List *list);
+int load_from_file(char *filename, List *list, int toPrint);
 
 /**
  * @brief Reads lines from stdin and stores them into linked list as elements
  * @param list Pointer to list in which store lines
  * @return Error code
  */
-int load_from_stdin(List *list);
+int load_from_stdin(List *list, int toPrint);
