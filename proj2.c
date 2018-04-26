@@ -12,8 +12,6 @@
 #include <time.h>
 #include <sys/mman.h>
 
-// TODO ohranicit generovanie rider process pom mutex
-
 // Struct to store cmd line args
 typedef struct {
     int R;
@@ -119,12 +117,13 @@ int create_semaphores() {
         fprintf(stderr, "Error! Opening riders counter semaphore failed.\n");
         return 1;
     }
-    if ((sem_bus_arrived = sem_open(SEM_BUS_ARRIVED, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
+    // TODO spravne nastavene hodnoty?
+    if ((sem_bus_arrived = sem_open(SEM_BUS_ARRIVED, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
         // handle error
         fprintf(stderr, "Error! Opening bus arrived semaphore failed.\n");
         return 1;
     }
-    if ((sem_rider_boarded = sem_open(SEM_RIDER_BOARDED, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
+    if ((sem_rider_boarded = sem_open(SEM_RIDER_BOARDED, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
         // handle error
         fprintf(stderr, "Error! Opening rider boarded semaphore failed.\n");
         return 1;
@@ -178,6 +177,7 @@ void inc_shm(int *var, sem_t *sem) {
 void depart(int delay_time) {
     // Log depart + inc action counter
     fprintf(log_file, "%d\t: BUS\t: depart\n", *action_counter);
+    fprintf(stdout, "%d\t: BUS\t: depart\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
     int sleep_time = (rand() % delay_time);
@@ -191,36 +191,54 @@ void arrive(int capacity, int delay_time) {
 
     // Log arrival + inc action counter
     fprintf(log_file, "%d\t: BUS\t: arrival\n", *action_counter);
+    fprintf(stdout, "%d\t: BUS\t: arrival\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
-    int boarding = (*riders_counter > capacity) ? capacity : *riders_counter ;
-    for (int i = 0; i < boarding; i++) {
-        sem_post(sem_bus_arrived);
-        sem_wait(sem_rider_boarded);
+    if (*riders_counter == 0) {
+        sem_post(sem_mutex);
+        depart(delay_time);
     }
+    else {
+        // Log start boarding + inc action counter
+        fprintf(log_file, "%d\t: BUS\t: start boarding\n", *action_counter);
+        fprintf(stdout, "%d\t: BUS\t: start boarding\n", *action_counter);
+        inc_shm(action_counter, sem_action_counter);
 
-    int left = (*riders_counter > capacity) ? 0 : (capacity - *riders_counter);
+        int boarding = (*riders_counter > capacity) ? capacity : *riders_counter;
+        for (int i = 0; i < boarding; i++) {
+            sem_post(sem_bus_arrived);
+            sem_wait(sem_rider_boarded);
+        }
 
-    // Change number of riders left at bus stop
-    sem_wait(sem_riders_counter);
-    *riders_counter = left;
-    sem_post(sem_riders_counter);
+        int left = (*riders_counter > capacity) ? 0 : (capacity - *riders_counter);
 
-    sem_post(sem_mutex);
-    depart(delay_time);
+        // Change number of riders left at bus stop
+        sem_wait(sem_riders_counter);
+        *riders_counter = left;
+        sem_post(sem_riders_counter);
+
+        sem_post(sem_mutex);
+        depart(delay_time);
+    }
 }
 
-void bus_process(int capacity, int delay_time) {
+void bus_process(int riders, int capacity, int delay_time) {
     // Log start of bus + inc action counter
     fprintf(log_file, "%d\t: BUS\t: start\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
+    printf("int_cnt: %d, rd_cnt: %d, riders: %d\n", *internal_counter, *riders_counter, riders);
     // TODO doplnit podmienku pokial ma chodit bus
-    // BUS arrived
-    arrive(capacity, delay_time);
+    do {
+        printf("WHILE int_cnt: %d, rd_cnt: %d, riders: %d\n", *internal_counter, *riders_counter, riders);
+        // BUS arrived
+        arrive(capacity, delay_time);
+    } while (*internal_counter < riders && *riders_counter != 0); // < alebo <= ???
+    printf("END WHILE int_cnt: %d, rd_cnt: %d, riders: %d\n", *internal_counter, *riders_counter, riders);
 
     // Log bus finish + inc action counter
     fprintf(log_file, "%d\t: BUS\t: finish\n", *action_counter);
+    fprintf(stdout, "%d\t: BUS\t: finish\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
     exit(0);
@@ -229,12 +247,14 @@ void bus_process(int capacity, int delay_time) {
 void board(int RID) {
     // Log boarding of rider RID + inc action counter
     fprintf(log_file, "%d\t: RIDER %d\t: boarding\n", *action_counter, RID);
+    fprintf(stdout, "%d\t: RIDER %d\t: boarding\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
 }
 
 void rider_process(int RID) {
     // Log start of rider RID + inc action counter
     fprintf(log_file, "%d\t: RIDER %d\t: start\n", *action_counter, RID);
+    fprintf(stdout, "%d\t: RIDER %d\t: start\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
 
     // Inc riders at bus stop counter
@@ -252,6 +272,7 @@ void rider_process(int RID) {
 
     // Log finish of rider RID + inc action counter
     fprintf(log_file, "%d\t: RIDER %d\t: finish\n", *action_counter, RID);
+    fprintf(stdout, "%d\t: RIDER %d\t: finish\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
 
     exit(0);
@@ -314,7 +335,7 @@ int main(int argc, char **argv) {
         printf("Child process - bus process\n");
 
         // Bus process
-        bus_process(param.C, param.ABT);
+        bus_process(param.R, param.C, param.ABT);
     }
     else if (bus_id > 0) {
         // Parent process
