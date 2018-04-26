@@ -7,10 +7,13 @@ int ABT;
 // Semaphore names
 #define SEM_ACTION_COUNTER "/xholko02-sem-action_counter"
 #define SEM_MUTEX "/xholko02-sem-mutex"
+#define SEM_BUS_ARRIVED "/xholko02-sem-bus-arrived"
+
 
 // Semaphores
 sem_t *sem_action_counter;
 sem_t *sem_mutex;
+sem_t *sem_bus_arrived; // ???
 
 // Shared memory - variables
 int *riders_counter; // Number of processes rider currently on bus stop

@@ -9,7 +9,7 @@
 #include <sys/shm.h>
 #include <semaphore.h>
 #include <fcntl.h>
-
+#include<time.h>
 
 #include "proj2.h"
 
@@ -99,6 +99,7 @@ int create_semaphores() {
 void clean_shm() {
     printf("CLEAN SHM\n");
     shmctl(shm_action_counter_id, IPC_RMID, NULL);
+    shmctl(shm_riders_counter_id, IPC_RMID, NULL);
 }
 
 void clean_semaphores() {
@@ -112,6 +113,31 @@ void clean_semaphores() {
     sem_unlink(SEM_MUTEX);
 }
 
+void depart() {
+    printf(";;;;DEPART\n");
+
+    // Make bus process sleep
+    // get random number from <0, ABT>
+
+    int sleep_time = (rand() % ABT) * 1000; // generated time + convert
+    printf("TIME for BUS generated: %d\n", sleep_time);
+    if (sleep_time != 0) {
+        printf("BUS GOING to sleep\n");
+        usleep(sleep_time);
+        printf("BUS waking up\n");
+    }
+
+    // after waking up print to log
+    fprintf(log_file, "%d\t: BUS\t: end\n", *action_counter);
+    // Increase action counter
+    sem_wait(sem_action_counter);
+    *action_counter = *action_counter + 1;
+    sem_post(sem_action_counter);
+    printf("NEW action counter after end: %d\n", *action_counter);
+
+    printf(";;;\n");
+}
+
 void arrive() {
     sem_wait(sem_mutex);
     printf("!!!ARRIVING\n");
@@ -122,7 +148,26 @@ void arrive() {
     sem_wait(sem_action_counter);
     *action_counter = *action_counter + 1;
     sem_post(sem_action_counter);
-    printf("NEW action counter: %d\n", *action_counter);
+    printf("NEW action counter after arrive: %d\n", *action_counter);
+
+    // Check if someone on bus stop
+    if (*riders_counter > 0) {
+        // Start boarding
+    }
+    else {
+        // Leave immediately
+        // Print bus departed
+        fprintf(log_file, "%d\t: BUS\t: depart\n", *action_counter);
+        // Increase action counter
+        sem_wait(sem_action_counter);
+        *action_counter = *action_counter + 1;
+        sem_post(sem_action_counter);
+        printf("NEW action counter after depart: %d\n", *action_counter);
+
+    }
+
+    printf("BUS IS GOING TO DEPART\n");
+    depart();
 
     printf("!!!\n");
     sem_post(sem_mutex);
@@ -140,6 +185,8 @@ void doBusStuff() {
 
 int main(int argc, char **argv) {
 	printf("SENATE BUS PROBLEM\n");
+
+    srand(time(0));
 
     if (get_arguments(argc, argv))
         return 1;
@@ -168,6 +215,25 @@ int main(int argc, char **argv) {
         /* child process */
         printf("===\nCHILD, id: %d\n", getpid());
         printf("===\n");
+
+        // Generate RIDERS
+        for (int i = 0; i < R; i++) {
+            printf("<<<GENERATING RIDERS %d\n", i);
+
+            int sleep_time = (rand() % ART) * 1000; // generated time + convert
+            printf("TIME for RIDER generated: %d\n", sleep_time);
+            if (sleep_time != 0) {
+                printf("RIDER GOING to sleep\n");
+                usleep(sleep_time);
+                printf("RIDER waking up - time to generate\n");
+            }
+            // fork rider process
+
+            // Increase riders counter at bus stop
+
+            
+        }
+
     }
     else if(bus_pid > 0) {
         /* MASTER */
