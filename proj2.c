@@ -26,19 +26,22 @@ typedef struct {
 #define SEM_ACTION_COUNTER "/xholko02-IOS-proj2-sem-action_counter"
 #define SEM_INTERNAL_COUNTER "/xholko02-IOS-proj2-sem-internal_counter"
 #define SEM_MUTEX "/xholko02-IOS-proj2-sem-mutex"
+#define SEM_RIDERS_COUNTER "/xholko02-IOS-proj2-sem-riders_counter"
+#define SEM_BUS_ARRIVED "/xholko02-IOS-proj2-sem-bus-arrived"
+#define SEM_RIDER_BOARDED "/xholko02-IOS-proj2-sem-rider-boarded"
 
 // Semaphores
-sem_t *sem_action_counter;
-sem_t *sem_internal_counter;
-sem_t *sem_mutex;
+sem_t *sem_action_counter = NULL;
+sem_t *sem_internal_counter = NULL;
+sem_t *sem_mutex = NULL;
+sem_t *sem_riders_counter = NULL;
+sem_t *sem_bus_arrived = NULL;
+sem_t *sem_rider_boarded = NULL;
 
 // Shared memory - variables
 int *action_counter;
 int *internal_counter;
-
-// Shared memory - variable id
-int shm_action_counter_id;
-int shm_internal_counter_id;
+int *riders_counter;
 
 // Log file
 #define LOG_FILE_NAME "proj2.out"
@@ -88,6 +91,10 @@ int create_shm() {
     MMAP(internal_counter);
     *internal_counter = 0;
 
+    // RIDER AT BUS STOP COUNTER
+    MMAP(riders_counter);
+    *riders_counter = 0;
+
     return 0;
 }
 
@@ -107,6 +114,21 @@ int create_semaphores() {
         fprintf(stderr, "Error! Opening mutex semaphore failed.\n");
         return 1;
     }
+    if ((sem_riders_counter = sem_open(SEM_RIDERS_COUNTER, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
+        // handle error
+        fprintf(stderr, "Error! Opening riders counter semaphore failed.\n");
+        return 1;
+    }
+    if ((sem_bus_arrived = sem_open(SEM_BUS_ARRIVED, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
+        // handle error
+        fprintf(stderr, "Error! Opening bus arrived semaphore failed.\n");
+        return 1;
+    }
+    if ((sem_rider_boarded = sem_open(SEM_RIDER_BOARDED, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
+        // handle error
+        fprintf(stderr, "Error! Opening rider boarded semaphore failed.\n");
+        return 1;
+    }
 
     return 0;
 }
@@ -121,6 +143,7 @@ int init_resources() {
 void clean_shm() {
     UNMAP(action_counter);
     UNMAP(internal_counter);
+    UNMAP(riders_counter);
 }
 
 void clean_semaphores() {
@@ -128,11 +151,17 @@ void clean_semaphores() {
     sem_close(sem_action_counter);
     sem_close(sem_internal_counter);
     sem_close(sem_mutex);
+    sem_close(sem_riders_counter);
+    sem_close(sem_bus_arrived);
+    sem_close(sem_rider_boarded);
 
     // Unlink semaphores
     sem_unlink(SEM_ACTION_COUNTER);
     sem_unlink(SEM_INTERNAL_COUNTER);
     sem_unlink(SEM_MUTEX);
+    sem_unlink(SEM_RIDERS_COUNTER);
+    sem_unlink(SEM_BUS_ARRIVED);
+    sem_unlink(SEM_RIDER_BOARDED);
 }
 
 void clean_resources() {
@@ -146,31 +175,49 @@ void inc_shm(int *var, sem_t *sem) {
     sem_post(sem);
 }
 
-void depart() {
+void depart(int delay_time) {
     // Log depart + inc action counter
     fprintf(log_file, "%d\t: BUS\t: depart\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
+
+    int sleep_time = (rand() % delay_time);
+    printf("Sleeptime bus: %d\n", sleep_time);
+    if (sleep_time != 0) usleep(sleep_time );
+    printf("Bus woke up\n");
 }
 
-void arrive() {
+void arrive(int capacity, int delay_time) {
     sem_wait(sem_mutex);
 
     // Log arrival + inc action counter
     fprintf(log_file, "%d\t: BUS\t: arrival\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
+    int boarding = (*riders_counter > capacity) ? capacity : *riders_counter ;
+    for (int i = 0; i < boarding; i++) {
+        sem_post(sem_bus_arrived);
+        sem_wait(sem_rider_boarded);
+    }
+
+    int left = (*riders_counter > capacity) ? 0 : (capacity - *riders_counter);
+
+    // Change number of riders left at bus stop
+    sem_wait(sem_riders_counter);
+    *riders_counter = left;
+    sem_post(sem_riders_counter);
+
     sem_post(sem_mutex);
-    depart();
+    depart(delay_time);
 }
 
-void bus_process() {
+void bus_process(int capacity, int delay_time) {
     // Log start of bus + inc action counter
     fprintf(log_file, "%d\t: BUS\t: start\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
     // TODO doplnit podmienku pokial ma chodit bus
     // BUS arrived
-    arrive();
+    arrive(capacity, delay_time);
 
     // Log bus finish + inc action counter
     fprintf(log_file, "%d\t: BUS\t: finish\n", *action_counter);
@@ -179,18 +226,33 @@ void bus_process() {
     exit(0);
 }
 
+void board(int RID) {
+    // Log boarding of rider RID + inc action counter
+    fprintf(log_file, "%d\t: RIDER %d\t: boarding\n", *action_counter, RID);
+    inc_shm(action_counter, sem_action_counter);
+}
+
 void rider_process(int RID) {
     // Log start of rider RID + inc action counter
     fprintf(log_file, "%d\t: RIDER %d\t: start\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
 
+    // Inc riders at bus stop counter
+    inc_shm(riders_counter, sem_riders_counter);
+
+    // Pass back mutex
+    sem_post(sem_mutex);
+
+    // Wait until bus arrived
+    sem_wait(sem_bus_arrived);
+
+    board(RID);
+
+    sem_post(sem_rider_boarded);
 
     // Log finish of rider RID + inc action counter
     fprintf(log_file, "%d\t: RIDER %d\t: finish\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
-
-    // Rider RID finish - pass back mutex
-    sem_post(sem_mutex);
 
     exit(0);
 }
@@ -252,7 +314,7 @@ int main(int argc, char **argv) {
         printf("Child process - bus process\n");
 
         // Bus process
-        bus_process();
+        bus_process(param.C, param.ABT);
     }
     else if (bus_id > 0) {
         // Parent process
