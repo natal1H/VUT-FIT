@@ -77,6 +77,19 @@ int create_shm() {
     }
     *riders_counter = 0;
 
+    // INTERNAL RIDER ID COUNTER
+    if ((shm_internal_counter_id = shmget(IPC_PRIVATE, sizeof(int), IPC_CREAT | 0666)) == -1) {
+        // handle error
+        fprintf(stderr, "Error! Could not create shm_internal_counter.\n");
+        return 1;
+    }
+    if ((internal_counter = shmat(shm_riders_counter_id, NULL, 0)) == NULL) {
+        // handle error
+        fprintf(stderr, "Error! Could not create shm_internal_counter.\n");
+        return 1;
+    }
+    *internal_counter = 1;
+
     return 0;
 }
 
@@ -92,6 +105,26 @@ int create_semaphores() {
         fprintf(stderr, "Error! Opening mutex semaphore failed.\n");
         return 1;
     }
+    if ((sem_bus = sem_open(SEM_BUS, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
+        // handle error
+        fprintf(stderr, "Error! Opening bus semaphore failed.\n");
+        return 1;
+    }
+    if ((sem_internal_counter = sem_open(SEM_INTERNAL_COUNTER, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
+        // handle error
+        fprintf(stderr, "Error! Opening internal counter semaphore failed.\n");
+        return 1;
+    }
+    if ((sem_multiplex = sem_open(SEM_MULTIPLEX, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, C)) == SEM_FAILED) {
+        // handle error
+        fprintf(stderr, "Error! Opening multiplex semaphore failed.\n");
+        return 1;
+    }
+    if ((sem_riders_counter = sem_open(SEM_RIDERS_COUNTER, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
+        // handle error
+        fprintf(stderr, "Error! Opening riders counter semaphore failed.\n");
+        return 1;
+    }
 
     return 0;
 }
@@ -100,6 +133,7 @@ void clean_shm() {
     printf("CLEAN SHM\n");
     shmctl(shm_action_counter_id, IPC_RMID, NULL);
     shmctl(shm_riders_counter_id, IPC_RMID, NULL);
+    shmctl(shm_internal_counter_id, IPC_RMID, NULL);
 }
 
 void clean_semaphores() {
@@ -107,10 +141,18 @@ void clean_semaphores() {
     // Closes semaphores
     sem_close(sem_action_counter);
     sem_close(sem_mutex);
+    sem_close(sem_bus);
+    sem_close(sem_internal_counter);
+    sem_close(sem_multiplex);
+    sem_close(sem_riders_counter);
 
     // Removes semaphores
     sem_unlink(SEM_ACTION_COUNTER);
     sem_unlink(SEM_MUTEX);
+    sem_unlink(SEM_BUS);
+    sem_unlink(SEM_INTERNAL_COUNTER);
+    sem_unlink(SEM_MULTIPLEX);
+    sem_unlink(SEM_RIDERS_COUNTER);
 }
 
 void depart() {
@@ -177,15 +219,17 @@ void doBusStuff() {
     printf("###\nDoing bus stuff:\n");
 
     // TODO doplnit podmienku ukoncenie jazdy (vsetci riders vygenerovani a nik necaka)
-
-    arrive();
-
+    while (*internal_counter < R) {
+        arrive();
+    }
     printf("###\n");
 }
 
 int main(int argc, char **argv) {
+    clean_shm();
+    clean_semaphores();
 	printf("SENATE BUS PROBLEM\n");
-
+/*
     srand(time(0));
 
     if (get_arguments(argc, argv))
@@ -205,6 +249,7 @@ int main(int argc, char **argv) {
     }
 
     pid_t bus_pid;
+    pid_t rider_process;
     bus_pid = fork();
 
     if(bus_pid == -1) { // error
@@ -212,32 +257,228 @@ int main(int argc, char **argv) {
         abort();
     }
     else if(bus_pid == 0) {
-        /* child process */
-        printf("===\nCHILD, id: %d\n", getpid());
+        / * child process * /
+ / *       printf("===\nCHILD, bus_id: %d, getid: %d\n", bus_pid, getpid());
         printf("===\n");
-
+*/
         // Generate RIDERS
-        for (int i = 0; i < R; i++) {
-            printf("<<<GENERATING RIDERS %d\n", i);
+ //      for (int i = 1; i < R+1; i++) {
+//            sem_wait(sem_mutex);
 
-            int sleep_time = (rand() % ART) * 1000; // generated time + convert
-            printf("TIME for RIDER generated: %d\n", sleep_time);
-            if (sleep_time != 0) {
-                printf("RIDER GOING to sleep\n");
-                usleep(sleep_time);
-                printf("RIDER waking up - time to generate\n");
-            }
+
+
+//            int sleep_time = (rand() % ART) * 1000; // generated time + convert
+//            printf("TIME for RIDER generated: %d\n", sleep_time);
+//            if (sleep_time != 0) {
+//                printf("RIDER GOING to sleep\n");
+//                usleep(sleep_time);
+//                printf("RIDER waking up - time to generate\n");
+//            }
             // fork rider process
+ /*          sem_wait(sem_mutex);
+           printf("<<<GENERATING RIDERS %d\n", i);
+            rider_process = fork();
+            if (rider_process == 0) { // child
+                printf("---RIDER PROCESS (%d) generated with id: %d, getid: %d---\n", i, rider_process, getpid());
+                // Increase riders counter at bus stop
 
-            // Increase riders counter at bus stop
+            }
+            sem_post(sem_mutex);
+*/
+            ////////
+//            rider_process = fork();
+//            if (rider_process == 0) {
+//                printf("MASTER RIDER\n");
+                //_exit(0);
+//            }
+//            else {
+//                printf("CHILD RIDER\n");
+//                _exit(0);
+//            }
+            ////////
 
-            
-        }
+            // Increase riders counter
+//            fprintf(log_file, "%d\t: RIDER %d\t: start\n", *action_counter, i);
+//            sem_wait(sem_action_counter);
+//            *action_counter = *action_counter + 1;
+//            sem_post(sem_action_counter);
+//            printf("NEW action counter after generating: %d\n", *action_counter);
 
-    }
-    else if(bus_pid > 0) {
+//            sem_post(sem_mutex);
+  //     }
+//       printf("EXITING CHILD\n");
+        //clean_semaphores();
+        //clean_shm();
+       //_exit(0);
+ //   }
+//    else if (bus_pid > 0) {
         /* MASTER */
-        printf("===\nMASTER, bus_pid: %d\n", getpid());
+//        printf("===\nMASTER, bus_pid: %d, getpid: %d\n", bus_pid, getpid());
+
+        // BUS start -> log to log
+//        fprintf(log_file, "%d\t: BUS\t: start\n", *action_counter);
+
+        // Increase action counter
+//        sem_wait(sem_action_counter);
+//        *action_counter = *action_counter + 1;
+//        sem_post(sem_action_counter);
+//        printf("NEW action counter: %d\n", *action_counter);
+
+//        doBusStuff();
+
+/*        printf("===\n");
+
+        fclose(log_file);
+        clean_semaphores();
+        clean_shm();
+    }
+*/
+//    fclose(log_file);
+//    clean_semaphores();
+//    clean_shm();
+//	return 0;
+
+    log_file = fopen(LOG_FILE_NAME, "w");
+
+    setbuf(log_file,NULL);
+    setbuf(stderr,NULL);
+
+    srand(time(0));
+
+    if (get_arguments(argc, argv))
+        exit(1);
+
+/*  Making semaphores and creating shared memory segments  */
+
+    create_semaphores();
+    create_shm();
+
+    int err_check;
+
+    if ( (id = fork()) < 0) {
+        fprintf(stderr, "Error: fork()\n");
+        clean_semaphores();
+        clean_shm();
+        exit(2);
+    }
+
+    if (id == 0) { // Child
+        // Generate riders
+        int sleep_time = rand(); // generated time + convert
+        printf("RAND: %d, mod: %d, times: %d\n", sleep_time, sleep_time % ART, (sleep_time % ART)*1000);
+        printf("TIME for RIDER generated: %d\n", (sleep_time % ART)*1000);
+        sleep_time = (sleep_time % ART)*1000;
+        for (int i = 1; i < R+1; i++) {
+            // SEM MULTIPLEX - generate processes only if capacity at bus stop
+            sem_wait(sem_multiplex);
+            if ( (id3 = fork()) == 0) {
+
+                // Rider
+                err_check = sem_wait(sem_mutex);
+                if (err_check == -1) {
+                    fprintf(stderr, "System call error\n");
+                    clean_semaphores(); clean_shm();
+                    exit(-1);
+                }
+
+                if (sleep_time != 0) {
+                    printf("RIDER GOING to sleep\n");
+                    usleep(sleep_time);
+                    printf("RIDER waking up - time to generate\n");
+                }
+
+                // WARNING!!! CURSED CODE - SOMEHOW INCREASES ITSELF
+                // Increase internal counter
+                printf(">I before: %d\n", *internal_counter);
+                sem_wait(sem_internal_counter);
+                //*internal_counter = *internal_counter + 1;
+                //(*internal_counter)++;
+                sem_post(sem_internal_counter);
+                printf(">I before: %d\n", *internal_counter);
+
+
+                printf("Rider %d\n", *internal_counter);
+
+                fprintf(log_file, "%d\t: RIDER %d\t: start\n", *action_counter, *internal_counter);
+                // Increase action counter
+                sem_wait(sem_action_counter);
+                *action_counter = *action_counter + 1;
+                sem_post(sem_action_counter);
+                printf("NEW action counter after generating: %d\n", *action_counter);
+
+                // Increase riders on bus stop counter
+                sem_wait(sem_riders_counter);
+                *riders_counter = *riders_counter + 1;
+                sem_post(sem_riders_counter);
+                printf("RIDERS na zastavke: %d\n", *riders_counter);
+
+                err_check = sem_post(sem_mutex);
+                if (err_check == -1) {
+                    fprintf(stderr, "System call error\n");
+                    clean_semaphores(); clean_shm();
+                    exit(-1);
+                }
+/*
+                check = sem_wait(sem_1);
+                if (check == -1) { fprintf(stderr, "System call error\n"); res_clean(); exit(2); }
+
+                fprintf(file, "%-6d: A %-4d: started\n", ++(*counter), i);
+
+                check = sem_post(sem_1);
+                if (check == -1) { fprintf(stderr, "System call error\n"); res_clean(); exit(2); }
+
+                adult_fun(i, A, AWT, file);
+
+                if ( (*finish_var) == (A+C) ) {
+                    for (int h=0; h<C; h++) {
+                        check = sem_post(sem_2);
+                        if (check == -1) { fprintf(stderr, "System call error\n"); res_clean(); exit(2); }
+                    }
+                    for (int z=0; z<A; z++) {
+                        check = sem_post(sem_3);
+                        if (check == -1) { fprintf(stderr, "System call error\n"); res_clean(); exit(2); }
+                    }
+                }
+
+                check = sem_wait(sem_3);
+                if (check == -1) { fprintf(stderr, "System call error\n"); res_clean(); exit(2); }
+
+                check = sem_wait(sem_1);
+                if (check == -1) { fprintf(stderr, "System call error\n"); res_clean(); exit(2); }
+
+                fprintf(file, "%-6d: A %-4d: finished\n", ++(*counter), i);
+
+                check = sem_post(sem_1);
+                if (check == -1) { fprintf(stderr, "System call error\n"); res_clean(); exit(2); }
+*/
+                exit(i);
+            } // if
+
+            else if ( id3 < 0) {
+                fprintf(stderr, "Error: fork()\n");
+                //res_clean();
+                clean_semaphores();
+                clean_shm();
+                exit(2);
+            }
+
+            else {
+                PID_3 = id3;
+            }
+            sem_post(sem_multiplex);
+
+            //usleep(AGT);
+        } // for
+
+        waitpid(PID_3, NULL, 0);
+        exit(0);
+    } // if
+
+    // BUS process
+    if (id > 0 ) {
+        PID_1 = id;
+
+        printf("===\nMASTER\n");
 
         // BUS start -> log to log
         fprintf(log_file, "%d\t: BUS\t: start\n", *action_counter);
@@ -246,16 +487,16 @@ int main(int argc, char **argv) {
         sem_wait(sem_action_counter);
         *action_counter = *action_counter + 1;
         sem_post(sem_action_counter);
-        printf("NEW action counter: %d\n", *action_counter);
-
-        doBusStuff();
+        //doBusStuff();
 
         printf("===\n");
     }
 
-    fclose(log_file);
+    waitpid(PID_1, NULL, 0);
+
     clean_semaphores();
     clean_shm();
 
-	return 0;
+    fclose(log_file);
+    exit(0);
 }
