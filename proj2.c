@@ -146,12 +146,33 @@ void inc_shm(int *var, sem_t *sem) {
     sem_post(sem);
 }
 
+void depart() {
+    // Log depart + inc action counter
+    fprintf(log_file, "%d\t: BUS\t: depart\n", *action_counter);
+    inc_shm(action_counter, sem_action_counter);
+}
+
+void arrive() {
+    sem_wait(sem_mutex);
+
+    // Log arrival + inc action counter
+    fprintf(log_file, "%d\t: BUS\t: arrival\n", *action_counter);
+    inc_shm(action_counter, sem_action_counter);
+
+    sem_post(sem_mutex);
+    depart();
+}
+
 void bus_process() {
-    // Log start of bus
+    // Log start of bus + inc action counter
     fprintf(log_file, "%d\t: BUS\t: start\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
-    // Log bus finish
+    // TODO doplnit podmienku pokial ma chodit bus
+    // BUS arrived
+    arrive();
+
+    // Log bus finish + inc action counter
     fprintf(log_file, "%d\t: BUS\t: finish\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
@@ -159,10 +180,16 @@ void bus_process() {
 }
 
 void rider_process(int RID) {
-    // Log start of rider RID
+    // Log start of rider RID + inc action counter
     fprintf(log_file, "%d\t: RIDER %d\t: start\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
 
+
+    // Log finish of rider RID + inc action counter
+    fprintf(log_file, "%d\t: RIDER %d\t: finish\n", *action_counter, RID);
+    inc_shm(action_counter, sem_action_counter);
+
+    // Rider RID finish - pass back mutex
     sem_post(sem_mutex);
 
     exit(0);
