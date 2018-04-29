@@ -2,7 +2,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <stdlib.h> /* abort */
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -193,17 +193,13 @@ void inc_shm(int *var, sem_t *sem) {
 void depart(param_t param) {
     // Log depart + inc action counter
     fprintf(log_file, "%d\t: BUS\t: depart\n", *action_counter);
-    fprintf(stdout, "%d\t: BUS\t: depart\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
     int sleep_time = (rand() % param.ABT);
-    printf("Sleeptime bus: %d\n", sleep_time);
     if (sleep_time != 0) usleep(sleep_time );
-    printf("Bus woke up\n");
 
     // Log end (bus finished ride - woke up from sleep) + inc action counter
     fprintf(log_file, "%d\t: BUS\t: end\n", *action_counter);
-    fprintf(stdout, "%d\t: BUS\t: end\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 }
 
@@ -212,7 +208,6 @@ void arrive(param_t param) {
 
     // Log arrival + inc action counter
     fprintf(log_file, "%d\t: BUS\t: arrival\n", *action_counter);
-    fprintf(stdout, "%d\t: BUS\t: arrival\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
     if (*riders_counter == 0) {
@@ -222,7 +217,6 @@ void arrive(param_t param) {
     else {
         // Log start boarding + inc action counter
         fprintf(log_file, "%d\t: BUS\t: start boarding: %d\n", *action_counter, *riders_counter);
-        fprintf(stdout, "%d\t: BUS\t: start boarding: %d\n", *action_counter, *riders_counter);
         inc_shm(action_counter, sem_action_counter);
 
         int boarding = (*riders_counter > param.C) ? param.C : *riders_counter;
@@ -233,15 +227,7 @@ void arrive(param_t param) {
 
         // Log end boarding + inc action counter
         fprintf(log_file, "%d\t: BUS\t: end boarding: %d\n", *action_counter, *riders_counter);
-        fprintf(stdout, "%d\t: BUS\t: end boarding: %d\n", *action_counter, *riders_counter);
         inc_shm(action_counter, sem_action_counter);
-
-        //int left = (*riders_counter > param.C) ? 0 : (param.C - *riders_counter);
-
-        // Change number of riders left at bus stop
-        //sem_wait(sem_riders_counter);
-        //*riders_counter = left;
-        //sem_post(sem_riders_counter);
 
         sem_post(sem_mutex);
         depart(param);
@@ -253,23 +239,13 @@ void bus_process(param_t param) {
     fprintf(log_file, "%d\t: BUS\t: start\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
-    printf("BEFORE WHILE int_cnt: %d, rd_cnt: %d, num_brd: %d, riders: %d\n", *internal_counter, *riders_counter, *num_boarded, param.R);
-
-    // TODO doplnit podmienku pokial ma chodit bus
     while (*num_boarded < param.R || *riders_counter != 0) {
-        printf("WHILE int_cnt: %d, rd_cnt: %d, num_brd: %d, riders: %d\n", *internal_counter, *riders_counter, *num_boarded, param.R);
         // BUS arrived
         arrive(param);
-    //} while (!finished); //(*internal_counter < riders || *riders_counter != 0); // < alebo <= ???
-    //} while (*internal_counter < param.R || *riders_counter != 0); // < alebo <= ???
-    //} while (*internal_counter < param.R && *riders_counter != 0 && *num_boarded < param.R ); // < alebo <= ???
     }
-
-    printf("END WHILE int_cnt: %d, rd_cnt: %d, num_brd: %d, riders: %d\n", *internal_counter, *riders_counter, *num_boarded, param.R);
 
     // Log bus finish + inc action counter
     fprintf(log_file, "%d\t: BUS\t: finish\n", *action_counter);
-    fprintf(stdout, "%d\t: BUS\t: finish\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
     exit(0);
@@ -278,7 +254,6 @@ void bus_process(param_t param) {
 void board(int RID) {
     // Log boarding of rider RID + inc action counter
     fprintf(log_file, "%d\t: RIDER %d\t: boarding\n", *action_counter, RID);
-    fprintf(stdout, "%d\t: RIDER %d\t: boarding\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
 
     inc_shm(num_boarded, sem_num_boarded);
@@ -290,21 +265,16 @@ void board(int RID) {
 
 }
 
-void rider_process(int RID, param_t param) {
+void rider_process(int RID) {
     // Log start of rider RID + inc action counter
     fprintf(log_file, "%d\t: RIDER %d\t: start\n", *action_counter, RID);
-    fprintf(stdout, "%d\t: RIDER %d\t: start\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
-
-    // delete this
-    printf(">Generated rider %d of %d\n", *internal_counter, param.R);
 
     // Inc riders at bus stop counter
     inc_shm(riders_counter, sem_riders_counter);
 
     // Log arrival of rider to bus stop
     fprintf(log_file, "%d\t: RIDER %d\t: enter: %d\n", *action_counter, RID, *riders_counter);
-    fprintf(stdout, "%d\t: RIDER %d\t: enter: %d\n", *action_counter, RID, *riders_counter);
     inc_shm(action_counter, sem_action_counter);
 
     // Pass back mutex
@@ -319,7 +289,6 @@ void rider_process(int RID, param_t param) {
 
     // Log finish of rider RID + inc action counter
     fprintf(log_file, "%d\t: RIDER %d\t: finish\n", *action_counter, RID);
-    fprintf(stdout, "%d\t: RIDER %d\t: finish\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
 
     exit(0);
@@ -328,19 +297,20 @@ void rider_process(int RID, param_t param) {
 void rider_generator_process(param_t param) {
 
     for (int i = 0; i < param.R; i++) {
-        /*
+
+        // Sleep before creating RIDER process
         int sleep_time = (rand() % param.ART);
-        printf("Sleeptime: %d\n", sleep_time);
         if (sleep_time != 0) usleep(sleep_time );
-        printf("Rider %d woke up\n", i);*/
+
         pid_t rider_process_id = fork();
+
         if (rider_process_id == 0) {
             // Child process - rider process
             sem_wait(sem_mutex);
 
             inc_shm(internal_counter, sem_internal_counter);
-            printf("Rider process %d\n", *internal_counter);
-            rider_process(*internal_counter, param);
+
+            rider_process(*internal_counter);
         }
         else if (rider_process_id == -1) {
             // Handle error
@@ -348,10 +318,6 @@ void rider_generator_process(param_t param) {
             clean_resources();
             exit(1);
         }
-        int sleep_time = (rand() % param.ART);
-        printf("Sleeptime: %d\n", sleep_time);
-        if (sleep_time != 0) usleep(sleep_time );
-        printf("Rider %d woke up\n", i);
     }
 
 
@@ -383,22 +349,16 @@ int main(int argc, char **argv) {
     pid_t bus_id = fork();
 
     if (bus_id == 0) {
-        // Child process
-        printf("Child process - bus process\n");
-
-        // Bus process
+        // Child process - bus process
         bus_process(param);
-
-        //exit(0);
     }
     else if (bus_id > 0) {
         // Parent process
-        printf("Parent of bus process\n");
 
         pid_t rider_generator_id = fork();
+
         if (rider_generator_id == 0) {
             // Child process - rider generator process
-            printf("Child process - rider generator process\n");
             rider_generator_process(param);
         }
         else if (rider_generator_id == -1) {
