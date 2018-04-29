@@ -27,6 +27,8 @@ typedef struct {
 #define SEM_RIDERS_COUNTER "/xholko02-IOS-proj2-sem-riders_counter"
 #define SEM_BUS_ARRIVED "/xholko02-IOS-proj2-sem-bus-arrived"
 #define SEM_RIDER_BOARDED "/xholko02-IOS-proj2-sem-rider-boarded"
+#define SEM_ALL_GENERATED "/xholko02-IOS-proj2-sem-all-boarded"
+#define SEM_NUM_BOARDED "/xholko02-IOS-proj2-sem-num-boarded"
 
 // Semaphores
 sem_t *sem_action_counter = NULL;
@@ -35,11 +37,13 @@ sem_t *sem_mutex = NULL;
 sem_t *sem_riders_counter = NULL;
 sem_t *sem_bus_arrived = NULL;
 sem_t *sem_rider_boarded = NULL;
+sem_t *sem_num_boarded;
 
 // Shared memory - variables
 int *action_counter;
 int *internal_counter;
 int *riders_counter;
+int *num_boarded;
 
 // Log file
 #define LOG_FILE_NAME "proj2.out"
@@ -93,6 +97,10 @@ int create_shm() {
     MMAP(riders_counter);
     *riders_counter = 0;
 
+    // NUM BOARDED
+    MMAP(num_boarded);
+    *num_boarded = 0;
+
     return 0;
 }
 
@@ -117,7 +125,6 @@ int create_semaphores() {
         fprintf(stderr, "Error! Opening riders counter semaphore failed.\n");
         return 1;
     }
-    // TODO spravne nastavene hodnoty?
     if ((sem_bus_arrived = sem_open(SEM_BUS_ARRIVED, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
         // handle error
         fprintf(stderr, "Error! Opening bus arrived semaphore failed.\n");
@@ -126,6 +133,11 @@ int create_semaphores() {
     if ((sem_rider_boarded = sem_open(SEM_RIDER_BOARDED, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
         // handle error
         fprintf(stderr, "Error! Opening rider boarded semaphore failed.\n");
+        return 1;
+    }
+    if ((sem_num_boarded= sem_open(SEM_NUM_BOARDED, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
+        // handle error
+        fprintf(stderr, "Error! Opening num boarded semaphore failed.\n");
         return 1;
     }
 
@@ -143,6 +155,8 @@ void clean_shm() {
     UNMAP(action_counter);
     UNMAP(internal_counter);
     UNMAP(riders_counter);
+    UNMAP(num_boarded);
+    //UNMAP(all_generated);
 }
 
 void clean_semaphores() {
@@ -153,6 +167,7 @@ void clean_semaphores() {
     sem_close(sem_riders_counter);
     sem_close(sem_bus_arrived);
     sem_close(sem_rider_boarded);
+    sem_close(sem_num_boarded);
 
     // Unlink semaphores
     sem_unlink(SEM_ACTION_COUNTER);
@@ -161,6 +176,7 @@ void clean_semaphores() {
     sem_unlink(SEM_RIDERS_COUNTER);
     sem_unlink(SEM_BUS_ARRIVED);
     sem_unlink(SEM_RIDER_BOARDED);
+    sem_unlink(SEM_NUM_BOARDED);
 }
 
 void clean_resources() {
@@ -174,19 +190,24 @@ void inc_shm(int *var, sem_t *sem) {
     sem_post(sem);
 }
 
-void depart(int delay_time) {
+void depart(param_t param) {
     // Log depart + inc action counter
     fprintf(log_file, "%d\t: BUS\t: depart\n", *action_counter);
     fprintf(stdout, "%d\t: BUS\t: depart\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
-    int sleep_time = (rand() % delay_time);
+    int sleep_time = (rand() % param.ABT);
     printf("Sleeptime bus: %d\n", sleep_time);
     if (sleep_time != 0) usleep(sleep_time );
     printf("Bus woke up\n");
+
+    // Log end (bus finished ride - woke up from sleep) + inc action counter
+    fprintf(log_file, "%d\t: BUS\t: end\n", *action_counter);
+    fprintf(stdout, "%d\t: BUS\t: end\n", *action_counter);
+    inc_shm(action_counter, sem_action_counter);
 }
 
-void arrive(int capacity, int delay_time) {
+void arrive(param_t param) {
     sem_wait(sem_mutex);
 
     // Log arrival + inc action counter
@@ -196,45 +217,55 @@ void arrive(int capacity, int delay_time) {
 
     if (*riders_counter == 0) {
         sem_post(sem_mutex);
-        depart(delay_time);
+        depart(param);
     }
     else {
         // Log start boarding + inc action counter
-        fprintf(log_file, "%d\t: BUS\t: start boarding\n", *action_counter);
-        fprintf(stdout, "%d\t: BUS\t: start boarding\n", *action_counter);
+        fprintf(log_file, "%d\t: BUS\t: start boarding: %d\n", *action_counter, *riders_counter);
+        fprintf(stdout, "%d\t: BUS\t: start boarding: %d\n", *action_counter, *riders_counter);
         inc_shm(action_counter, sem_action_counter);
 
-        int boarding = (*riders_counter > capacity) ? capacity : *riders_counter;
+        int boarding = (*riders_counter > param.C) ? param.C : *riders_counter;
         for (int i = 0; i < boarding; i++) {
             sem_post(sem_bus_arrived);
             sem_wait(sem_rider_boarded);
         }
 
-        int left = (*riders_counter > capacity) ? 0 : (capacity - *riders_counter);
+        // Log end boarding + inc action counter
+        fprintf(log_file, "%d\t: BUS\t: end boarding: %d\n", *action_counter, *riders_counter);
+        fprintf(stdout, "%d\t: BUS\t: end boarding: %d\n", *action_counter, *riders_counter);
+        inc_shm(action_counter, sem_action_counter);
+
+        //int left = (*riders_counter > param.C) ? 0 : (param.C - *riders_counter);
 
         // Change number of riders left at bus stop
-        sem_wait(sem_riders_counter);
-        *riders_counter = left;
-        sem_post(sem_riders_counter);
+        //sem_wait(sem_riders_counter);
+        //*riders_counter = left;
+        //sem_post(sem_riders_counter);
 
         sem_post(sem_mutex);
-        depart(delay_time);
+        depart(param);
     }
 }
 
-void bus_process(int riders, int capacity, int delay_time) {
+void bus_process(param_t param) {
     // Log start of bus + inc action counter
     fprintf(log_file, "%d\t: BUS\t: start\n", *action_counter);
     inc_shm(action_counter, sem_action_counter);
 
-    printf("int_cnt: %d, rd_cnt: %d, riders: %d\n", *internal_counter, *riders_counter, riders);
+    printf("BEFORE WHILE int_cnt: %d, rd_cnt: %d, num_brd: %d, riders: %d\n", *internal_counter, *riders_counter, *num_boarded, param.R);
+
     // TODO doplnit podmienku pokial ma chodit bus
-    do {
-        printf("WHILE int_cnt: %d, rd_cnt: %d, riders: %d\n", *internal_counter, *riders_counter, riders);
+    while (*num_boarded < param.R || *riders_counter != 0) {
+        printf("WHILE int_cnt: %d, rd_cnt: %d, num_brd: %d, riders: %d\n", *internal_counter, *riders_counter, *num_boarded, param.R);
         // BUS arrived
-        arrive(capacity, delay_time);
-    } while (*internal_counter < riders && *riders_counter != 0); // < alebo <= ???
-    printf("END WHILE int_cnt: %d, rd_cnt: %d, riders: %d\n", *internal_counter, *riders_counter, riders);
+        arrive(param);
+    //} while (!finished); //(*internal_counter < riders || *riders_counter != 0); // < alebo <= ???
+    //} while (*internal_counter < param.R || *riders_counter != 0); // < alebo <= ???
+    //} while (*internal_counter < param.R && *riders_counter != 0 && *num_boarded < param.R ); // < alebo <= ???
+    }
+
+    printf("END WHILE int_cnt: %d, rd_cnt: %d, num_brd: %d, riders: %d\n", *internal_counter, *riders_counter, *num_boarded, param.R);
 
     // Log bus finish + inc action counter
     fprintf(log_file, "%d\t: BUS\t: finish\n", *action_counter);
@@ -249,16 +280,32 @@ void board(int RID) {
     fprintf(log_file, "%d\t: RIDER %d\t: boarding\n", *action_counter, RID);
     fprintf(stdout, "%d\t: RIDER %d\t: boarding\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
+
+    inc_shm(num_boarded, sem_num_boarded);
+
+    // Rider boarded - decrease number of riders on bus stop
+    sem_wait(sem_riders_counter);
+    *riders_counter -= 1;
+    sem_post(sem_riders_counter);
+
 }
 
-void rider_process(int RID) {
+void rider_process(int RID, param_t param) {
     // Log start of rider RID + inc action counter
     fprintf(log_file, "%d\t: RIDER %d\t: start\n", *action_counter, RID);
     fprintf(stdout, "%d\t: RIDER %d\t: start\n", *action_counter, RID);
     inc_shm(action_counter, sem_action_counter);
 
+    // delete this
+    printf(">Generated rider %d of %d\n", *internal_counter, param.R);
+
     // Inc riders at bus stop counter
     inc_shm(riders_counter, sem_riders_counter);
+
+    // Log arrival of rider to bus stop
+    fprintf(log_file, "%d\t: RIDER %d\t: enter: %d\n", *action_counter, RID, *riders_counter);
+    fprintf(stdout, "%d\t: RIDER %d\t: enter: %d\n", *action_counter, RID, *riders_counter);
+    inc_shm(action_counter, sem_action_counter);
 
     // Pass back mutex
     sem_post(sem_mutex);
@@ -278,9 +325,14 @@ void rider_process(int RID) {
     exit(0);
 }
 
-void rider_generator_process(int R, int delay_time) {
+void rider_generator_process(param_t param) {
 
-    for (int i = 0; i < R; i++) {
+    for (int i = 0; i < param.R; i++) {
+        /*
+        int sleep_time = (rand() % param.ART);
+        printf("Sleeptime: %d\n", sleep_time);
+        if (sleep_time != 0) usleep(sleep_time );
+        printf("Rider %d woke up\n", i);*/
         pid_t rider_process_id = fork();
         if (rider_process_id == 0) {
             // Child process - rider process
@@ -288,7 +340,7 @@ void rider_generator_process(int R, int delay_time) {
 
             inc_shm(internal_counter, sem_internal_counter);
             printf("Rider process %d\n", *internal_counter);
-            rider_process(*internal_counter);
+            rider_process(*internal_counter, param);
         }
         else if (rider_process_id == -1) {
             // Handle error
@@ -296,7 +348,7 @@ void rider_generator_process(int R, int delay_time) {
             clean_resources();
             exit(1);
         }
-        int sleep_time = (rand() % delay_time);
+        int sleep_time = (rand() % param.ART);
         printf("Sleeptime: %d\n", sleep_time);
         if (sleep_time != 0) usleep(sleep_time );
         printf("Rider %d woke up\n", i);
@@ -335,7 +387,9 @@ int main(int argc, char **argv) {
         printf("Child process - bus process\n");
 
         // Bus process
-        bus_process(param.R, param.C, param.ABT);
+        bus_process(param);
+
+        //exit(0);
     }
     else if (bus_id > 0) {
         // Parent process
@@ -345,7 +399,7 @@ int main(int argc, char **argv) {
         if (rider_generator_id == 0) {
             // Child process - rider generator process
             printf("Child process - rider generator process\n");
-            rider_generator_process(param.R, param.ART);
+            rider_generator_process(param);
         }
         else if (rider_generator_id == -1) {
             // Handle error
