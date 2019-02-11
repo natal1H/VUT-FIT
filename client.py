@@ -57,8 +57,6 @@ target_host = 'api.openweathermap.org'
 
 target_port = 80  # create a socket object
 
-
-#client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
     # connect the client
     client.connect((target_host, target_port))
@@ -82,5 +80,3 @@ data_json = json.loads(data_str[start:])
 #print(s)
 
 output_weather(data_json)
-
-process_arguments()
