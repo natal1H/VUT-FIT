@@ -6,7 +6,7 @@
 # Iba základná funkčnosť bez akýchkoľvek ošetrení
 
 # TODO - zjednotiť jazyk komentárov - celé po anglicky!!!
-# TODO - kontrola kódu http response
+# TODO - argument mesta s viacslovným názvom
 
 import socket
 import sys
@@ -71,12 +71,21 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
 
 # decode data to string
 data_str = data.decode("utf-8")
+#print(data_str)
 
-# Získanie substring s json
-start = data_str.index('{')
-data_json = json.loads(data_str[start:])
+# Overenie http status - získať prvý riadok, rozložiť, skontrolovať číslo
+first_line = data_str[:data_str.index('\r\n')].split(" ", 2)
+#print(first_line)
 
-#s = json.dumps(data_json, indent=4, sort_keys=True)
-#print(s)
+if (first_line[1] != "200"):
+    # Nastala chyba
+    print("Error code %s - %s" % (first_line[1], first_line[2]))
+else:
+    # Získanie substring s json
+    start = data_str.index('{')
+    data_json = json.loads(data_str[start:])
 
-output_weather(data_json)
+    #s = json.dumps(data_json, indent=4, sort_keys=True)
+    #print(s)
+
+    output_weather(data_json)

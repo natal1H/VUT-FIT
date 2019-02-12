@@ -3,5 +3,4 @@
 EXECUTABLE=client.py
 
 run:
-	./$(EXECUTABLE) $(api_key) $(city)
-#	echo $(api_key) $(city)
+	./$(EXECUTABLE) $(api_key) "$(city)"
