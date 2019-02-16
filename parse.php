@@ -1,5 +1,166 @@
 <?php
 
+class TokenType {
+    const T_HEADER = 0;
+    const T_COMMENT = 1;
+    const T_VARIABLE = 2;
+    const T_BOOL = 3;
+    const T_INT = 4;
+    const T_NIL = 5;
+    const T_STRING = 6;
+    const T_OPCODE = 7;
+    const T_UNKNOWN = 8;
+}
+
+# Class token:
+class Token {
+    var $type;
+    var $attribute;
+    var $valid;
+
+    function setType($new_type) {
+        $this->type = $new_type;
+    }
+
+    function getType() {
+        return $this->type;
+    }
+
+    function getAttribute() {
+        return $this->attribute;
+    }
+
+    function setValidity($new_validity) {
+        $this->valid = $new_validity;
+    }
+
+    function getValidity() {
+        return $this->valid;
+    }
+
+    function __construct($str) {
+        # Set attribute and default type
+        $this->attribute = $str;
+        $this->setType(TokenType::T_UNKNOWN);
+        $this->valid = true; # true until proven false
+    }
+
+
+    function determine_type() {
+        # Will set actual type based on attribute
+
+        global $opcodes; # TODO - make their own class for them
+
+        # Case: Header
+        if (strtolower($this->attribute) == ".ippcode19") {
+            $this->setType(TokenType::T_HEADER);
+        }
+        # Case: comment
+        elseif (preg_match("/^#/", $this->attribute)) {
+            $this->setType(TokenType::T_COMMENT);
+        }
+        # Case: variable
+        elseif (preg_match("/^GF@/", $this->attribute) or preg_match("/^LF@/", $this->attribute) or preg_match("/^TF@/", $this->attribute)) {
+            if ($this->checkVariableName($this->stripPrefix($this->attribute))) # Valid var format -> set type to T_VARIABLE
+                $this->setType(TokenType::T_VARIABLE);
+            else # Invalid var format -> set validity to false
+                $this->setValidity(false);
+        }
+        # Case: bool constant
+        elseif (preg_match("/^bool@/", $this->attribute)) {
+            if ($this->checkBoolConstant($this->stripPrefix($this->attribute))) # valid bool format -> set type to T_BOOL
+                $this->setType(TokenType::T_BOOL);
+            else # invalid bool type -> set token validity to false
+                $this->setValidity(false);
+        }
+        # Case: int constant
+        elseif (preg_match("/^int@/", $this->attribute)) {
+            if ($this->checkIntConstant($this->stripPrefix($this->attribute))) # valid int format -> set type to T_INT
+                $this->setType(Tokentype::T_INT);
+            else # invalid int format -> set validity to false
+                $this->setValidity(false);
+        }
+        # Case: string constant
+        elseif (preg_match("/^string@/", $this->attribute)) {
+            if ($this->checkStringConstant($this->stripPrefix($this->attribute))) # valid string format -> set type to T_STRING
+                $this->setType(TokenType::T_STRING);
+            else # invalid string format -> set validity to false
+                $this->setValidity(false);
+        }
+        # Case: nil constant
+        elseif ($this->attribute == "nil@nil") { # set type to T_NIL
+            $this->setType(TokenType::T_NIL);
+        }
+        # Case: opcode
+        elseif (in_array(strtoupper($this->attributed), $opcodes)) { # Set type to T_OPCODE
+            $this->setType(tokenType::T_OPCODE);
+        }
+        # Case: lex error
+        else { # Set validity to false
+            $this->setValidity(false);
+        }
+
+    }
+
+    function stripPrefix($word) {
+        return substr($word, strpos($word, '@') + 1);
+    }
+
+    function checkVariableName($name) {
+        # TODO - try to implement using regex
+        if (empty($name))
+            return false;
+
+        # Check first character
+        if (!ctype_alpha($name[0]) and !(in_array($name[0], array('_', '-', '$', '&', '%', '*', '!', '?') ) ) ) {
+            return false;
+        }
+
+        # Check if rest is only alpha/number
+        if (strlen($name) != 1 and !ctype_alnum(substr($name, 1))) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function checkIntConstant($number) {
+        return preg_match('/^[\+\-]?[0-9]+$/', $number);
+    }
+
+    function checkBoolConstant($word) {
+        return preg_match('/true|false/', $word);
+    }
+
+    function checkStringConstant($str) {
+        # Check if contains #
+        if (preg_match('/#/', $str)) {
+            return false;
+        }
+
+        # if contains \ - check if followed by xyz number in 000-999
+        $last_position = 0;
+        while (($last_position = strpos($str, '\\', $last_position)) !== false) {
+            # On index $last_position is \ -> check if it is in format \xyz
+
+            # get substring starting from $last_position + 1, length = 3
+            $esc_seqv = substr($str, $last_position + 1, 3);
+
+            if (!preg_match('/[0-9][0-9][0-9]/', $esc_seqv)) {
+                return false;
+            }
+
+            # Update last_position
+            $last_position += 1;
+        }
+
+        return true;
+    }
+
+}
+# end class token
+
+
 $opcodes = array(
     "MOVE", "CREATEFRAME", "PUSHFRAME", "POPFRAME", "DEFVAR", "CALL", "RETURN", # Work with frames, calling functions
     "PUSHS", "POPS", # Work with data stack
@@ -11,144 +172,9 @@ $opcodes = array(
     "DPRINT", "BREAK" # Debugging
 );
 
-function strip_prefix($word) {
-    return substr($word, strpos($word, '@') + 1);
-}
-
-function check_variable_name($name) {
-    # TODO - try to implement using regex
-    echo "\t\t -- name of variable: $name\n";
-    if (empty($name))
-        return false;
-
-    # Check first character - cez regex
-    #if (preg_match("'/^[a-zA-Z_\-]/'", $name)) {
-    if (ctype_alpha($name[0]) or (in_array($name[0], array('_', '-', '$', '&', '%', '*', '!', '?') ) ) ) {
-        print("\t\t- Povoleny zaciatok ID\n");
-    }
-    else {
-        print("\t\t- Nepovoleny zaciatok ID\n");
-        return false;
-    }
-    # Check if rest is only alpha/number
-    #if(preg_match('/[a-zA-Z0-9]*/', $name)) {
-    if (strlen($name) == 1 or ctype_alnum(substr($name, 1))) {
-        print("\t\t- vhodny aj zvysok mena $name\n");
-    }
-    else {
-        print("\t\t- NEvhodny zvysok mena $name\n");
-        return false;
-    }
-
-    return true;
-}
-
-function check_int_constant($number) {
-    echo "\t\t -- int constant: $number\n";
-
-    if (preg_match('/^[\+\-]?[0-9]+$/', $number)) {
-        print("\t\t- VALID number constant\n");
-    }
-    else {
-        print("\t\t- INVALID number constant\n");
-        return false;
-    }
-
-    return true;
-}
-
-function check_bool_constant($word) {
-    echo "\t\t -- bool constant: $word\n";
-    if (preg_match('/true|false/', $word)) {
-        print("\t\t- VALID bool constant\n");
-    }
-    else {
-        print("\t\t- INVALID bool constant\n");
-        return false;
-    }
-    return true;
-}
-
-function check_string_constant($str) {
-    echo "\t\t -- string constant: $str\n";
-
-    # Check if contains #
-    if (preg_match('/#/', $str)) {
-        print("\t\t- INVALID string - contains #\n");
-        return false;
-    }
-    # if contains \ - ckech if followed by xyz number in 000-999
-    # preg_match all \xyz
-    #preg_match_all('/\\.{,3}/', $str);
-
-    $last_position = 0;
-    while (($last_position = strpos($str, '\\', $last_position)) !== false) {
-        # On index $last_position is \ -> check if it is in format \xyz
-        print("\t\t -- \\ on position $last_position\n");
-
-        # get substring starting from $last_position + 1, length = 3
-        $esc_seqv = substr($str, $last_position + 1, 3);
-        print("SUBSTR: " . $esc_seqv . "\n");
-
-        if (preg_match('/[0-9][0-9][0-9]/', $esc_seqv)) {
-            print("\t\t\t - esc_seqv OK\n");
-        }
-        else {
-            print("\t\t\t - esc_seqv NOT OK\n");
-            return false;
-        }
-
-        # Update last_position
-        $last_position += 1;
-    }
-
-    return true;
-}
-
-function determine_token($word) {
-    echo "\t\tI'm now going to determing the type of word $word...\n";
-
-    global $opcodes;
-
-    if (strtolower($word) == ".ippcode19") { # Case: Header
-        echo "\t\tHEADER type\n";
-    }
-    elseif (preg_match("/^#/", $word)) { # Case: comment
-        echo "\t\tComment type\n";
-    }
-    elseif (preg_match("/^GF@/", $word) or preg_match("/^LF@/", $word) or preg_match("/^TF@/", $word)) { # Case: variable
-        echo "\t\tVariable type\n";
-        check_variable_name(strip_prefix($word));
-    }
-    elseif (preg_match("/^bool@/", $word)) { # Case: bool constant
-        echo "\t\tBool constant\n";
-        check_bool_constant(strip_prefix($word));
-    }
-    elseif (preg_match("/^int@/", $word)) { # Case: bool constant
-        echo "\t\tInt constant\n";
-        check_int_constant(strip_prefix($word));
-    }
-    elseif (preg_match("/^string@/", $word)) { # Case: bool constant
-        // TODO - dokontrolať správnosť konštanty typu string za @
-        echo "\t\tString constant\n";
-        check_string_constant(strip_prefix($word));
-    }
-    elseif ($word == "nil@nil") { # Case: bool constant
-        echo "\t\tNil constant\n";
-    }
-    elseif (in_array(strtoupper($word), $opcodes)) { # Case: opcode
-        echo "\t\tOpcode\n";
-    }
-    else {
-        echo "\t\tUnknown type - LEX ERROR\n";
-    }
-}
-
-echo "IPP Project 2018/2019\n";
-
 while ($line = fgets(STDIN)) { # Split input into lines
     echo "line: " . $line;
-    #$line = trim($line);
+
     foreach (preg_split("/[\s\t]+/", $line) as $word) { # Split line into words
 
         echo "\tword: " . $word . "\n";
@@ -158,8 +184,19 @@ while ($line = fgets(STDIN)) { # Split input into lines
             echo "\t\tNewline character\n";
         }
         else {
-            # Send each word to function to determine type of token
-            determine_token($word);
+            print("-- creating new token\n");
+            # Create token and determine its type
+            $token = new Token($word);
+            $token->determine_type();
+            print("Attribute: " . $token->getAttribute() . "\n");
+            print("Type: " . $token->getType() . "\n");
+
+            if ($token->getValidity()) {
+                print("Valid token\n");
+            }
+            else {
+                print("Invalid token\n");
+            }
         }
     }
 }
