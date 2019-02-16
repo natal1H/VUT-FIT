@@ -1,6 +1,14 @@
 <?php
 
-class TokenType {
+class Instruction {
+    var $opcode;
+    var $arg1;
+    var $arg2;
+    var $arg3;
+    var $order;
+}
+
+abstract class TokenType {
     const T_HEADER = 0;
     const T_COMMENT = 1;
     const T_VARIABLE = 2;
@@ -172,8 +180,20 @@ $opcodes = array(
     "DPRINT", "BREAK" # Debugging
 );
 
+
+$error_occurred = false;
+$line_number = 0;
+### Main loop
 while ($line = fgets(STDIN)) { # Split input into lines
+    # 1 line = 1 instruction
+
+    # Create new intruction
+    $instruction = new Instruction;
+
     echo "line: " . $line;
+
+    # Array for tokens
+    $token_array = [];
 
     foreach (preg_split("/[\s\t]+/", $line) as $word) { # Split line into words
 
@@ -182,6 +202,7 @@ while ($line = fgets(STDIN)) { # Split input into lines
         if (strlen($word) == 0) {
             # \n character
             echo "\t\tNewline character\n";
+            break; # Break foreach - begin syntax analysis with acquired tokens
         }
         else {
             print("-- creating new token\n");
@@ -193,13 +214,40 @@ while ($line = fgets(STDIN)) { # Split input into lines
 
             if ($token->getValidity()) {
                 print("Valid token\n");
+
+                $token_array[] = $token;
             }
             else {
-                print("Invalid token\n");
+                print("Invalid token, LEX ERROR\n");
+                $error_occurred = true;
+                break; # Break foreach
             }
         }
     }
+
+    if ($error_occurred) {
+        # TODO - error handling
+        print("Error occured - stopping analysis.\n");
+        break; # break while
+    }
+
+    # No lexical error, move onto syntax analysis
+    print("Beginning syntax analysis of line $line_number.\n");
+
+    # print tokens just to check
+    foreach ($token_array as $token) {
+        print(" " . $token->attribute);
+    }
+    print("\n");
+
+    $line_number += 1;
 }
 
+if (!$error_occurred) {
+    print("Program analysis without error.\n");
+}
+else {
+    print("Program analysis with error.\n");
+}
 ?>
 
