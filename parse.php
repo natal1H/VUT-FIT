@@ -1,20 +1,37 @@
 <?php
 
 # TODO - argumenty programu
+# TODO - escape string in xml (only <, >, &)
+# TODO - returning correct error codes! Important
+# TODO - refractorization
+# TODO - add comments
+# TODO - create function to simplify code segments
 
 class Instruction {
-    var $opcode;
-    var $arg1;
-    var $arg2;
-    var $arg3;
-    var $order;
 
-    function getOpcode() {
-        return $this->opcode;
+    static function getArgType($token_type) {
+        # TODO - what is type arg???
+        if ($token_type == TokenType::T_NIL)
+            return "nil";
+        elseif ($token_type == TokenType::T_VARIABLE)
+            return "var";
+        elseif ($token_type == TokenType::T_INT)
+            return "int";
+        elseif ($token_type == TokenType::T_BOOL)
+            return "bool";
+        elseif ($token_type == TokenType::T_STRING)
+            return "string";
+        elseif ($token_type == TokenType::T_LABEL)
+            return "label";
+        else
+            return "unknown";
     }
 
-    function setOpcode($str) {
-        $this->opcode = strtoupper($str);
+    static function getArgValue($token_atr, $token_type) {
+        if ($token_type == TokenType::T_NIL || $token_type == TokenType::T_STRING || $token_type == TokenType::T_BOOL || $token_type == TokenType::T_INT || $token_type == TokenType::T_VARIABLE)
+            return Token::stripPrefix($token_atr);
+        else
+            return $token_atr;
     }
 
     static function isOpcode($str) {
@@ -126,28 +143,28 @@ class Token {
         }
         # Case: variable
         elseif (preg_match("/^GF@/", $this->getAttribute()) or preg_match("/^LF@/", $this->attribute) or preg_match("/^TF@/", $this->attribute)) {
-            if ($this->checkVariableName($this->stripPrefix($this->getAttribute()))) # Valid var format -> set type to T_VARIABLE
+            if ($this->checkVariableName(Token::stripPrefix($this->getAttribute()))) # Valid var format -> set type to T_VARIABLE
                 $this->setType(TokenType::T_VARIABLE);
             else # Invalid var format -> set validity to false
                 $this->setValidity(false);
         }
         # Case: bool constant
         elseif (preg_match("/^bool@/", $this->getAttribute())) {
-            if ($this->checkBoolConstant($this->stripPrefix($this->getAttribute()))) # valid bool format -> set type to T_BOOL
+            if ($this->checkBoolConstant(Token::stripPrefix($this->getAttribute()))) # valid bool format -> set type to T_BOOL
                 $this->setType(TokenType::T_BOOL);
             else # invalid bool type -> set token validity to false
                 $this->setValidity(false);
         }
         # Case: int constant
         elseif (preg_match("/^int@/", $this->getAttribute())) {
-            if ($this->checkIntConstant($this->stripPrefix($this->getAttribute()))) # valid int format -> set type to T_INT
+            if ($this->checkIntConstant(Token::stripPrefix($this->getAttribute()))) # valid int format -> set type to T_INT
                 $this->setType(Tokentype::T_INT);
             else # invalid int format -> set validity to false
                 $this->setValidity(false);
         }
         # Case: string constant
         elseif (preg_match("/^string@/", $this->getAttribute())) {
-            if ($this->checkStringConstant($this->stripPrefix($this->getAttribute()))) # valid string format -> set type to T_STRING
+            if ($this->checkStringConstant(Token::stripPrefix($this->getAttribute()))) # valid string format -> set type to T_STRING
                 $this->setType(TokenType::T_STRING);
             else # invalid string format -> set validity to false
                 $this->setValidity(false);
@@ -172,7 +189,7 @@ class Token {
 
     }
 
-    function stripPrefix($word) {
+    static function stripPrefix($word) {
         return substr($word, strpos($word, '@') + 1);
     }
 
@@ -243,38 +260,27 @@ $xml->formatOutput = true;
 $root = $xml->appendChild($xml->createElement('program'));
 $attr_language = new DOMAttr('language', 'IPPCode19');
 $root->setAttributeNode($attr_language);
-$order = 0;
+$order = 1;
 
 $error_occurred = false;
 $line_number = 0;
+
 ### Main loop
 while ($line = fgets(STDIN)) { # Split input into lines
-    # 1 line = 1 instruction
-
-    # Create new intruction
-    $instruction = new Instruction;
-
-    echo "line: " . $line;
 
     # Array for tokens
     $token_array = [];
 
     foreach (preg_split("/[\s\t]+/", $line) as $word) { # Split line into words
 
-        echo "\tword: " . $word . "\n";
-
         if (strlen($word) == 0) {
             # \n character
-            echo "\t\tNewline character\n";
             break; # Break foreach - begin syntax analysis with acquired tokens
         }
         else {
-            print("-- creating new token\n");
             # Create token and determine its type
             $token = new Token($word);
             $token->determine_type();
-            print("Attribute: " . $token->getAttribute() . "\n");
-            print("Type: " . $token->getType() . "\n");
 
             # Check for comment
             if ($token->getType() == TokenType::T_COMMENT) {
@@ -283,8 +289,6 @@ while ($line = fgets(STDIN)) { # Split input into lines
             }
 
             if ($token->getValidity()) {
-                print("Valid token\n");
-
                 $token_array[] = $token;
             }
             else {
@@ -302,24 +306,11 @@ while ($line = fgets(STDIN)) { # Split input into lines
     }
 
     # No lexical error, move onto syntax analysis
-    print("Beginning syntax analysis of line $line_number.\n");
 
-    # print tokens just to check
-    foreach ($token_array as $token) {
-        print(" " . $token->getAttribute());
-    }
-    print("\n");
-    print("Num of tokens: " . count($token_array) . "\n");
-
-    # TODO: check if token_array is not empty
 
     if ($line_number == 0) {
         # First line has to be header
-        if (count($token_array) == 1 && $token_array[0]->getType() == TokenType::T_HEADER) {
-            print("HEADER OK\n");
-
-        }
-        else {
+        if (!(count($token_array) == 1 && $token_array[0]->getType() == TokenType::T_HEADER)) {
             print("ERROR: HEADER NOT OK\n");
             $error_occurred = true;
             break;
@@ -333,13 +324,6 @@ while ($line = fgets(STDIN)) { # Split input into lines
                 $error_occurred = true;
                 break;
             }
-            # Opcode ok, check for length of array
-            #elseif (count($token_array) > 4) {
-            #    print("Error: too many args\n");
-            #    $error_occurred = true;
-            #    break;
-            #}
-            # Check if correct number of params for opcode
             elseif (count($token_array) - 1 != Instruction::getNumberOfArgs($token_array[0]->getAttribute())) {
                 print("Error: wrong number of args\n");
                 $error_occurred = true;
@@ -358,6 +342,21 @@ while ($line = fgets(STDIN)) { # Split input into lines
         $instr->setAttributeNode($attr_order);
         $attr_opcode = new DOMAttr('opcode', strtoupper($token_array[0]->getAttribute()));
         $instr->setAttributeNode($attr_opcode);
+
+        # Generate xml for args
+        for ($i = 1; $i < count($token_array); $i++) {
+            $type = Instruction::getArgType($token_array[$i]->getType());
+            if ($type == "unknown") {
+                # Error
+                print("Error: wrong type of arg\n");
+                $error_occurred = true;
+                break;
+            }
+            $value = Instruction::getArgValue($token_array[$i]->getAttribute(), $token_array[$i]->getType());
+            $arg = $instr->appendChild($xml->createElement("arg" . $i, $value));
+            $attr_arg_type = new DOMAttr('type', $type);
+            $arg->setAttributeNode($attr_arg_type);
+        }
 
         $order += 1;
     }
