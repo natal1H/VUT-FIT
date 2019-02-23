@@ -1,33 +1,58 @@
-# IPK-project-1
+# Client for OpenWeatherMap API
 
-## ZADANÍ
+Student project for **IPK** at **VUT FIT**. Main goal is to create client capable of acquiring weather information using HTTP from OpenWeatherMap API. 
+Program will display basic weather info: weather description, temperature, humidity, pressure and wind speed/degree.
 
-Úkolem je vytvořit program - klienta rozhraní OpenWeatherMap, který bude schopen prostřednictvím HTTP dotazů získávat vybrané informace z datového zdroje. Pro přístup je nutná bezplatná registrace a získání klíče, který se používá v dotazech pro autentizaci. Způsob používání OpenWatherMap API si nastudujte z on-line zdroje (odkaz níže).
+## Solution design
 
-Klient se bude spouštět pomocí souboru Makefile následujícím způsobem:
+Client application is written in Python programming language. 
+Program first checks weather correct arguments were entered and then attempts to connect to OpenWeatherMap server to get weather data.
+In case HTTP response is OK (code 200), program then decodes data in json format and outputs desired weather info.
 
-make run api_key=<API klíč> city=<Město>
+## Prerequisites
 
+In order to run the application, Python compiler is needed to be present. Version 3.6 or newer is required and can be downloaded at its [official website](https://www.python.org/downloads/). 
 
-Výsledkem bude informace o aktuálním počasí a následující informace: popis počasí, teplota, vlhkost, tlak, rychlost a směr větru. Používejte metrické jednotky při uvádění všech hodnot.
+Furthermore, because this program uses OpenWeatherMap API to get weather info, user needs to already have his own account there and API key.
+In case user has no yet his own account and API key, it can be acquired [here](https://home.openweathermap.org/users/sign_up).
 
-Pro správnou komunikaci je nutné vytvořit korektní HTTP dotaz. Jestliže si nejste jisti podívejte se na správnou komunikaci jejím odchycením a zobrazením ve Wiresharku. 
+Connection to the Internet is required.
 
-V případě, že budete zjišťovat jak vypadá odpověď nezapomeňte dát celé URL do uvozovek (jistě víte proč):
-curl "http://api.openweathermap.org/data/2.5/weather?q=London,uk&APPID=b498767252de12f92504d2cca9c3fdc1"
+## Installing and compiling application
 
+There is no need to compile application before executing, due to the fact that program is written in Python.
 
-### PŘÍKLAD
+## Running the application
 
-$ make run api_key=b498767252de12f92574d288a9c4fdc2 city=Prague  
-  
-Prague  
-overcast clouds  
-temp:28.5°C  
-humidity:89%  
-preassure:1013 hPa  
-wind-speed: 7.31km/h  
-wind-deg: 187  
+Make sure both *Makefile* and *client.py* are present. Open terminal window in folder, where they stored and type following command:
+```
+make run api_key=<API_KEY> city=<city_name>
+```
+where `<API_KEY>` represents your personal API key and `<city_name>` name of city. 
 
+In case city name contains only one word, program can be run in this manner:
+```
+make run api_key=1234 city=Brno
+```
 
-Pro implementaci klienta je nutné využít knihovny soketů. Není přípustné využívat knihovny pro zpracování HTTP a podobně - cílem je lightweight klient, který má minimum závislostí. 
+However, if city name contains more than one word, ""  are required. For example:
+```
+make run api_key=1234 city="Ivanka pri Nitre"
+```
+
+## Limitations and extensions
+
+It is advised to limit number of calls to OpenWeatherMap API. Free account limits this to 60 calls per minute.
+
+To display help on how to use program while in terminal window, type following:
+```
+make help
+```
+or without using Makefile, type directly:
+```
+python3.6 client.py --help
+```
+
+## Author
+
+* **Natália Holková** (xholko02)
