@@ -2,11 +2,9 @@
 # VUT FIT - IPP - Project
 # Author: Natália Holková (xholko02)
 
-# TODO - argumenty programu
-# TODO - returning correct error codes! Important
 # TODO - refractorization
 # TODO - add comments
-# TODO - create function to simplify code segments
+# TODO - pri chybách na stderr vypísať čo sa stalo
 
 # Define error constants
 define("ERR_SCRIPT_PARAMS", 10); # Error - missing script param or usage of forbidden combination of params
@@ -17,6 +15,65 @@ define("ERR_OPCODE", 22); # Error - unknown or wrong opcode
 define("ERR_LEX_OR_SYNTAX", 23); # Error - other lexical or syntax error
 define("ERR_INTERNAL", 99); # Internal error
 
+$params = array(
+  "help" => false,
+  "stats" => false,
+  "loc" => false,
+  "comments" => false,
+  "labels" => false,
+  "jumps" => false
+);
+
+class Statistic {
+    var $stats_order;
+    var $stats_num;
+    var $file;
+    var $labels;
+
+    function  __construct() {
+        $this->stats_order = array();
+        $this->stats_num = $stats_num = array(
+            "loc" => 0,
+            "comments" => 0,
+            "labels" => 0,
+            "jumps" => 0
+        );
+        $this->file = "";
+        $this->labels = array();
+        $this->jumps = array();
+    }
+
+    function incLoc() {
+        $this->stats_num["loc"]++;
+    }
+
+    function incComments() {
+        $this->stats_num["comments"]++;
+    }
+
+    function tryIncLabels($label) {
+        if (!in_array($label, $this->labels)) {
+            $this->labels[] = $label;
+            $this->stats_num["labels"]++;
+        }
+    }
+
+    function incJumps() {
+        $this->stats_num["jumps"]++;
+    }
+
+    function outputStats() {
+        # Try to open file for output
+        $handle = fopen($this->file, "w");
+        if (!$handle) # Error - opening file failed
+            exit(ERR_OUTPUT_FILES);
+
+        foreach ($this->stats_order as $stat)
+            fwrite($handle, $this->stats_num[$stat] . "\n");
+
+        fclose($handle);
+    }
+}
 
 class Instruction {
 
@@ -263,7 +320,7 @@ function escape_string_for_xml($str) {
     return $str;
 }
 
-function line_lexical_analysis($line, $line_number) {
+function line_lexical_analysis($line, $line_number, &$stat) {
     # Array for tokens
     $token_array = [];
 
@@ -277,8 +334,10 @@ function line_lexical_analysis($line, $line_number) {
             $token->determine_type();
 
             # Check for comment
-            if ($token->getType() == TokenType::T_COMMENT)
+            if ($token->getType() == TokenType::T_COMMENT) {
+                $stat->incComments();
                 break; # Ignore rest of line - break foreach loop
+            }
 
             if ($token->getValidity())
                 $token_array[] = $token;
@@ -303,7 +362,7 @@ function line_syntax_analysis($token_array, $line_number) {
             if ($token_array[0]->getType() != TokenType::T_OPCODE) {
                 exit(ERR_OPCODE);
             }
-            elseif (count($token_array) - 1 != Instruction::getNumberOfArgs($token_array[0]->getAttribute())) {
+            elseif (count($token_array) - 1 != Instruction::getNumberOfArgs(strtoupper($token_array[0]->getAttribute()))) {
                 exit(ERR_LEX_OR_SYNTAX);
             }
         }
@@ -311,64 +370,156 @@ function line_syntax_analysis($token_array, $line_number) {
     }
 }
 
-function line_generate_xml($xml, $root, $token_array, $order) {
+function line_generate_xml($xml, $root, $token_array, $order, &$stat) {
     # Time to generate xml for instruction
     $instr = $root->appendChild($xml->createElement("instruction"));
     $attr_order = new DOMAttr('order', $order);
     $instr->setAttributeNode($attr_order);
-    $attr_opcode = new DOMAttr('opcode', strtoupper($token_array[0]->getAttribute()));
+    $opcode = strtoupper($token_array[0]->getAttribute());
+    $attr_opcode = new DOMAttr('opcode', $opcode);
     $instr->setAttributeNode($attr_opcode);
 
     # Generate xml for args
     for ($i = 1; $i < count($token_array); $i++) {
+        if ($opcode == "LABEL" && $i == 1)
+            $stat->tryIncLabels($token_array[$i]);
+
         $type = Instruction::getArgType($token_array[$i]->getType());
-        if ($type == "unknown") {
+        if ($type == "unknown")
             exit(ERR_LEX_OR_SYNTAX); # Error - wrong type of argument
-        }
 
         $value = escape_string_for_xml(Instruction::getArgValue($token_array[$i]->getAttribute(), $token_array[$i]->getType()));
         $arg = $instr->appendChild($xml->createElement("arg" . $i, $value));
         $attr_arg_type = new DOMAttr('type', $type);
         $arg->setAttributeNode($attr_arg_type);
     }
+
+    # Statistic - increase number of lines of code
+    $stat->incLoc();
+    # Statistic - increasing number of jumps
+    if (in_array($opcode, array("JUMP", "JUMPIFEQ", "JUMPIFNEQ")))
+        $stat->incJumps();
 }
 
-# prepare xml
-$xml = new DOMDocument();
-$xml->encoding = 'utf-8';
-$xml->xmlVersion = '1.0';
-$xml->formatOutput = true;
+function parse(&$stat) {
 
-$root = $xml->appendChild($xml->createElement('program'));
-$attr_language = new DOMAttr('language', 'IPPCode19');
-$root->setAttributeNode($attr_language);
-$order = 1;
+    # prepare xml
+    $xml = new DOMDocument();
+    $xml->encoding = 'utf-8';
+    $xml->xmlVersion = '1.0';
+    $xml->formatOutput = true;
 
-$error_occurred = false;
-$line_number = 0;
+    $root = $xml->appendChild($xml->createElement('program'));
+    $attr_language = new DOMAttr('language', 'IPPCode19');
+    $root->setAttributeNode($attr_language);
+    $order = 1;
 
-### Main loop
-while ($line = fgets(STDIN)) { # Split input into lines
+    $line_number = 0;
 
-    # Lexical analysis of line
-    $token_array = line_lexical_analysis($line, $line_number);
+    # main parsing loop
+    while ($line = fgets(STDIN)) { # Split input into lines
 
-    # Syntax analysis of line
-    line_syntax_analysis($token_array, $line_number);
+        # Lexical analysis of line
+        $token_array = line_lexical_analysis($line, $line_number,$stat);
 
-    # XML generating
+        # Syntax analysis of line
+        line_syntax_analysis($token_array, $line_number);
 
-    if (count($token_array) > 0 && $line_number != 0) {
-        line_generate_xml($xml, $root, $token_array, $order);
+        # XML generating
 
-        $order += 1;
+        if (count($token_array) > 0 && $line_number != 0) {
+            line_generate_xml($xml, $root, $token_array, $order,$stat);
+
+            $order += 1;
+        }
+
+        $line_number += 1;
     }
+    if ($line_number == 0)
+        exit(ERR_HEADER);
 
-    $line_number += 1;
+
+    # output xml
+    echo $xml->saveXML();
 }
 
+function display_help() {
+    # TODO - write help description
+    echo "Help\n";
+}
 
-# output xml
-echo $xml->saveXML();
+function check_program_arguments(&$params, &$stat) {
+    global $argv;
+    global $argc;
+
+    for ($i = 1; $i < $argc; $i++) {
+        $arg = $argv[$i];
+        switch ($arg) {
+            case "--help":
+                if ($argc == 2) # Only --help param, no problem
+                    $params["help"] = true;
+                else # Error - --help param cannot be with other params
+                    exit(ERR_SCRIPT_PARAMS);
+                break;
+            case "--loc":
+                if ($params["stats"] == true && $params["loc"] == false) {
+                    $params["loc"] = true;
+                    $stat->stats_order[] = "loc";
+                }
+                else
+                    exit(ERR_SCRIPT_PARAMS);
+                break;
+            case "--comments":
+                if ($params["stats"] == true && $params["comments"] == false) {
+                    $params["comments"] = true;
+                    $stat->stats_order[] = "comments";
+                }
+                else
+                    exit(ERR_SCRIPT_PARAMS);
+                break;
+            case "--labels":
+                if ($params["stats"] == true && $params["labels"] == false) {
+                    $params["labels"] = true;
+                    $stat->stats_order[] = "labels";
+                }
+                else
+                    exit(ERR_SCRIPT_PARAMS);
+                break;
+            case "--jumps":
+                if ($params["stats"] == true && $params["jumps"] == false) {
+                    $params["jumps"] = true;
+                    $stat->stats_order[] = "jumps";
+                }
+                else
+                    exit(ERR_SCRIPT_PARAMS);
+                break;
+            default:
+                if (preg_match('/--stats=[a-zA-Z0-9_\.]+/', $arg) && $params["stats"] == false) {
+                    $params["stats"] = true;
+                    $stat->file = substr($arg,strpos($arg, "=") + 1);
+                }
+                else { # Error - unknown param
+                    exit(ERR_SCRIPT_PARAMS);
+                }
+                break;
+        }
+    }
+}
+
+# Main body
+$stat = new Statistic();
+
+# Check script parameters
+check_program_arguments($params, $stat);
+
+# Decide what to do - display help or parse code
+if ($params["help"]) {
+    display_help();
+}
+else {
+    parse($stat);
+
+    if ($params["stats"])
+        $stat->outputStats();
+}
 ?>
-
