@@ -1,11 +1,22 @@
 <?php
+# VUT FIT - IPP - Project
+# Author: Natália Holková (xholko02)
 
 # TODO - argumenty programu
-# TODO - escape string in xml (only <, >, &)
 # TODO - returning correct error codes! Important
 # TODO - refractorization
 # TODO - add comments
 # TODO - create function to simplify code segments
+
+# Define error constants
+define("ERR_SCRIPT_PARAMS", 10); # Error - missing script param or usage of forbidden combination of params
+define("ERR_INPUT_FILES", 11); # Error - opening input files
+define("ERR_OUTPUT_FILES", 12); # Error - opening output files
+define("ERR_HEADER", 21); # Error - missing or wrong header
+define("ERR_OPCODE", 22); # Error - unknown or wrong opcode
+define("ERR_LEX_OR_SYNTAX", 23); # Error - other lexical or syntax error
+define("ERR_INTERNAL", 99); # Internal error
+
 
 class Instruction {
 
@@ -131,8 +142,6 @@ class Token {
     function determine_type() {
         # Will set actual type based on attribute
 
-        global $opcodes; # TODO - make their own class for them
-
         # Case: Header
         if (strtolower($this->attribute) == ".ippcode19") {
             $this->setType(TokenType::T_HEADER);
@@ -237,8 +246,7 @@ class Token {
                 return false;
             }
 
-            # Update last_position
-            $last_position += 1;
+            $last_position += 1; # Update last_position
         }
 
         return true;
@@ -247,8 +255,82 @@ class Token {
 }
 # end class token
 
-function lexical_analysis() {
-    # TODO - put whole lex. analysis into function
+function escape_string_for_xml($str) {
+    $str = str_replace("&", "&amp;", $str); # Replace &
+    $str = str_replace("<", "&lt;", $str); # Replace <
+    $str = str_replace(">", "&gt;", $str); # Replace >
+
+    return $str;
+}
+
+function line_lexical_analysis($line, $line_number) {
+    # Array for tokens
+    $token_array = [];
+
+    foreach (preg_split("/[\s\t]+/", $line) as $word) { # Split line into words
+        if (strlen($word) == 0) { # \n character
+            break; # Break foreach - begin syntax analysis with acquired tokens
+        }
+        else {
+            # Create token and determine its type
+            $token = new Token($word);
+            $token->determine_type();
+
+            # Check for comment
+            if ($token->getType() == TokenType::T_COMMENT)
+                break; # Ignore rest of line - break foreach loop
+
+            if ($token->getValidity())
+                $token_array[] = $token;
+            elseif ($line_number != 0) {
+                exit(ERR_LEX_OR_SYNTAX);
+            }
+        }
+    }
+    return $token_array;
+}
+
+function line_syntax_analysis($token_array, $line_number) {
+    if ($line_number == 0) {
+        # First line has to be header
+        if (!(count($token_array) == 1 && $token_array[0]->getType() == TokenType::T_HEADER)) {
+            exit(ERR_HEADER);
+        }
+    }
+    else {
+        # Check if first token is valid opcode
+        if (count($token_array) > 0) {
+            if ($token_array[0]->getType() != TokenType::T_OPCODE) {
+                exit(ERR_OPCODE);
+            }
+            elseif (count($token_array) - 1 != Instruction::getNumberOfArgs($token_array[0]->getAttribute())) {
+                exit(ERR_LEX_OR_SYNTAX);
+            }
+        }
+
+    }
+}
+
+function line_generate_xml($xml, $root, $token_array, $order) {
+    # Time to generate xml for instruction
+    $instr = $root->appendChild($xml->createElement("instruction"));
+    $attr_order = new DOMAttr('order', $order);
+    $instr->setAttributeNode($attr_order);
+    $attr_opcode = new DOMAttr('opcode', strtoupper($token_array[0]->getAttribute()));
+    $instr->setAttributeNode($attr_opcode);
+
+    # Generate xml for args
+    for ($i = 1; $i < count($token_array); $i++) {
+        $type = Instruction::getArgType($token_array[$i]->getType());
+        if ($type == "unknown") {
+            exit(ERR_LEX_OR_SYNTAX); # Error - wrong type of argument
+        }
+
+        $value = escape_string_for_xml(Instruction::getArgValue($token_array[$i]->getAttribute(), $token_array[$i]->getType()));
+        $arg = $instr->appendChild($xml->createElement("arg" . $i, $value));
+        $attr_arg_type = new DOMAttr('type', $type);
+        $arg->setAttributeNode($attr_arg_type);
+    }
 }
 
 # prepare xml
@@ -268,95 +350,16 @@ $line_number = 0;
 ### Main loop
 while ($line = fgets(STDIN)) { # Split input into lines
 
-    # Array for tokens
-    $token_array = [];
+    # Lexical analysis of line
+    $token_array = line_lexical_analysis($line, $line_number);
 
-    foreach (preg_split("/[\s\t]+/", $line) as $word) { # Split line into words
-
-        if (strlen($word) == 0) {
-            # \n character
-            break; # Break foreach - begin syntax analysis with acquired tokens
-        }
-        else {
-            # Create token and determine its type
-            $token = new Token($word);
-            $token->determine_type();
-
-            # Check for comment
-            if ($token->getType() == TokenType::T_COMMENT) {
-                # Ignore rest of line - break foreach loop
-                break;
-            }
-
-            if ($token->getValidity()) {
-                $token_array[] = $token;
-            }
-            else {
-                print("Invalid token, LEX ERROR\n");
-                $error_occurred = true;
-                break; # Break foreach
-            }
-        }
-    }
-
-    if ($error_occurred) {
-        # TODO - error handling
-        print("Error occured - stopping analysis.\n");
-        break; # break while
-    }
-
-    # No lexical error, move onto syntax analysis
-
-
-    if ($line_number == 0) {
-        # First line has to be header
-        if (!(count($token_array) == 1 && $token_array[0]->getType() == TokenType::T_HEADER)) {
-            print("ERROR: HEADER NOT OK\n");
-            $error_occurred = true;
-            break;
-        }
-    }
-    else {
-        # Check if first token is valid opcode
-        if (count($token_array) > 0) {
-            if ($token_array[0]->getType() != TokenType::T_OPCODE) {
-                print("ERROR: no opcode as first token\n");
-                $error_occurred = true;
-                break;
-            }
-            elseif (count($token_array) - 1 != Instruction::getNumberOfArgs($token_array[0]->getAttribute())) {
-                print("Error: wrong number of args\n");
-                $error_occurred = true;
-                break;
-            }
-        }
-
-    }
-
+    # Syntax analysis of line
+    line_syntax_analysis($token_array, $line_number);
 
     # XML generating
-    if (count($token_array) > 0 && $line_number != 0) {
-        # Time to generate xml for instruction
-        $instr = $root->appendChild($xml->createElement("instruction"));
-        $attr_order = new DOMAttr('order', $order);
-        $instr->setAttributeNode($attr_order);
-        $attr_opcode = new DOMAttr('opcode', strtoupper($token_array[0]->getAttribute()));
-        $instr->setAttributeNode($attr_opcode);
 
-        # Generate xml for args
-        for ($i = 1; $i < count($token_array); $i++) {
-            $type = Instruction::getArgType($token_array[$i]->getType());
-            if ($type == "unknown") {
-                # Error
-                print("Error: wrong type of arg\n");
-                $error_occurred = true;
-                break;
-            }
-            $value = Instruction::getArgValue($token_array[$i]->getAttribute(), $token_array[$i]->getType());
-            $arg = $instr->appendChild($xml->createElement("arg" . $i, $value));
-            $attr_arg_type = new DOMAttr('type', $type);
-            $arg->setAttributeNode($attr_arg_type);
-        }
+    if (count($token_array) > 0 && $line_number != 0) {
+        line_generate_xml($xml, $root, $token_array, $order);
 
         $order += 1;
     }
@@ -364,16 +367,8 @@ while ($line = fgets(STDIN)) { # Split input into lines
     $line_number += 1;
 }
 
-if (!$error_occurred) {
-    print("Program analysis without error.\n");
-}
-else {
-    print("Program analysis with error.\n");
-}
 
 # output xml
-print("XML output:\n");
 echo $xml->saveXML();
-print("End of output\n");
 ?>
 
