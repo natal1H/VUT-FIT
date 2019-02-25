@@ -5,6 +5,7 @@
 # TODO - refractorization
 # TODO - add comments
 # TODO - pri chybách na stderr vypísať čo sa stalo
+# TODO - after opcodes LABEL, JUMP, JUMPIFEQ, JUMPIFNEQ, CALL even if next word is opcode type, it is label type
 
 # Define error constants
 define("ERR_SCRIPT_PARAMS", 10); # Error - missing script param or usage of forbidden combination of params
@@ -128,10 +129,10 @@ class Instruction {
           "DEFVAR", "CALL", "PUSHS", "POPS", "WRITE", "LABEL", "JUMP", "EXIT", "DPRINT"
         );
         $two_args = array(
-            "MOVE", "INT2CHAR", "READ", "STRLEN", "TYPE",
+            "MOVE", "INT2CHAR", "READ", "STRLEN", "TYPE", "NOT"
         );
         $three_args = array(
-            "ADD", "SUB", "MUL", "IDIV", "LT", "GT", "EQ", "AND", "OR", "NOT", "STRI2INT", "CONCAT", "GETCHAR", "SETCHAR", "JUMPIFEQ", "JUMPIFNEQ"
+            "ADD", "SUB", "MUL", "IDIV", "LT", "GT", "EQ", "AND", "OR", "STRI2INT", "CONCAT", "GETCHAR", "SETCHAR", "JUMPIFEQ", "JUMPIFNEQ"
         );
 
 
@@ -196,7 +197,7 @@ class Token {
     }
 
 
-    function determine_type() {
+    function determine_type($opcode_before) {
         # Will set actual type based on attribute
 
         # Case: Header
@@ -242,7 +243,12 @@ class Token {
         # Case: opcode
         #elseif (in_array(strtoupper($this->getAttribute()), $opcodes)) { # Set type to T_OPCODE
         elseif (Instruction::isOpcode($this->getAttribute())) { # Set type to T_OPCODE
-            $this->setType(TokenType::T_OPCODE);
+            if ($opcode_before) { # If opcode was before, this could by label (e.g LABEL label
+                $this->setType(TokenType::T_LABEL);
+            }
+            else {
+                $this->setType(TokenType::T_OPCODE);
+            }
         }
         # Case: label
         elseif ($this->checkVariableName($this->getAttribute())) {
@@ -324,25 +330,51 @@ function line_lexical_analysis($line, $line_number, &$stat) {
     # Array for tokens
     $token_array = [];
 
+    $opcode_before = false;
+
     foreach (preg_split("/[\s\t]+/", $line) as $word) { # Split line into words
+        #echo "Word: " . $word . "\n";
         if (strlen($word) == 0) { # \n character
             break; # Break foreach - begin syntax analysis with acquired tokens
         }
         else {
-            # Create token and determine its type
-            $token = new Token($word);
-            $token->determine_type();
 
-            # Check for comment
-            if ($token->getType() == TokenType::T_COMMENT) {
-                $stat->incComments();
-                break; # Ignore rest of line - break foreach loop
+            if (preg_match("/#/", $word) && strlen($word) > 1) {
+                # Contains # - is beginning of line comment
+                $word = substr($word, 0, strpos($word, "#"));
+
+                # Create token and determine its type
+                $token = new Token($word);
+                $token->determine_type($opcode_before);
+
+                if ($token->getValidity()) {
+                    $token_array[] = $token;
+                    $opcode_before = ($token->getType() == TokenType::T_OPCODE);
+                }
+                elseif ($line_number != 0) {
+                    exit(ERR_LEX_OR_SYNTAX);
+                }
+
+                break; # Comment would follow, so break
             }
+            else {
+                # Create token and determine its type
+                $token = new Token($word);
+                $token->determine_type($opcode_before);
 
-            if ($token->getValidity())
-                $token_array[] = $token;
-            elseif ($line_number != 0) {
-                exit(ERR_LEX_OR_SYNTAX);
+                # Check for comment
+                if ($token->getType() == TokenType::T_COMMENT) {
+                    $stat->incComments();
+                    break; # Ignore rest of line - break foreach loop
+                }
+
+                if ($token->getValidity()) {
+                    $token_array[] = $token;
+                    $opcode_before = ($token->getType() == TokenType::T_OPCODE);
+                }
+                elseif ($line_number != 0) {
+                    exit(ERR_LEX_OR_SYNTAX);
+                }
             }
         }
     }
