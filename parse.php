@@ -2,10 +2,8 @@
 # VUT FIT - IPP - Project
 # Author: Natália Holková (xholko02)
 
-# TODO - refractorization
 # TODO - add comments
 # TODO - pri chybách na stderr vypísať čo sa stalo
-# TODO - after opcodes LABEL, JUMP, JUMPIFEQ, JUMPIFNEQ, CALL even if next word is opcode type, it is label type
 
 # Define error constants
 define("ERR_SCRIPT_PARAMS", 10); # Error - missing script param or usage of forbidden combination of params
@@ -26,10 +24,10 @@ $params = array(
 );
 
 class Statistic {
-    var $stats_order;
-    var $stats_num;
-    var $file;
-    var $labels;
+    private $stats_order;
+    private $stats_num;
+    private $file;
+    private $labels;
 
     function  __construct() {
         $this->stats_order = array();
@@ -42,6 +40,14 @@ class Statistic {
         $this->file = "";
         $this->labels = array();
         $this->jumps = array();
+    }
+
+    function setFile($file) {
+        $this->file = $file;
+    }
+
+    function appendStatOrder($str) {
+        $this->stats_order[] = $str;
     }
 
     function incLoc() {
@@ -79,7 +85,6 @@ class Statistic {
 class Instruction {
 
     static function getArgType($token_type) {
-        # TODO - what is type arg???
         if ($token_type == TokenType::T_NIL)
             return "nil";
         elseif ($token_type == TokenType::T_VARIABLE)
@@ -92,12 +97,14 @@ class Instruction {
             return "string";
         elseif ($token_type == TokenType::T_LABEL)
             return "label";
+        elseif ($token_type == TokenType::T_TYPE)
+            return "type";
         else
             return "unknown";
     }
 
     static function getArgValue($token_atr, $token_type) {
-        if ($token_type == TokenType::T_NIL || $token_type == TokenType::T_STRING || $token_type == TokenType::T_BOOL || $token_type == TokenType::T_INT || $token_type == TokenType::T_VARIABLE)
+        if ($token_type == TokenType::T_NIL || $token_type == TokenType::T_STRING || $token_type == TokenType::T_BOOL || $token_type == TokenType::T_INT)
             return Token::stripPrefix($token_atr);
         else
             return $token_atr;
@@ -160,14 +167,15 @@ abstract class TokenType {
     const T_STRING = 6;
     const T_OPCODE = 7;
     const T_LABEL = 8;
-    const T_UNKNOWN = 9;
+    const T_TYPE = 9;
+    const T_UNKNOWN = 10;
 }
 
 # Class token:
 class Token {
-    var $type;
-    var $attribute;
-    var $valid;
+    private $type;
+    private $attribute;
+    private $valid;
 
     function setType($new_type) {
         $this->type = $new_type;
@@ -192,7 +200,7 @@ class Token {
     function __construct($str) {
         # Set attribute and default type
         $this->attribute = $str;
-        $this->setType(TokenType::T_UNKNOWN);
+        $this->type = TokenType::T_UNKNOWN;
         $this->valid = true; # true until proven false
     }
 
@@ -202,61 +210,65 @@ class Token {
 
         # Case: Header
         if (strtolower($this->attribute) == ".ippcode19") {
-            $this->setType(TokenType::T_HEADER);
+            $this->type = TokenType::T_HEADER;
         }
         # Case: comment
-        elseif (preg_match("/^#/", $this->getAttribute())) {
-            $this->setType(TokenType::T_COMMENT);
+        elseif (preg_match("/^#/", $this->attribute)) {
+            $this->type = TokenType::T_COMMENT;
         }
         # Case: variable
-        elseif (preg_match("/^GF@/", $this->getAttribute()) or preg_match("/^LF@/", $this->attribute) or preg_match("/^TF@/", $this->attribute)) {
-            if ($this->checkVariableName(Token::stripPrefix($this->getAttribute()))) # Valid var format -> set type to T_VARIABLE
-                $this->setType(TokenType::T_VARIABLE);
+        elseif (preg_match("/^GF@/", $this->attribute) or preg_match("/^LF@/", $this->attribute) or preg_match("/^TF@/", $this->attribute)) {
+            if ($this->checkVariableName(Token::stripPrefix($this->attribute))) # Valid var format -> set type to T_VARIABLE
+                $this->type = TokenType::T_VARIABLE;
             else # Invalid var format -> set validity to false
-                $this->setValidity(false);
+                $this->valid = false;
         }
         # Case: bool constant
-        elseif (preg_match("/^bool@/", $this->getAttribute())) {
-            if ($this->checkBoolConstant(Token::stripPrefix($this->getAttribute()))) # valid bool format -> set type to T_BOOL
-                $this->setType(TokenType::T_BOOL);
+        elseif (preg_match("/^bool@/", $this->attribute)) {
+            if ($this->checkBoolConstant(Token::stripPrefix($this->attribute))) # valid bool format -> set type to T_BOOL
+                $this->type =TokenType::T_BOOL;
             else # invalid bool type -> set token validity to false
-                $this->setValidity(false);
+                $this->valid = false;
         }
         # Case: int constant
-        elseif (preg_match("/^int@/", $this->getAttribute())) {
-            if ($this->checkIntConstant(Token::stripPrefix($this->getAttribute()))) # valid int format -> set type to T_INT
-                $this->setType(Tokentype::T_INT);
+        elseif (preg_match("/^int@/", $this->attribute)) {
+            if ($this->checkIntConstant(Token::stripPrefix($this->attribute))) # valid int format -> set type to T_INT
+                $this->type =  Tokentype::T_INT;
             else # invalid int format -> set validity to false
-                $this->setValidity(false);
+                $this->valid = false;
         }
         # Case: string constant
-        elseif (preg_match("/^string@/", $this->getAttribute())) {
-            if ($this->checkStringConstant(Token::stripPrefix($this->getAttribute()))) # valid string format -> set type to T_STRING
-                $this->setType(TokenType::T_STRING);
+        elseif (preg_match("/^string@/", $this->attribute)) {
+            if ($this->checkStringConstant(Token::stripPrefix($this->attribute))) # valid string format -> set type to T_STRING
+                $this->type = TokenType::T_STRING;
             else # invalid string format -> set validity to false
-                $this->setValidity(false);
+                $this->valid = false;
         }
         # Case: nil constant
-        elseif ($this->getAttribute() == "nil@nil") { # set type to T_NIL
-            $this->setType(TokenType::T_NIL);
+        elseif ($this->attribute == "nil@nil") { # set type to T_NIL
+            $this->type = TokenType::T_NIL;
         }
         # Case: opcode
         #elseif (in_array(strtoupper($this->getAttribute()), $opcodes)) { # Set type to T_OPCODE
-        elseif (Instruction::isOpcode($this->getAttribute())) { # Set type to T_OPCODE
+        elseif (Instruction::isOpcode($this->attribute)) { # Set type to T_OPCODE
             if ($opcode_before) { # If opcode was before, this could by label (e.g LABEL label
-                $this->setType(TokenType::T_LABEL);
+                $this->type = TokenType::T_LABEL;
             }
             else {
-                $this->setType(TokenType::T_OPCODE);
+                $this->type= TokenType::T_OPCODE;
             }
         }
+        # Case: type
+        elseif (in_array($this->attribute, array("int", "string", "bool"))) {
+            $this->type = TokenType::T_TYPE;
+        }
         # Case: label
-        elseif ($this->checkVariableName($this->getAttribute())) {
-            $this->setType(TokenType::T_LABEL);
+        elseif ($this->checkVariableName($this->attribute)) {
+            $this->type = TokenType::T_LABEL;
         }
         # Case: lex error
         else { # Set validity to false
-            $this->setValidity(false);
+            $this->valid = false;
         }
 
     }
@@ -266,7 +278,6 @@ class Token {
     }
 
     function checkVariableName($name) {
-        # TODO - try to implement using regex
         if (empty($name))
             return false;
 
@@ -442,7 +453,7 @@ function parse(&$stat) {
     $xml->formatOutput = true;
 
     $root = $xml->appendChild($xml->createElement('program'));
-    $attr_language = new DOMAttr('language', 'IPPCode19');
+    $attr_language = new DOMAttr('language', 'IPPcode19');
     $root->setAttributeNode($attr_language);
     $order = 1;
 
@@ -496,7 +507,7 @@ function check_program_arguments(&$params, &$stat) {
             case "--loc":
                 if ($params["stats"] == true && $params["loc"] == false) {
                     $params["loc"] = true;
-                    $stat->stats_order[] = "loc";
+                    $stat->appendStatOrder("loc");
                 }
                 else
                     exit(ERR_SCRIPT_PARAMS);
@@ -504,7 +515,7 @@ function check_program_arguments(&$params, &$stat) {
             case "--comments":
                 if ($params["stats"] == true && $params["comments"] == false) {
                     $params["comments"] = true;
-                    $stat->stats_order[] = "comments";
+                    $stat->appendStatOrder("comments");
                 }
                 else
                     exit(ERR_SCRIPT_PARAMS);
@@ -512,7 +523,7 @@ function check_program_arguments(&$params, &$stat) {
             case "--labels":
                 if ($params["stats"] == true && $params["labels"] == false) {
                     $params["labels"] = true;
-                    $stat->stats_order[] = "labels";
+                    $stat->appendStatOrder("labels");
                 }
                 else
                     exit(ERR_SCRIPT_PARAMS);
@@ -520,7 +531,7 @@ function check_program_arguments(&$params, &$stat) {
             case "--jumps":
                 if ($params["stats"] == true && $params["jumps"] == false) {
                     $params["jumps"] = true;
-                    $stat->stats_order[] = "jumps";
+                    $stat->appendStatOrder("jumps");
                 }
                 else
                     exit(ERR_SCRIPT_PARAMS);
@@ -528,7 +539,7 @@ function check_program_arguments(&$params, &$stat) {
             default:
                 if (preg_match('/--stats=[a-zA-Z0-9_\.]+/', $arg) && $params["stats"] == false) {
                     $params["stats"] = true;
-                    $stat->file = substr($arg,strpos($arg, "=") + 1);
+                    $stat->setFile(substr($arg,strpos($arg, "=") + 1));
                 }
                 else { # Error - unknown param
                     exit(ERR_SCRIPT_PARAMS);
