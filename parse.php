@@ -2,8 +2,7 @@
 # VUT FIT - IPP - Project
 # Author: Natália Holková (xholko02)
 
-# TODO - add comments
-# TODO - pri chybách na stderr vypísať čo sa stalo
+
 
 # Define error constants
 define("ERR_SCRIPT_PARAMS", 10); # Error - missing script param or usage of forbidden combination of params
@@ -23,12 +22,18 @@ $params = array(
   "jumps" => false
 );
 
+/**
+ * Class for keeping track of statistics such as lines of code, lines with comments, jumps or labels
+ */
 class Statistic {
     private $stats_order;
     private $stats_num;
     private $file;
     private $labels;
 
+    /**
+     * Statistic constructor - sets all stats to 0
+     */
     function  __construct() {
         $this->stats_order = array();
         $this->stats_num = $stats_num = array(
@@ -42,22 +47,40 @@ class Statistic {
         $this->jumps = array();
     }
 
+    /**
+     * Sets name of file where output will be stored
+     * @param $file Name of file
+     */
     function setFile($file) {
         $this->file = $file;
     }
 
+    /**
+     * Adds another statistics, which will be printed to output file
+     * @param $str name of statistic
+     */
     function appendStatOrder($str) {
         $this->stats_order[] = $str;
     }
 
+    /**
+     * Increase number of lines of code
+     */
     function incLoc() {
         $this->stats_num["loc"]++;
     }
 
+    /**
+     * Increase number of lines with comments
+     */
     function incComments() {
         $this->stats_num["comments"]++;
     }
 
+    /**
+     * Try to increase number of unique labels
+     * @param $label Label name
+     */
     function tryIncLabels($label) {
         if (!in_array($label, $this->labels)) {
             $this->labels[] = $label;
@@ -65,10 +88,16 @@ class Statistic {
         }
     }
 
+    /**
+     * Increase number of jumps
+     */
     function incJumps() {
         $this->stats_num["jumps"]++;
     }
 
+    /**
+     * Ouput desired stats to file
+     */
     function outputStats() {
         # Try to open file for output
         $handle = fopen($this->file, "w");
@@ -82,8 +111,16 @@ class Statistic {
     }
 }
 
+/**
+ * Class for working with instructions
+ */
 class Instruction {
 
+    /**
+     * Determine type of argument
+     * @param $token_type token type
+     * @return string Type of argument in string format
+     */
     static function getArgType($token_type) {
         if ($token_type == TokenType::T_NIL)
             return "nil";
@@ -103,6 +140,12 @@ class Instruction {
             return "unknown";
     }
 
+    /**
+     * Get argument value, strip of prefix if necessary
+     * @param $token_atr Token attribute
+     * @param $token_type Type of token
+     * @return bool|string New argument attribute
+     */
     static function getArgValue($token_atr, $token_type) {
         if ($token_type == TokenType::T_NIL || $token_type == TokenType::T_STRING || $token_type == TokenType::T_BOOL || $token_type == TokenType::T_INT)
             return Token::stripPrefix($token_atr);
@@ -110,6 +153,11 @@ class Instruction {
             return $token_atr;
     }
 
+    /**
+     * Check if it is valid opcode for instruction
+     * @param $str String
+     * @return bool Is or isn't opcode
+     */
     static function isOpcode($str) {
         $opcodes = array(
             "MOVE", "CREATEFRAME", "PUSHFRAME", "POPFRAME", "DEFVAR", "CALL", "RETURN", # Work with frames, calling functions
@@ -128,6 +176,11 @@ class Instruction {
             return false;
     }
 
+    /**
+     * Determine number of arguments each instruction should have
+     * @param $opcode Instruction code
+     * @return int Number of arguments
+     */
     static function getNumberOfArgs($opcode) {
         $no_args = array(
           "CREATEFRAME", "PUSHFRAME", "POPFRAME", "RETURN", "BREAK"
@@ -157,6 +210,9 @@ class Instruction {
     }
 }
 
+/**
+ * Various token type constants
+ */
 abstract class TokenType {
     const T_HEADER = 0;
     const T_COMMENT = 1;
@@ -171,32 +227,42 @@ abstract class TokenType {
     const T_UNKNOWN = 10;
 }
 
-# Class token:
+/**
+ * Class representing single token
+ */
 class Token {
     private $type;
     private $attribute;
     private $valid;
 
-    function setType($new_type) {
-        $this->type = $new_type;
-    }
-
+    /**
+     * Get token type
+     * @return token type
+     */
     function getType() {
         return $this->type;
     }
 
+    /**
+     * Get token attribute
+     * @return token attribute
+     */
     function getAttribute() {
         return $this->attribute;
     }
 
-    function setValidity($new_validity) {
-        $this->valid = $new_validity;
-    }
-
+    /**
+     * Get token validity
+     * @return bool Is token valid?
+     */
     function getValidity() {
         return $this->valid;
     }
 
+    /**
+     * Token constructor.
+     * @param $str Token attribute
+     */
     function __construct($str) {
         # Set attribute and default type
         $this->attribute = $str;
@@ -204,7 +270,10 @@ class Token {
         $this->valid = true; # true until proven false
     }
 
-
+    /**
+     * Determine and set type of token based on attribute
+     * @param $opcode_before Was token before opcode?
+     */
     function determine_type($opcode_before) {
         # Will set actual type based on attribute
 
@@ -273,10 +342,19 @@ class Token {
 
     }
 
+    /**
+     * Strip string of prefix
+     * @return stripped string
+     */
     static function stripPrefix($word) {
         return substr($word, strpos($word, '@') + 1);
     }
 
+    /**
+     * Check if string could be variable name
+     * @param $name Name
+     * @return bool Can be variable name?
+     */
     function checkVariableName($name) {
         if (empty($name))
             return false;
@@ -294,14 +372,29 @@ class Token {
         return true;
     }
 
+    /**
+     * Check if string could be number
+     * @param $number String representing number
+     * @return bool Could be number?
+     */
     function checkIntConstant($number) {
         return preg_match('/^[\+\-]?[0-9]+$/', $number);
     }
 
+    /**
+     * Check if string could be boolean
+     * @param $word String representing boolean
+     * @return bool Could be boolean?
+     */
     function checkBoolConstant($word) {
         return preg_match('/true|false/', $word);
     }
 
+    /**
+     * Check if could be string constant
+     * @param $str String
+     * @return bool Could be string constant
+     */
     function checkStringConstant($str) {
         # Check if contains #
         if (preg_match('/#/', $str)) {
@@ -327,8 +420,12 @@ class Token {
     }
 
 }
-# end class token
 
+/**
+ * Escape string for xml generation
+ * @param $str String
+ * @return Escaped string
+ */
 function escape_string_for_xml($str) {
     $str = str_replace("&", "&amp;", $str); # Replace &
     $str = str_replace("<", "&lt;", $str); # Replace <
@@ -337,6 +434,13 @@ function escape_string_for_xml($str) {
     return $str;
 }
 
+/**
+ * Performs lexical analysis on single line
+ * @param $line Line with instruction
+ * @param $line_number Line number
+ * @param $stat Reference to object with statistics
+ * @return array Array of Tokens
+ */
 function line_lexical_analysis($line, $line_number, &$stat) {
     # Array for tokens
     $token_array = [];
@@ -392,6 +496,11 @@ function line_lexical_analysis($line, $line_number, &$stat) {
     return $token_array;
 }
 
+/**
+ * Performs syntax analysis on line
+ * @param $token_array Array with tokens
+ * @param $line_number Line number
+ */
 function line_syntax_analysis($token_array, $line_number) {
     if ($line_number == 0) {
         # First line has to be header
@@ -413,6 +522,14 @@ function line_syntax_analysis($token_array, $line_number) {
     }
 }
 
+/**
+ * Generate xml for line with instruction
+ * @param $xml Base xml
+ * @param $root Root
+ * @param $token_array Token array
+ * @param $order Order of instruction
+ * @param $stat Object with statistics
+ */
 function line_generate_xml($xml, $root, $token_array, $order, &$stat) {
     # Time to generate xml for instruction
     $instr = $root->appendChild($xml->createElement("instruction"));
@@ -444,6 +561,10 @@ function line_generate_xml($xml, $root, $token_array, $order, &$stat) {
         $stat->incJumps();
 }
 
+/**
+ * Parse command line args
+ * @param $stat Object where statistics will be stored
+ */
 function parse(&$stat) {
 
     # prepare xml
@@ -486,9 +607,40 @@ function parse(&$stat) {
     echo $xml->saveXML();
 }
 
+/**
+ * Display help
+ */
 function display_help() {
-    # TODO - write help description
-    echo "Help\n";
+    echo <<<EOL
+parse.php is script of type filter (written in PHP 7.3), which reads from stdin source code in IPPcode19 language.
+It then performs lexical and syntax analysis to check code validity and afterwards outputs XML representation of program according to specification.
+
+Usage: php7.3 parse.php [options]
+           - user manually has to type input (not recommended)
+    or php7.3 parse.php [options] < input_file
+           - program reads input from specified file
+    or php7.3 parse.php [options] [< input_file] > output_file
+           - program can store output to specified file
+           
+Arguments (write in place of [options]):
+    --help              display help, no additional argument can be called
+    --stats=filename    collect statistics about source code and store them to specified file
+    --loc               count lines of code (--stat=... has to be called before)
+    --comments          count lines of code with comments (--stat=... has to be called before)
+    --jumps             count number of jumps (--stat=... has to be called before)
+    --labels            count number of unique labels (--stat=... has to be called before)
+    
+Return codes:
+    0    OK
+    10   Problem with script parameters
+    11   Problem with opening input files
+    12   Problem with opening output files
+    21   Missing or wrong header
+    22   Unknown or wrong opcode
+    23   Other lexical or syntax error
+    99   Internal error\n
+EOL;
+
 }
 
 function check_program_arguments(&$params, &$stat) {
