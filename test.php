@@ -36,20 +36,100 @@ class Parameters {
         );
     }
 
+    /**
+     * Sets filename of script for analysis
+     * @param $filename New filename
+     */
     function setParseFile($filename) {
         $this->parseFile = $filename;
     }
 
+    /**
+     * Sets filename of script for interpret
+     * @param $filename New filename
+     */
     function setIntFile($filename) {
         $this->intFile = $filename;
     }
 
+    /**
+     * Sets directory where tests will be located
+     * @param $dirname New directory
+     */
     function setDirectory($dirname) {
         $this->directory = $dirname;
     }
 
+    /**
+     * Increase number of times option was input
+     * @param $option Name of option
+     */
     function incOption($option) {
         $this->options[$option] += 1;
+    }
+
+    /**
+     * Function to check program arguments. Notes number of occurence of params and set values.
+     * @return int Error code - ERR_OK or ERR_SCRIPT_PARAMS
+     */
+    function checkProgramArguments() {
+        global $argv;
+        global $argc;
+        for ($i = 1; $i < $argc; $i++) {
+            $arg = $argv[$i];
+            switch ($arg) {
+                case "--help":
+                    $this->incOption("help");
+                    break;
+                case "--recursive":
+                    $this->incOption("recursive");
+                    break;
+                case "--parse-only":
+                    $this->incOption("parse-only");
+                    break;
+                case "--int-only":
+                    $this->incOption("int-only");
+                    break;
+                default:
+                    // Use regex to search for params: directory, parse-script, int-script
+
+                    if (preg_match('/--directory=/', $arg)) { // --directory=path option
+                        $this->incOption("directory");
+                        $this->directory = substr($arg, strpos($arg, "=") + 1);
+                    }
+                    elseif (preg_match('/--parse-script=/', $arg)) { // --parse-script=file option
+                        $this->incOption("parse-script");
+                        $this->parseFile = substr($arg, strpos($arg, "=") + 1);
+                    }
+                    elseif (preg_match('/--int-script=/', $arg)) { // --int-script=file option
+                        $this->incOption("int-script");
+                        $this->intFile = substr($arg, strpos($arg, "=") + 1);
+                    }
+                    else { // Error, unknown
+                        error_log("Error! Unknown parameter " . $arg);
+                        return ERR_SCRIPT_PARAMS;
+                    }
+                    break;
+            }
+        }
+
+        return ERR_OK;
+    }
+
+    /**
+     * Check options for multiple occurences of option or conflicts between them
+     * @return boolean true if no conflicts between parameters
+     */
+    function checkOptionsWithoutConflicts() {
+        // Check if any option is > 1
+
+        // Check if --help option is with anything else
+
+        // Check if --parse-script with --int-only
+
+        // Check if --int-script with --parse-only
+
+        return true;
     }
 }
 
@@ -76,41 +156,13 @@ Arguments:
 EOL;
 }
 
-/**
- * Function to check program arguments. Notes number of occurence of params and set values.
- * @param $params Object of class Parameters
- * @return int Error code
- */
-function check_program_arguments($params) {
-    global $argv;
-    global $argc;
-    for ($i = 1; $i < $argc; $i++) {
-        $arg = $argv[$i];
-        switch ($arg) {
-            case "--help":
-                $params->incOption("help");
-                break;
-            case "--recursive":
-                $params->incOption("recursive");
-                break;
-            case "--parse-only":
-                $params->incOption("parse-only");
-                break;
-            case "--int-only":
-                $params->incOption("int-only");
-                break;
-            default:
-                // Use regex to search for params: directory, parse-script, int-script
-                break;
-        }
-    }
-
-    return ERR_OK;
-}
-
 # Main body
 
 $params = new Parameters();
-check_program_arguments($params);
 
+// Check provided arguments
+if ($params->checkProgramArguments() != ERR_OK)
+    exit(ERR_SCRIPT_PARAMS);
+
+var_dump($params);
 ?>
