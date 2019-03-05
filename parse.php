@@ -546,7 +546,7 @@ function line_generate_xml($xml, $root, $token_array, $order, &$stat) {
 
         $type = Instruction::getArgType($token_array[$i]->getType());
         if ($type == "unknown")
-            exit(ERR_LEX_OR_SYNTAX); # Error - wrong type of argument
+            exit(ERR_LEX_OR_SYNTAX); # Error - wrong type of argumentls
 
         $value = escape_string_for_xml(Instruction::getArgValue($token_array[$i]->getAttribute(), $token_array[$i]->getType()));
         $arg = $instr->appendChild($xml->createElement("arg" . $i, $value));
