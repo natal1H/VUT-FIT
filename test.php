@@ -36,6 +36,18 @@ class Parameters {
         );
     }
 
+    function getDirectory() {
+        return $this->directory;
+    }
+
+    function getParseFile() {
+        return $this->parseFile;
+    }
+
+    function getIntFile() {
+        return $this->intFile;
+    }
+
     /**
      * Increase number of times option was input
      * @param $option Name of option
@@ -72,14 +84,29 @@ class Parameters {
                     if (preg_match('/--directory=/', $arg)) { // --directory=path option
                         $this->incOption("directory");
                         $this->directory = substr($arg, strpos($arg, "=") + 1);
+                        // Test input directory
+                        if (!$this->testDirValidity($this->directory)) {
+                            error_log("Error! Directory does not exist.");
+                            return ERR_INPUT_FILES;
+                        }
                     }
                     elseif (preg_match('/--parse-script=/', $arg)) { // --parse-script=file option
                         $this->incOption("parse-script");
                         $this->parseFile = substr($arg, strpos($arg, "=") + 1);
+                        // Test input parse file
+                        if (!$this->testFileValidity($this->parseFile)) {
+                            error_log("Error! " . $this->parseFile . " does not exist.");
+                            return ERR_INPUT_FILES;
+                        }
                     }
                     elseif (preg_match('/--int-script=/', $arg)) { // --int-script=file option
                         $this->incOption("int-script");
                         $this->intFile = substr($arg, strpos($arg, "=") + 1);
+                        // Test input interpret file
+                        if (!$this->testFileValidity($this->intFile)) {
+                            error_log("Error! " . $this->intFile . " does not exist.");
+                            return ERR_INPUT_FILES;
+                        }
                     }
                     else { // Error, unknown
                         error_log("Error! Unknown parameter " . $arg);
@@ -130,19 +157,153 @@ class Parameters {
     }
 
     /**
+     * Test if filename is really file
+     * @param $filename Path to file
+     * @return bool Is valid file?
+     */
+    function testFileValidity($filename) {
+        return (is_file($filename));
+    }
+
+    /**
+     * Test if directory name is really directory
+     * @param $dirname Path to directory
+     * @return bool Is valid directory?
+     */
+    function testDirValidity($dirname) {
+        return (is_dir($dirname));
+    }
+
+    /**
      * Decide what actions to take based on selected options.
      * Expects that method checkProgramArguments and checkOptionsWithoutConflicts were called prior.
+     * @return int Error code
      */
-    function decideCourseOfAction() {
+    function decideCourseOfAction($stat) {
         if ($this->options["help"] == 1) {
             display_help();
         }
         elseif ($this->options["parse-only"] == 1) {
-
+            if ($this->options["recursive"] == 0) {
+                // Non-recursive test only for parse
+                $stat->generateParseBeginning();
+                test_parse_non_recursive($this->directory, $this->parseFile, $stat);
+                $stat->generateParseEnd();
+                $stat->totalAndPassed();
+            }
+            else {
+                // Recursive test only for parse
+            }
         }
         elseif ($this->options["int-only"] == 1) {
-
+            // TODO when interpret is done
         }
+        else {
+            if ($this->options["recursive"] == 0) {
+                // Non-recursive test
+                $stat->generateParseBeginning();
+                test_parse_non_recursive($this->directory, $this->parseFile, $stat);
+                $stat->generateParseEnd();
+                $stat->totalAndPassed();
+            }
+            else {
+                // Recursive test
+            }
+        }
+
+        return ERR_OK;
+    }
+}
+
+/**
+ * Class HTMLStats - class for storing html output
+ */
+class HTMLStats {
+    private $html;
+    private $passed;
+    private $total;
+
+    /**
+     * HTMLStats constructor
+     */
+    function __construct() {
+        $this->html = "";
+        $this->passed = 0;
+        $this->total = 0;
+    }
+
+    /**
+     * Generate header of html file
+     */
+    function generateHead($params) {
+        $dir = $params->getDirectory();
+        $parse = $params->getParseFile();
+        $int = $params->getIntFile();
+        $this->html .= <<<EOD
+<html>
+<head>
+    <title>test.php</title>
+</head>
+<body>
+<h1>test.php - results</h1>
+<p>
+Selected settings:
+<ul>
+<li>Directory with tests: $dir</li>
+<li>Path to script for analysis: $parse</li>
+<li>Path to interpret script: $int</li>
+</ul>
+</p>
+
+EOD;
+    }
+
+    /**
+     * Generate end of html file
+     */
+    function generateEnd() {
+        $this->html .= <<<EOD
+</body>
+</html>
+
+EOD;
+    }
+
+    function generateParseBeginning() {
+        $this->html .= <<<EOD
+<h2>Testing parse.php</h2>
+<ol>
+
+EOD;
+    }
+
+    function generateParseEnd() {
+        $this->html .= "</ol>\n";
+    }
+
+    function testResult($file, $passed) {
+        $this->html .= "<li>testing file: " . $file . ": " . (($passed == true) ? "OK</li>" : "ERROR</li>") . "\n";
+        $this->total += 1;
+        if ($passed) $this->passed += 1;
+    }
+
+    function totalAndPassed() {
+        $this->html .= <<<EOD
+<hr>
+<p>
+Total number of tests: $this->total<br>
+Passed tests: $this->passed<br>
+</p>
+
+EOD;
+
+    }
+
+    /**
+     * Output HTML to stdout
+     */
+    function outputHTML() {
+        echo $this->html;
     }
 }
 
@@ -170,6 +331,7 @@ EOL;
 }
 
 /**
+ * Generate file with content
  * @param $path Full path to file
  * @param $content Content to put in file
  * @return int Error ok - ERR_OK or ERR_OUTPUT_FILES
@@ -194,95 +356,72 @@ function generate_file($path, $content) {
  * @param $parseFile Filename of parse script
  * @return int Error code
  */
-function test_parse_non_recursive($directory, $parseFile) {
+function test_parse_non_recursive($directory, $parseFile, $stat) {
     $files = scandir($directory);
     foreach ($files as $file) {
         if (is_file($directory . "/" . $file) && (preg_match("/.src/", $file))) {
 
             $name = substr($file, 0, strlen($file) - 4);
-            print("-- filename without .src: " . $name . "\n");
 
             // Check if it has .rc file
             if (!is_file($directory . "/" . $name . ".rc")) {
-                print("--- also does not have .rc file Generate it!\n");
                 generate_file($directory . "/" . $name . ".rc", "0\n");
             }
             // Check if it has .out file
             if (!is_file($directory . "/" . $name . ".out")) {
-                print("--- also does not have .out file Generate it!\n");
                 generate_file($directory . "/" . $name . ".out", "");
             }
             // Check if it has .in file
             if (!is_file($directory . "/" . $name . ".in")) {
-                print("--- also does not have .in file Generate it!\n");
                 generate_file($directory . "/" . $name . ".in", "");
             }
 
             // We now have all necessary file - do the test!
             // Run parse.php (or whatever it is called) with current source file and save output to .my_out and return code to .my_rc
-            exec("php7.3 " . $parseFile . " < " . ($directory . "/" . $file) . " > " . ($directory . "/" . $name . ".my_out") );
+            exec("php7.3 " . $parseFile . " < " . ($directory . "/" . $file) . " > " . ($directory . "/" . $name . ".my_out"));
             exec("echo $? > " . $directory . "/" . $name . ".my_rc");
 
             // Compare return codes
-            // TODO - diff nech ignoruje prázdne riadky
-            $rc_diff = shell_exec("diff -w " . $directory . "/" . $name . ".my_rc " . $directory . "/" . $name . ".rc");
-            //print("diff --strip-trailing-cr " . $directory . "/" . $name . ".my_rc " . $directory . "/" . $name . ".rc\n");
-            print("rc diff: " . $rc_diff . "\n");
+            $ref_rc = intval(file_get_contents($directory . "/" . $name . ".rc"));
+            $my_rc = intval(file_get_contents($directory . "/" . $name . ".my_rc"));
+
             // Compare outputs
-            //
+            $out_diff = shell_exec("diff --ignore-tab-expansion " . $directory . "/" . $name . ".my_out " . $directory . "/" . $name . ".out");
+            if (($ref_rc != $my_rc) || strlen($out_diff) != 0) {
+                $stat->testResult($name, false);
+            }
+            else {
+                $stat->testResult($name, true);
+            }
         }
     }
+
 
     return ERR_OK;
 }
 
 # Main body
 
-/*
 $params = new Parameters();
 
 // Check provided arguments
-if ($params->checkProgramArguments() != ERR_OK)
-    exit(ERR_SCRIPT_PARAMS);
+$ret_code = $params->checkProgramArguments();
+if ($ret_code != ERR_OK)
+    exit($ret_code);
+
 // Check for conflicts between parameters
 if(!$params->checkOptionsWithoutConflicts())
     exit(ERR_SCRIPT_PARAMS);
 
-$params->decideCourseOfAction();
-*/
+// Create object for HTML output
+$stat = new HTMLStats();
+$stat->generateHead($params);
 
-$parseFile = "parse.php";
-$directory = "mytests";
+// Decide course of action based on parameters
+$ret_code = $params->decideCourseOfAction($stat);
 
-// TODO - return error code if directory does not exist
+$stat->generateEnd();
+$stat->outputHTML();
 
-if (is_file($parseFile))
-    print("file exists\n");
-else
-    print("file does not exit\n");
-
-if (is_dir($directory ))
-    print("is directory\n");
-else
-    print("isn't directory\n");
-
-/*
-$current_path = $directory;
-
-$files = scandir($directory);
-var_dump($files);
-foreach ($files as $file) {
-    if (is_file($current_path . "/" . $file) && (preg_match("/.src/", $file))) {
-        print("- is src file: " . $current_path . "/" . $file . "\n");
-
-        $name = substr($file, 0, strlen($file) - 4);
-        print("-- filename without .src: " . $name . "\n");
-        // Check if it has .rc file
-        if (is_file($current_path . "/" . $name . ".out"))
-            print("--- also has .out file.\n");
-    }
-}*/
-
-test_parse_non_recursive($directory, $parseFile);
-
+exit($ret_code);
 ?>
