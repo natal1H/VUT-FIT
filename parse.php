@@ -2,7 +2,7 @@
 # VUT FIT - IPP - Project
 # Author: Natália Holková (xholko02)
 
-
+// TODO - kontrolovať syntaktické chyby typu: ADD <var> <symb1> <symb2> --> a nie sú dodané vhodné typy tokenov
 
 # Define error constants
 define("ERR_SCRIPT_PARAMS", 10); # Error - missing script param or usage of forbidden combination of params
@@ -207,6 +207,63 @@ class Instruction {
             return 3;
         else
             return -1;
+    }
+
+    public static function isSymb($type) {
+        return ($type == TokenType::T_VARIABLE || $type == TokenType::T_INT || $type == TokenType::T_BOOL || $type == TokenType::T_STRING || $type == TokenType::T_NIL);
+    }
+
+    /**
+     * Check if correct types of args were input (case: 1 arg instruction)
+     * @param $opcode Opcode
+     * @param $token_type1 Type of token
+     * @return bool Correct or not
+     */
+    public static function checkArgType1($opcode, $token_type1) {
+        $var_type = array("DEFVAR", "POPS"); // Instruction syntax: <var>
+        $label_type = array("CALL", "LABEL", "JUMP"); // Instruction syntax: <label>
+        $symb_type = array("PUSHS", "WRITE", "EXIT", "DPRINT"); // Instruction syntax: <symb>
+
+        if (in_array($opcode, $var_type) && ($token_type1 == TokenType::T_VARIABLE))
+            return true;
+        elseif (in_array($opcode, $label_type) && ($token_type1 == TokenType::T_LABEL))
+            return true;
+        elseif (in_array($opcode, $symb_type) && Instruction::isSymb($token_type1))
+            return true;
+        else
+            return false;
+    }
+
+    /**
+     * Check if correct types of args were input (case: 2 args instruction)
+     * @param $opcode Opcode
+     * @param $token_type1 Type of token
+     * @param $token_type2 Type of token
+     * @return bool Correct or not
+     */
+    static function checkArgType2($opcode, $token_type1, $token_type2) {
+        $var_symb_type = array("MOVE", "INT2CHAR", "STRLEN", "TYPE", "NOT"); // Instruction syntax: <var> <symb>
+        $var_type_type = array("READ"); // Instruction syntax: <var> <type>
+
+        if (in_array($opcode, $var_symb_type) && ($token_type1 == TokenType::T_VARIABLE && Instruction::isSymb($token_type2)))
+            return true;
+        elseif (in_array($opcode, $var_type_type) && ($token_type1 == TokenType::T_VARIABLE && $token_type2 == TokenType::T_TYPE))
+            return true;
+        else
+            return false;
+    }
+
+    /**
+     * Check if correct types of args were input (case: 3 args instruction)
+     * @param $opcode Opcode
+     * @param $token_type1 Type of token
+     * @param $token_type2 Type of token
+     * @param $token_type3 Type of token
+     * @return bool Correct or not
+     */
+    static function checkArgType3($opcode, $token_type1, $token_type2, $token_type3) {
+        // Only possible instruction syntax: <var> <symb1> <symb2>
+        return ($token_type1 == T_VARIABLE && Instruction::isSymb($token_type2) && Instruction::isSymb($token_type3));
     }
 }
 
@@ -448,7 +505,7 @@ function line_lexical_analysis($line, $line_number, &$stat) {
     $opcode_before = false;
 
     foreach (preg_split("/[\s\t]+/", $line) as $word) { # Split line into words
-        #echo "Word: " . $word . "\n";
+        //echo "Word: " . $word . "\n";
         if (strlen($word) == 0) { # \n character
             break; # Break foreach - begin syntax analysis with acquired tokens
         }
@@ -457,6 +514,9 @@ function line_lexical_analysis($line, $line_number, &$stat) {
             if (preg_match("/#/", $word) && strlen($word) > 1) {
                 # Contains # - is beginning of line comment
                 $word = substr($word, 0, strpos($word, "#"));
+
+                if (strlen($word) == 0)
+                    break; // Nothing before #, break
 
                 # Create token and determine its type
                 $token = new Token($word);
@@ -467,6 +527,7 @@ function line_lexical_analysis($line, $line_number, &$stat) {
                     $opcode_before = ($token->getType() == TokenType::T_OPCODE);
                 }
                 elseif ($line_number != 0) {
+                    error_log("Error! Invalid token.");
                     exit(ERR_LEX_OR_SYNTAX);
                 }
 
@@ -488,6 +549,7 @@ function line_lexical_analysis($line, $line_number, &$stat) {
                     $opcode_before = ($token->getType() == TokenType::T_OPCODE);
                 }
                 elseif ($line_number != 0) {
+                    error_log("Error! Invalid token.");
                     exit(ERR_LEX_OR_SYNTAX);
                 }
             }
@@ -505,16 +567,41 @@ function line_syntax_analysis($token_array, $line_number) {
     if ($line_number == 0) {
         # First line has to be header
         if (!(count($token_array) == 1 && $token_array[0]->getType() == TokenType::T_HEADER)) {
+            error_log("Error! Wrong header.");
             exit(ERR_HEADER);
         }
     }
     else {
         # Check if first token is valid opcode
         if (count($token_array) > 0) {
+            $opcode = strtoupper($token_array[0]->getAttribute()); // Instruction opcode
             if ($token_array[0]->getType() != TokenType::T_OPCODE) {
+                error_log("Error! Wrong opcode.");
                 exit(ERR_OPCODE);
             }
-            elseif (count($token_array) - 1 != Instruction::getNumberOfArgs(strtoupper($token_array[0]->getAttribute()))) {
+            elseif (count($token_array) - 1 != Instruction::getNumberOfArgs($opcode)) {
+                error_log("Error! Wrong number of arguments.");
+                exit(ERR_LEX_OR_SYNTAX);
+            }
+
+            // Here instruction should have correct number of args, now check if they are also correct type
+
+            $num_args = Instruction::getNumberOfArgs($opcode);
+            $type_ok = true;
+            switch ($num_args) {
+                case 0: break;
+                case 1:
+                    $type_ok = Instruction::checkArgType1($opcode, $token_array[1]->getType());
+                    break;
+                case 2:
+                    $type_ok = Instruction::checkArgType2($opcode, $token_array[1]->getType(), $token_array[2]->getType());
+                    break;
+                case 3:
+                    break;
+            }
+
+            if (!$type_ok) {
+                error_log("Error! Wrong type of arguments.");
                 exit(ERR_LEX_OR_SYNTAX);
             }
         }
@@ -545,8 +632,10 @@ function line_generate_xml($xml, $root, $token_array, $order, &$stat) {
             $stat->tryIncLabels($token_array[$i]);
 
         $type = Instruction::getArgType($token_array[$i]->getType());
-        if ($type == "unknown")
-            exit(ERR_LEX_OR_SYNTAX); # Error - wrong type of argumentls
+        if ($type == "unknown") {
+            error_log("Error! Wrong type of args.");
+            exit(ERR_LEX_OR_SYNTAX); # Error - wrong type of arguments
+        }
 
         $value = escape_string_for_xml(Instruction::getArgValue($token_array[$i]->getAttribute(), $token_array[$i]->getType()));
         $arg = $instr->appendChild($xml->createElement("arg" . $i, $value));
@@ -599,9 +688,10 @@ function parse(&$stat) {
 
         $line_number += 1;
     }
-    if ($line_number == 0)
+    if ($line_number == 0) {
+        error_log("Error! Missing header.");
         exit(ERR_HEADER);
-
+    }
 
     # output xml
     echo $xml->saveXML();
@@ -653,40 +743,34 @@ function check_program_arguments(&$params, &$stat) {
             case "--help":
                 if ($argc == 2) # Only --help param, no problem
                     $params["help"] = true;
-                else # Error - --help param cannot be with other params
+                else { # Error - --help param cannot be with other params
+                    error_log("Error! Help cannot be called with other params.");
                     exit(ERR_SCRIPT_PARAMS);
+                }
                 break;
             case "--loc":
-                if ($params["stats"] == true && $params["loc"] == false) {
+                if ($params["stats"] == true) {
                     $params["loc"] = true;
                     $stat->appendStatOrder("loc");
                 }
-                else
-                    exit(ERR_SCRIPT_PARAMS);
                 break;
             case "--comments":
-                if ($params["stats"] == true && $params["comments"] == false) {
+                if ($params["stats"] == true) {
                     $params["comments"] = true;
                     $stat->appendStatOrder("comments");
                 }
-                else
-                    exit(ERR_SCRIPT_PARAMS);
                 break;
             case "--labels":
-                if ($params["stats"] == true && $params["labels"] == false) {
+                if ($params["stats"] == true) {
                     $params["labels"] = true;
                     $stat->appendStatOrder("labels");
                 }
-                else
-                    exit(ERR_SCRIPT_PARAMS);
                 break;
             case "--jumps":
-                if ($params["stats"] == true && $params["jumps"] == false) {
+                if ($params["stats"] == true) {
                     $params["jumps"] = true;
                     $stat->appendStatOrder("jumps");
                 }
-                else
-                    exit(ERR_SCRIPT_PARAMS);
                 break;
             default:
                 if (preg_match('/--stats=[a-zA-Z0-9_\.]+/', $arg) && $params["stats"] == false) {
@@ -694,6 +778,7 @@ function check_program_arguments(&$params, &$stat) {
                     $stat->setFile(substr($arg,strpos($arg, "=") + 1));
                 }
                 else { # Error - unknown param
+                    error_log("Error! Unknown param.");
                     exit(ERR_SCRIPT_PARAMS);
                 }
                 break;
