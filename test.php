@@ -204,31 +204,29 @@ class Parameters {
             display_help();
         }
         elseif ($this->options["parse-only"] == 1) {
-            if ($this->options["recursive"] == 0) {
+            $stat->generateParseBeginning();
+            if ($this->options["recursive"] == 0)
                 // Non-recursive test only for parse
-                $stat->generateParseBeginning();
-                test_parse_non_recursive($this, $stat);
-                $stat->generateParseEnd();
-                $stat->totalAndPassed();
-            }
-            else {
+                test_parse_non_recursive($this->directory, $this->parseFile, $this->jexamxml, $this->jexamxmlOptions, $stat);
+            else
                 // Recursive test only for parse
-            }
+                test_parse_recursive($this->directory, $this->parseFile, $this->jexamxml, $this->jexamxmlOptions, $stat);
+            $stat->generateParseEnd();
+            $stat->totalAndPassed();
         }
         elseif ($this->options["int-only"] == 1) {
             // TODO when interpret is done
         }
         else {
-            if ($this->options["recursive"] == 0) {
-                // Non-recursive test
-                $stat->generateParseBeginning();
-                test_parse_non_recursive($this, $stat);
-                $stat->generateParseEnd();
-                $stat->totalAndPassed();
-            }
-            else {
-                // Recursive test
-            }
+            $stat->generateParseBeginning();
+            if ($this->options["recursive"] == 0)
+                // Non-recursive test only for parse
+                test_parse_non_recursive($this->directory, $this->parseFile, $this->jexamxml, $this->jexamxmlOptions, $stat);
+            else
+                // Recursive test only for parse
+                test_parse_recursive($this->directory, $this->parseFile, $this->jexamxml, $this->jexamxmlOptions, $stat);
+            $stat->generateParseEnd();
+            $stat->totalAndPassed();
         }
 
         return ERR_OK;
@@ -301,8 +299,8 @@ EOD;
         $this->html .= "</ol>\n";
     }
 
-    function testResult($file, $passed) {
-        $this->html .= "<li>testing file: " . $file . ": " . (($passed == true) ? "OK</li>" : "ERROR</li>") . "\n";
+    function testResult($path, $passed) {
+        $this->html .= "<li>testing file: " . $path . ": " . (($passed == true) ? "OK</li>" : "ERROR</li>") . "\n";
         $this->total += 1;
         if ($passed) $this->passed += 1;
     }
@@ -362,7 +360,7 @@ function generate_file($path, $content) {
         error_log("Error! Could not create " . $path . ".\n");
         return ERR_OUTPUT_FILES;
     }
-    print("I am going to write in file " . $path . " now.\n");
+    //print("I am going to write in file " . $path . " now.\n");
 
     fwrite($handle, $content);
 
@@ -376,12 +374,14 @@ function remove_tmp_file($path) {
 
 /**
  * Automatic test only for parse, non-recursive option.
- * @param $param Object from class Parameter
- * @param $stat Object from class HTMLStats
+ * @param $directory
+ * @param $parseFile
+ * @param $jexamxml
+ * @param $jexamxmlOptions
+ * @param @param $stat Object from class HTMLStats
  * @return int Error code
  */
-function test_parse_non_recursive($param, $stat) {
-    $directory = $param->getDirectory();
+function test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat) {
     $files = scandir($directory);
     foreach ($files as $file) {
         if (is_file($directory . $file) && (preg_match("/.src/", $file))) {
@@ -403,39 +403,37 @@ function test_parse_non_recursive($param, $stat) {
                 generate_file($path . ".in", "");
             }
 
-
-
             // We now have all necessary file - do the test!
             // Run parse.php (or whatever it is called) with current source file and save output to .my_out and return code to .my_rc
-            exec("php7.3 " . $param->getParseFile() . " < " . ($directory . $file) . " > " . $path . ".my_out 2>/dev/null", $output, $my_rc);
+            exec("php7.3 " . $parseFile . " < " . ($directory . $file) . " > " . $path . ".my_out 2>/dev/null", $output, $my_rc);
 
             // Compare return codes
             $ref_rc = intval(file_get_contents($path . ".rc"));
 
             if ($ref_rc != $my_rc) {
                 //echo "Differennt RC\n";
-                $stat->testResult($name, false);
+                $stat->testResult($directory . $name, false);
             }
             elseif ($my_rc == 0) {
                 //echo "Same RC\n";
                 // Compare outputs
-                exec("java -jar " . $param->getJexamxml() . " " . $path . ".out " . $path . ".my_out " . $directory . "diffs.xml /D " . $param->getJexamxmlOptions(), $out, $status);
+                exec("java -jar " . $jexamxml . " " . $path . ".out " . $path . ".my_out " . $directory . "diffs.xml /D " . $jexamxmlOptions, $out, $status);
 
                 //print("Status of " . $path . " OUT: " . $status . "\n");
                 //var_dump($out);
 
                 if ($status != 0) {
                     //echo "Status not 0\n";
-                    $stat->testResult($name, false);
+                    $stat->testResult($directory . $name, false);
                 }
                 else {
                     //echo "Status 0\n";
-                    $stat->testResult($name, true);
+                    $stat->testResult($directory . $name, true);
                 }
             }
             else {
                 //"Same non 0 RC\n";
-                $stat->testResult($name, true);
+                $stat->testResult($directory . $name, true);
             }
 
             // Remove tmp files
@@ -450,6 +448,22 @@ function test_parse_non_recursive($param, $stat) {
 
 
     return ERR_OK;
+}
+
+function test_parse_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat) {
+    $files = scandir($directory);
+    foreach ($files as $file) {
+        if (is_dir($directory . $file) && $file != "." && $file != "..") {
+            // Is directory
+            $currentDir = $directory . $file . "/";
+            //echo "File: " . $file . "| new Dir: " . $currentDir . "\n";
+            test_parse_recursive($currentDir, $parseFile, $jexamxml, $jexamxmlOptions, $stat);
+        }
+    }
+
+    // Non-recursive test in main directory
+    test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat);
+
 }
 
 # Main body
