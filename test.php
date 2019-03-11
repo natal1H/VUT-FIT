@@ -388,7 +388,7 @@ function test_parse_non_recursive($param, $stat) {
 
             $name = substr($file, 0, strlen($file) - 4);
             $path = $directory . $name;
-            print("Path: " . $path . "\n");
+            //print("Path: " . $path . "\n");
 
             // Check if it has .rc file
             if (!is_file($path . ".rc")) {
@@ -407,31 +407,38 @@ function test_parse_non_recursive($param, $stat) {
 
             // We now have all necessary file - do the test!
             // Run parse.php (or whatever it is called) with current source file and save output to .my_out and return code to .my_rc
-            exec("php7.3 " . $param->getParseFile() . " < " . ($directory . $file) . " > " . ($path . ".my_out"));
-            exec("echo $? > " . $path . ".my_rc");
+            exec("php7.3 " . $param->getParseFile() . " < " . ($directory . $file) . " > " . $path . ".my_out 2>/dev/null", $output, $my_rc);
 
             // Compare return codes
             $ref_rc = intval(file_get_contents($path . ".rc"));
-            $my_rc = intval(file_get_contents($path . ".my_rc"));
 
-            // Compare outputs
-            $out_diff = shell_exec("diff --ignore-tab-expansion " . $path . ".my_out " . $path . ".out");
-
-            exec("java -jar " . $param->getJexamxml() . " " . $path . ".out " . $path . ".my_out " . $directory . "diffs.xml /D " . $param->getJexamxmlOptions(), $out, $status);
-
-            print("Status of " . $path . " OUT: " . $status . "\n");
-            //var_dump($out);
-
-            if ($ref_rc != $my_rc || $status != 0) {
+            if ($ref_rc != $my_rc) {
+                //echo "Differennt RC\n";
                 $stat->testResult($name, false);
             }
+            elseif ($my_rc == 0) {
+                //echo "Same RC\n";
+                // Compare outputs
+                exec("java -jar " . $param->getJexamxml() . " " . $path . ".out " . $path . ".my_out " . $directory . "diffs.xml /D " . $param->getJexamxmlOptions(), $out, $status);
+
+                //print("Status of " . $path . " OUT: " . $status . "\n");
+                //var_dump($out);
+
+                if ($status != 0) {
+                    //echo "Status not 0\n";
+                    $stat->testResult($name, false);
+                }
+                else {
+                    //echo "Status 0\n";
+                    $stat->testResult($name, true);
+                }
+            }
             else {
+                //"Same non 0 RC\n";
                 $stat->testResult($name, true);
             }
 
             // Remove tmp files
-            if (file_exists($path . ".my_rc"))
-                remove_tmp_file($path . ".my_rc"); // remove .my_rc
             if (file_exists($path . ".my_out"))
                 remove_tmp_file($path . ".my_out"); // remove .my_out
             if (file_exists($directory . "diffs.xml"))

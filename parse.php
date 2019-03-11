@@ -499,6 +499,8 @@ function escape_string_for_xml($str) {
  * @return array Array of Tokens
  */
 function line_lexical_analysis($line, $line_number, &$stat) {
+    $line = trim($line);
+
     # Array for tokens
     $token_array = [];
 
