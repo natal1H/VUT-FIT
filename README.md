@@ -7,7 +7,9 @@ Program will display basic weather info: weather description, temperature, humid
 
 Client application is written in Python programming language. 
 Program first checks weather correct arguments were entered and then attempts to connect to OpenWeatherMap server to get weather data.
-In case HTTP response is OK (code 200), program then decodes data in json format and outputs desired weather info.
+In case HTTP response is OK (code 200), program then decodes data in json format and outputs desired weather info. 
+In some cases might happen that certain statistic is not present, e.g. wind degree when wind speed is 0, 
+therefore before each print there is an additional check. 
 
 ## Prerequisites
 

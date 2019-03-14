@@ -23,7 +23,7 @@ def check_help_arg():
 
 def display_help():
     """Function to display program help."""
-    help_message = """Client for acquiring current weather information.
+    help_message = """Client for acquiring current weather information about desired city.
     
 Usage:
     - call this program with your OpenWeatherMap API key and inquired city as arguments
@@ -84,7 +84,7 @@ def get_data_from_api(api_key, city):
         try:
             client.connect((target_host, target_port))
         except:
-            # Error with connecing to server
+            # Error with connecting to server
             exit_with_message("Could not connect to OpenWeatherMap server. Exiting program...")
 
         # send some data
@@ -99,7 +99,7 @@ def get_data_from_api(api_key, city):
 
 
 def exit_with_message(message):
-    """Function to display error message and exit program with code 1."""
+    """Function to display error message and exit program with error code 1."""
     print("Error: " + message)
     sys.exit(1)
 
@@ -125,7 +125,9 @@ first_line = data_str[:data_str.index('\r\n')].split(" ", 2)
 
 if first_line[1] != "200":
     # Error occurred - wrong HTTP response code
-    exit_with_message("HTTP response code %s - %s. Exiting program..." % (first_line[1], first_line[2]))
+    error_code = first_line[1]
+    error_msg = first_line[2]
+    exit_with_message("HTTP response code %s - %s. Exiting program..." % (error_code, error_msg))
 else:
     # Acquire json substring
     start = data_str.index('{')  # Find start of json data

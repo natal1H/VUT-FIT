@@ -1,11 +1,11 @@
-# VUT FIT - IPP - Project No. 1
+# VUT FIT - IPK - Project No. 1
 
 EXECUTABLE=client.py
 
 all: run
 
 run:
-	python3.6 $(EXECUTABLE) $(api_key) "$(city)"
+	@python3.6 $(EXECUTABLE) $(api_key) "$(city)"
 
 build:
 
@@ -16,5 +16,5 @@ clean:
 	rm -f xholko02.zip
 
 help:
-	python3.6 $(EXECUTABLE) --help
+	@python3.6 $(EXECUTABLE) --help
 
