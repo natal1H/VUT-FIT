@@ -3,6 +3,7 @@
 
 import sys
 import xml.etree.ElementTree as ET
+import re
 
 # Temp - variables with exit codes
 ERR_SCRIPT_PARAMS = 10  # Missing or wrong script parameter
@@ -61,15 +62,76 @@ def get_xml_from_stdin():
 
     return xml
 
+class Instruction:
+    opcode = ""
+    args = []
+
+    def __init__(self, opcode):
+        self.opcode = opcode
+
+    def __repr__(self):
+        return "<Instruction opcode:%s args: %s>" % (self.opcode, self.args)
+
+    def getCorrectNumberOfArgs(self):
+        no_args = ["CREATEFRAME", "PUSHFRAME", "POPFRAME", "RETURN", "BREAK"]
+        one_arg = ["DEFVAR", "CALL", "PUSHS", "POPS", "WRITE", "LABEL", "JUMP", "EXIT", "DPRINT"]
+        two_args = ["MOVE", "INT2CHAR", "READ", "STRLEN", "TYPE", "NOT"]
+
+        if self.opcode in no_args:
+            return 0
+        elif self.opcode in one_arg:
+            return 1
+        elif self.opcode in two_args:
+            return 2
+        else:
+            return 3
+
+    def setNumberOfArgs(self):
+        self.args = [None] * self.getCorrectNumberOfArgs()
+
+    def setArg(self, arg_num, arg_type, arg_value):
+        # chage value from string to correct type if int or bool
+        if arg_type == "int": arg_value = int(arg_value)
+        elif arg_type == "bool": arg_value = True if arg_value == "true" else False
+
+        self.args[arg_num - 1] = {"type": arg_type, "value": arg_value}
+
+
+
 # MAIN
 source_filename = "example.xml"
 input_filename = "input.txt"
 
-#root = get_xml_from_file(source_filename)
-root = get_xml_from_stdin()
+root = get_xml_from_file(source_filename)
+#root = get_xml_from_stdin()
+
+program = [None] * len(root)
 
 for instruction in root:
-    print(instruction.attrib["opcode"])
-    if not is_opcode(instruction.attrib["opcode"]):
+    opcode = instruction.attrib["opcode"]
+    if not is_opcode(opcode):
         exit_with_message("Error! Invalid OPCODE in XML.", ERR_XML_STRUCTURE)
+
+    print(opcode)
+
+    order = int(instruction.attrib["order"]) - 1
+
+    program[order] = Instruction(opcode)
+
+    # Check if correct number of args
+    if program[order].getCorrectNumberOfArgs() != len(instruction):
+        exit_with_message("Error! Incorrect number of arguments for instruction.", ERR_XML_STRUCTURE)
+
+    program[order].setNumberOfArgs() # Prepare array for args
+    for arg in instruction: # Iterate through args and add them to correct position
+        print("\t{}, {}: {}".format(arg.tag, arg.attrib["type"], arg.text))
+        if (arg.tag not in ["arg1", "arg2", "arg3"]):
+            exit_with_message("Error! Wrong tag for arguments.", ERR_XML_STRUCTURE)
+
+        print("Arg num: {}".format(arg.tag[3:]))
+        arg_num = int(arg.tag[3:])
+        program[order].setArg(arg_num, arg.attrib["type"], arg.text)
+
+    print(program[order])
+
 
