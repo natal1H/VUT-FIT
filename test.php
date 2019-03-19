@@ -16,8 +16,8 @@ class Parameters {
     private $parseFile;
     private $intFile;
     private $directory;
-    private $jexamxml; // TODO - do not forget to change to path on merlin
-    private $jexamxmlOptions; // TODO - do not forget to change to path on merlin
+    private $jexamxml;
+    private $jexamxmlOptions;
 
     /**
      * Parameters constructor. Sets implicit values
@@ -26,8 +26,8 @@ class Parameters {
         $this->parseFile = "parse.php";
         $this->intFile = "interpret.py";
         $this->directory = "./";
-        $this->jexamxml = "/home/natali/Plocha/jexamxml/jexamxml.jar"; // TODO - change
-        $this->jexamxmlOptions = "/home/natali/Plocha/jexamxml/options"; // TODO - change
+        $this->jexamxml = realpath("/pub/courses/ipp/jexamxml/jexamxml.jar");
+        $this->jexamxmlOptions = realpath("/pub/courses/ipp/jexamxml/options");
 
         $this->options = array(
             "help" => 0,
@@ -36,7 +36,8 @@ class Parameters {
             "parse-script" => 0,
             "int-script" => 0,
             "parse-only" => 0,
-            "int-only" => 0
+            "int-only" => 0,
+            "xml" => 0
         );
     }
 
@@ -102,13 +103,14 @@ class Parameters {
                     if (preg_match('/--directory=/', $arg)) { // --directory=path option
                         $this->incOption("directory");
                         $this->directory = substr($arg, strpos($arg, "=") + 1);
-                        // TODO - add / at the end of directory if not there already
+                        // add / at the end of directory if not there already
+                        if ($this->directory[strlen($this->directory) - 1] != "/") $this->directory .= "/";
 
                         // Test input directory
                         if (!$this->testDirValidity($this->directory)) {
                             error_log("Error! Directory does not exist.");
                             return ERR_INPUT_FILES;
-                        }
+                        }  
                     }
                     elseif (preg_match('/--parse-script=/', $arg)) { // --parse-script=file option
                         $this->incOption("parse-script");
@@ -127,6 +129,21 @@ class Parameters {
                             error_log("Error! " . $this->intFile . " does not exist.");
                             return ERR_INPUT_FILES;
                         }
+                    }
+                    elseif (preg_match('/--xml=/', $arg)) { // --xml= directory where jexamxml.jar is stored
+                        $this->incOption("xml");
+                        $this->jexamxml = substr($arg, strpos($arg, "=") + 1);
+                        if ($this->jexamxml[strlen($this->jexamxml) - 1] != "/") $this->jexamxml .= "/";
+
+                        // Test input directory
+                        if (!$this->testDirValidity($this->jexamxml)) {
+                            error_log("Error! Directory for JExamXML does not exist.");
+                            return ERR_INPUT_FILES;
+                        }
+
+                        $this->jexamxmlOptions = realpath($this->jexamxml . "options");
+                        $this->jexamxml .= "jexamxml.jar";
+			$this->jexamxml = realpath($this->jexamxml);
                     }
                     else { // Error, unknown
                         error_log("Error! Unknown parameter " . $arg);
@@ -202,6 +219,7 @@ class Parameters {
     function decideCourseOfAction($stat) {
         if ($this->options["help"] == 1) {
             display_help();
+            exit(ERR_OK);
         }
         elseif ($this->options["parse-only"] == 1) {
             $stat->generateParseBeginning();
@@ -211,21 +229,29 @@ class Parameters {
             else
                 // Recursive test only for parse
                 test_parse_recursive($this->directory, $this->parseFile, $this->jexamxml, $this->jexamxmlOptions, $stat);
-            $stat->generateParseEnd();
+            $stat->generateTestEnd();
             $stat->totalAndPassed();
         }
         elseif ($this->options["int-only"] == 1) {
-            // TODO when interpret is done
+            $stat->generateIntBeginning();
+            if ($this->options["recursive"] == 0)
+                // Non-recursive test only for parse
+                test_interpret_non_recursive($this->directory, $this->intFile, $stat);
+            else
+                // Recursive test only for parse
+                test_interpret_recursive($this->directory, $this->intFile, $stat);
+            $stat->generateTestEnd();
+            $stat->totalAndPassed();
         }
         else {
             $stat->generateParseBeginning();
             if ($this->options["recursive"] == 0)
                 // Non-recursive test only for parse
-                test_parse_non_recursive($this->directory, $this->parseFile, $this->jexamxml, $this->jexamxmlOptions, $stat);
+                test_both_non_recursive($this->directory, $this->parseFile, $this->intFile, $stat);
             else
                 // Recursive test only for parse
-                test_parse_recursive($this->directory, $this->parseFile, $this->jexamxml, $this->jexamxmlOptions, $stat);
-            $stat->generateParseEnd();
+                test_both_recursive($this->directory, $this->parseFile, $this->intFile, $stat);
+            $stat->generateTestEnd();
             $stat->totalAndPassed();
         }
 
@@ -261,15 +287,25 @@ class HTMLStats {
 <html>
 <head>
     <title>test.php</title>
+    <style>
+        body {font-family: arial; }
+        table {background-color:  #f0f3f4 ; width: 100%}
+        th {text-align: left; padding-top: 10px;}
+        td {padding: 5px;}
+        .okTest {background-color: #58d68d; }
+        .errorTest {background-color:  #ec7063 ; }
+        .errorDetail {background-color:  #f0f3f4; }
+        .pane { width: 100%; display: inline-block; overflow-y: scroll; max-height: 500px; }
+    </style>
 </head>
 <body>
 <h1>test.php - results</h1>
 <p>
 Selected settings:
 <ul>
-<li>Directory with tests: $dir</li>
-<li>Path to script for analysis: $parse</li>
-<li>Path to interpret script: $int</li>
+    <li>Directory with tests: <b>$dir</b></li>
+    <li>Path to script for analysis: <b>$parse</b></li>
+    <li>Path to interpret script: <b>$int</b></li>
 </ul>
 </p>
 
@@ -290,27 +326,73 @@ EOD;
     function generateParseBeginning() {
         $this->html .= <<<EOD
 <h2>Testing parse.php</h2>
-<ol>
+
+<div class="pane">
+<table>
+    <tr>
+        <th>#</th>
+        <th>Test</th>
+        <th>Result</th>
+    </tr>
 
 EOD;
     }
 
-    function generateParseEnd() {
-        $this->html .= "</ol>\n";
+    function generateIntBeginning() {
+        $this->html .= <<<EOD
+<h2>Testing interpret.py</h2>
+
+<div class="pane">
+<table>
+    <tr>
+        <th>#</th>
+        <th>Test</th>
+        <th>Result</th>
+    </tr>
+
+EOD;
+    }
+
+    function generateErrorDetail($detail) {
+        $this->html .= <<<EOD
+<tr>
+    <td></td>
+    <td colspan="2" class="errorDetail">
+        $detail
+    </td>
+</tr>
+
+EOD;
+
+    }
+
+    function generateTestEnd() {
+        $this->html .= "</table>\n</div>\n";
     }
 
     function testResult($path, $passed) {
-        $this->html .= "<li>testing file: " . $path . ": " . (($passed == true) ? "OK</li>" : "ERROR</li>") . "\n";
+        $result = ($passed == true) ? "OK" : "ERROR";
+        $testClass = ($passed == true) ? "okTest" : "errorTest";
         $this->total += 1;
         if ($passed) $this->passed += 1;
+
+        $this->html .= <<<EOD
+<tr class="$testClass">
+    <td>$this->total</td>
+    <td>$path</td>
+    <td>$result</td>
+</tr>
+
+EOD;
+
     }
 
     function totalAndPassed() {
         $this->html .= <<<EOD
 <hr>
 <p>
-Total number of tests: $this->total<br>
-Passed tests: $this->passed<br>
+Total number of tests: <b>$this->total</b><br>
+Passed tests: <b>$this->passed</b><br>
 </p>
 
 EOD;
@@ -344,6 +426,8 @@ Arguments:
                            if missing, implicit value is interpet.py in current directory
     --parse-only           only script for analysis will be tested (do not combine with --int-script)
     --int-only             only script for interpret will be teste (do not combine with --parse-scritp)
+    --xml                  directory, in which can be jexamxml.jar and option be found.
+                           You need to have permission to use it.
 
 EOL;
 }
@@ -360,8 +444,6 @@ function generate_file($path, $content) {
         error_log("Error! Could not create " . $path . ".\n");
         return ERR_OUTPUT_FILES;
     }
-    //print("I am going to write in file " . $path . " now.\n");
-
     fwrite($handle, $content);
 
     fclose($handle);
@@ -379,7 +461,6 @@ function remove_tmp_file($path) {
  * @param $jexamxml
  * @param $jexamxmlOptions
  * @param @param $stat Object from class HTMLStats
- * @return int Error code
  */
 function test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat) {
     $files = scandir($directory);
@@ -388,7 +469,82 @@ function test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOp
 
             $name = substr($file, 0, strlen($file) - 4);
             $path = $directory . $name;
-            //print("Path: " . $path . "\n");
+
+            // Check if it has .rc file
+            if (!is_file($path . ".rc")) {
+                generate_file($path . ".rc", "0\n");
+            }
+            // Check if it has .out file
+            if (!is_file($path . ".out")) {
+                generate_file($path . ".out", "");
+            }
+            // Check if it has .in file
+            //if (!is_file($path . ".in")) {
+            //    generate_file($path . ".in", "");
+            //}
+
+            // We now have all necessary file - do the test!
+            // Run parse.php (or whatever it is called) with current source file and save output to .my_out
+            exec("php7.3 " . $parseFile . " < " . ($directory . $file) . " > " . $path . ".my_out 2>/dev/null", $output, $my_rc);
+
+            // Compare return codes
+            $ref_rc = intval(file_get_contents($path . ".rc"));
+
+            if ($ref_rc != $my_rc) {
+                $stat->testResult($directory . $name, false);
+                $detail = "Expected exit code " . $ref_rc . ", received " . $my_rc;
+                $stat->generateErrorDetail($detail);
+            }
+            elseif ($my_rc == 0) {
+                // Compare outputs
+                exec("java -jar " . $jexamxml . " " . $path . ".out " . $path . ".my_out " . $directory . "diffs.xml /D " . $jexamxmlOptions, $out, $status);
+		        //echo "java -jar " . $jexamxml . " " . $path . ".out " . $path . ".my_out " . $directory . "diffs.xml /D " . $jexamxmlOptions . "\n";
+	
+                if ($status != 0) {
+                    $stat->testResult($directory . $name, false);
+                    $detail = "XML output differs";
+                    $stat->generateErrorDetail($detail);
+                }
+                else {
+                    $stat->testResult($directory . $name, true);
+                }
+            }
+            else {
+                $stat->testResult($directory . $name, true);
+            }
+
+            // Remove tmp files
+            if (file_exists($path . ".my_out"))
+                remove_tmp_file($path . ".my_out"); // remove .my_out
+            if (file_exists($directory . "diffs.xml"))
+                remove_tmp_file($directory . "diffs.xml"); // remove diffs.xml
+            if (file_exists($path . ".out.log"))
+                remove_tmp_file($path . ".out.log"); // remove .log
+        }
+    }
+}
+
+function test_parse_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat) {
+    $files = scandir($directory);
+    foreach ($files as $file) {
+        if (is_dir($directory . $file) && $file != "." && $file != "..") {
+            // Is directory
+            $currentDir = $directory . $file . "/";
+            test_parse_recursive($currentDir, $parseFile, $jexamxml, $jexamxmlOptions, $stat);
+        }
+    }
+
+    // Non-recursive test in main directory
+    test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat);
+}
+
+function test_interpret_non_recursive($directory, $intFile, $stat) {
+    $files = scandir($directory);
+    foreach ($files as $file) {
+        if (is_file($directory . $file) && (preg_match("/.src/", $file))) {
+
+            $name = substr($file, 0, strlen($file) - 4);
+            $path = $directory . $name;
 
             // Check if it has .rc file
             if (!is_file($path . ".rc")) {
@@ -404,66 +560,139 @@ function test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOp
             }
 
             // We now have all necessary file - do the test!
-            // Run parse.php (or whatever it is called) with current source file and save output to .my_out and return code to .my_rc
-            exec("php7.3 " . $parseFile . " < " . ($directory . $file) . " > " . $path . ".my_out 2>/dev/null", $output, $my_rc);
+            // Run interpret.py (or whatever it is called) with current source file and save output to .my_out
+            exec("python3.6 " . $intFile . " --source=" . ($directory . $file) . " --input=" . $path .".in >" . $path . ".my_out 2>/dev/null", $output, $my_rc);
 
             // Compare return codes
             $ref_rc = intval(file_get_contents($path . ".rc"));
 
             if ($ref_rc != $my_rc) {
-                //echo "Differennt RC\n";
                 $stat->testResult($directory . $name, false);
+                $detail = "Expected exit code " . $ref_rc . ", received " . $my_rc;
+                $stat->generateErrorDetail($detail);
             }
             elseif ($my_rc == 0) {
-                //echo "Same RC\n";
                 // Compare outputs
-                exec("java -jar " . $jexamxml . " " . $path . ".out " . $path . ".my_out " . $directory . "diffs.xml /D " . $jexamxmlOptions, $out, $status);
-
-                //print("Status of " . $path . " OUT: " . $status . "\n");
-                //var_dump($out);
+                exec("diff " . $path . ".out " . $path . ".my_out", $out, $status);
 
                 if ($status != 0) {
-                    //echo "Status not 0\n";
                     $stat->testResult($directory . $name, false);
+                    $detail = "Output differs";
+                    $stat->generateErrorDetail($detail);
                 }
                 else {
-                    //echo "Status 0\n";
                     $stat->testResult($directory . $name, true);
                 }
             }
             else {
-                //"Same non 0 RC\n";
                 $stat->testResult($directory . $name, true);
             }
 
             // Remove tmp files
             if (file_exists($path . ".my_out"))
                 remove_tmp_file($path . ".my_out"); // remove .my_out
+            if (file_exists($path . ".out.log"))
+                remove_tmp_file($path . ".out.log"); // remove .log
+        }
+    }
+}
+
+function test_interpret_recursive($directory, $intFile, $stat) {
+    $files = scandir($directory);
+    foreach ($files as $file) {
+        if (is_dir($directory . $file) && $file != "." && $file != "..") {
+            // Is directory
+            $currentDir = $directory . $file . "/";
+            test_interpret_recursive($currentDir, $intFile, $stat);
+        }
+    }
+
+    // Non-recursive test in main directory
+    test_interpret_non_recursive($directory, $intFile, $stat);
+}
+
+function test_both_non_recursive($directory, $parseFile, $intFile, $stat) {
+    $files = scandir($directory);
+    foreach ($files as $file) {
+        if (is_file($directory . $file) && (preg_match("/.src/", $file))) {
+            $name = substr($file, 0, strlen($file) - 4);
+            $path = $directory . $name;
+
+            // Check if it has .rc file
+            if (!is_file($path . ".rc")) {
+                generate_file($path . ".rc", "0\n");
+            }
+            // Check if it has .out file
+            if (!is_file($path . ".out")) {
+                generate_file($path . ".out", "");
+            }
+            // Check if it has .in file
+            if (!is_file($path . ".in")) {
+                generate_file($path . ".in", "");
+            }
+
+            // We now have all necessary file - do the test!
+            // Run parse.php (or whatever it is called) with current source file and save output to .my_out
+            exec("php7.3 " . $parseFile . " < " . ($directory . $file) . " > " . $path . ".my_xml 2>/dev/null", $output, $my_rc);
+
+            $ref_rc = intval(file_get_contents($path . ".rc"));
+
+            if ($my_rc == 0) {
+                // Compare outputs
+
+                // Run interpret.py (or whatever it is called) with current source file and save output to .my_out
+                exec("python3.6 " . $intFile . " --source=" . ($path . ".my_xml") . " --input=" . $path .".in >" . $path . ".my_out 2>/dev/null", $output, $my_rc);
+
+                if ($ref_rc != $my_rc) {
+                    $stat->testResult($directory . $name, false);
+                    $detail = "Expected exit code " . $ref_rc . ", received " . $my_rc;
+                    $stat->generateErrorDetail($detail);
+                }
+                elseif ($my_rc == 0) {
+                    // Compare outputs
+                    exec("diff " . $path . ".out " . $path . ".my_out", $out, $status);
+                    if ($status != 0) {
+                        $stat->testResult($directory . $name, false);
+                        $detail = "Output differs";
+                        $stat->generateErrorDetail($detail);
+                    }
+                    else {
+                        $stat->testResult($directory . $name, true);
+                    }
+                }
+                else {
+                    $stat->testResult($directory . $name, true);
+                }
+            }
+            elseif (in_array($ref_rc, array(21, 22, 23)) && $ref_rc != $my_rc) {
+                $stat->testResult($directory . $name, true);
+            }
+
+            // Remove tmp files
+            if (file_exists($path . ".my_out"))
+                remove_tmp_file($path . ".my_out"); // remove .my_out
+            if (file_exists($path . ".my_xml"))
+                remove_tmp_file($path . ".my_xml"); // remove .my_out
             if (file_exists($directory . "diffs.xml"))
                 remove_tmp_file($directory . "diffs.xml"); // remove diffs.xml
             if (file_exists($path . ".out.log"))
                 remove_tmp_file($path . ".out.log"); // remove .log
         }
     }
-
-
-    return ERR_OK;
 }
 
-function test_parse_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat) {
+function test_both_recursive($directory, $parseFile, $intFile, $stat) {
     $files = scandir($directory);
     foreach ($files as $file) {
         if (is_dir($directory . $file) && $file != "." && $file != "..") {
             // Is directory
             $currentDir = $directory . $file . "/";
-            //echo "File: " . $file . "| new Dir: " . $currentDir . "\n";
-            test_parse_recursive($currentDir, $parseFile, $jexamxml, $jexamxmlOptions, $stat);
+            test_both_non_recursive($currentDir, $parseFile, $intFile, $stat);
         }
     }
 
     // Non-recursive test in main directory
-    test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat);
-
+    test_both_non_recursive($directory, $parseFile, $intFile, $stat);
 }
 
 # Main body
