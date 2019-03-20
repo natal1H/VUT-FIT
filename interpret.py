@@ -37,10 +37,16 @@ def is_opcode(opcode):
         return False
 
 def get_xml_from_file(filename):
-    file = open(filename, "r")
+    try:
+        file = open(filename, "r")
+    except FileNotFoundError:
+        exit_with_message("Error! Could not open source file.", ERR_INPUT_FILES)
+
     xml_string = ""
     for line in file:
         xml_string += line
+
+    file.close()
 
     try:
         xml = ET.fromstring(xml_string)
@@ -133,45 +139,84 @@ class Instruction:
             return True
 
 
+def parse_xml_instructions(root):
+    program = [None] * len(root)
+
+    for instruction in root:
+        opcode = instruction.attrib["opcode"]
+        if not is_opcode(opcode):
+            exit_with_message("Error! Invalid OPCODE in XML.", ERR_XML_STRUCTURE)
+
+        order = int(instruction.attrib["order"]) - 1
+
+        program[order] = Instruction(opcode)
+
+        # Check if correct number of args
+        if program[order].getCorrectNumberOfArgs() != len(instruction):
+            exit_with_message("Error! Incorrect number of arguments for instruction.", ERR_XML_STRUCTURE)
+
+        program[order].setNumberOfArgs()  # Prepare array for args
+        for arg in instruction:  # Iterate through args and add them to correct position
+            if arg.tag not in ["arg1", "arg2", "arg3"]:
+                exit_with_message("Error! Wrong tag for arguments.", ERR_XML_STRUCTURE)
+
+            arg_num = int(arg.tag[3:])
+            program[order].setArg(arg_num, arg.attrib["type"], arg.text)
+
+        # Check argument syntax
+        if not program[order].checkArgTypes():
+            exit_with_message("Error! Wrong types of argument in instruction.", ERR_XML_STRUCTURE)
+
+    return program
+
+def display_help():
+    print(
+'''interpret.py is a script which reads XML representation of program and interprets this program using standart input and output.
+It firstly perform lexical and syntax check of XML source code and afterward proceeds with executing the program,
+while still checking for semantic and run-time errors.
+
+Usage: python3.6 interpret.py [options]
+
+Arguments (write in place of [options]):
+    --help          display help, no additional arguments can be called
+    --source=file   input file with XML, if not present, input will be taken from stdin
+    --input=file    file with inputs for program itself, if not present, will be taken from stdin
+Note: either --source, --input or both parameters has to been present.   
+''', end="")
+
 # MAIN
-source_filename = "example.xml"
-input_filename = "input.txt"
 
-root = get_xml_from_file(source_filename)
-#root = get_xml_from_stdin()
+source_filename = None
+input_filename = None
 
-program = [None] * len(root)
+for arg in sys.argv[1:]:
+    if arg == "--help":
+        if len(sys.argv) == 2:
+            display_help()
+            exit(0)
+        else:
+            exit_with_message("Error! --help cannot be called with additional arguments.", ERR_SCRIPT_PARAMS)
+    elif re.match(r'--source=(.*)', arg):
+        source_filename = arg[arg.index('=') + 1:]
+    elif re.match(r'--input=(.*)', arg):
+        input_filename = arg[arg.index('=') + 1:]
+    else:
+        exit_with_message("Error! Unknown parameter.", ERR_SCRIPT_PARAMS)
 
-for instruction in root:
-    opcode = instruction.attrib["opcode"]
-    if not is_opcode(opcode):
-        exit_with_message("Error! Invalid OPCODE in XML.", ERR_XML_STRUCTURE)
+if not source_filename and not input_filename:
+    exit_with_message("Error! Neither source nor input file were provided.", ERR_SCRIPT_PARAMS)
 
-    print(opcode)
+if source_filename:
+    root = get_xml_from_file(source_filename)
+else:
+    root = get_xml_from_stdin()
 
-    order = int(instruction.attrib["order"]) - 1
+program = parse_xml_instructions(root)
 
-    program[order] = Instruction(opcode)
+# Prepare GF, LF, TF
+GF = {}  # Global frame
+LF = []  # Local frame
+TF = None  # Temporary frame - not initialized at start
 
-    # Check if correct number of args
-    if program[order].getCorrectNumberOfArgs() != len(instruction):
-        exit_with_message("Error! Incorrect number of arguments for instruction.", ERR_XML_STRUCTURE)
-
-    program[order].setNumberOfArgs() # Prepare array for args
-    for arg in instruction: # Iterate through args and add them to correct position
-        print("\t{}, {}: {}".format(arg.tag, arg.attrib["type"], arg.text))
-        if (arg.tag not in ["arg1", "arg2", "arg3"]):
-            exit_with_message("Error! Wrong tag for arguments.", ERR_XML_STRUCTURE)
-
-        print("Arg num: {}".format(arg.tag[3:]))
-        arg_num = int(arg.tag[3:])
-        program[order].setArg(arg_num, arg.attrib["type"], arg.text)
-
-    # Check argument syntax
-    if not program[order].checkArgTypes():
-        print("--- Error at instr: {}".format(program[order]))
-        exit_with_message("Error! Wrong types of argument in instruction.", ERR_XML_STRUCTURE)
-
-    print(program[order])
-
-
+for instruction in program:
+    print("Executing instruction: {}".format(instruction))
