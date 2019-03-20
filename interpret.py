@@ -12,6 +12,13 @@ ERR_OUTPUT_FILES = 12  # Error with opening output files
 ERR_INTERNAL = 99  # Internal error
 ERR_XML_FORMAT = 31  # Wrong XML format
 ERR_XML_STRUCTURE = 32  # Wrong XML structure - lexical or syntax error
+ERR_SEMANTIC = 52  # Semantic errors (e.g. using undefined label)
+ERR_RUNTIME_OPERANDS = 53  # Runtime error - wrong types of operands
+ERR_RUNTIME_NONEXIST_VAR = 54  # Runtime error - accessing non-existing variable (but frame exists)
+ERR_RUNTIME_FRAME = 55  # Runtime error - non-existing frame (e.g. reading from empty frame stack)
+ERR_RUNTIME_MISSING_VAL = 56  # Runtime error - missing value (in variable, in data stack, in call stack)
+ERR_RUNTIME_OPERAND_VAL = 57  # Runtime error - wrong operand value (e.g. zero division, wrong return value of EXIT)
+ERR_RUNTIME_STRING = 58  # Runtime error - faulty work with string
 
 def exit_with_message(message, code):
     print(message, file=sys.stderr)
@@ -149,6 +156,12 @@ def parse_xml_instructions(root):
 
         order = int(instruction.attrib["order"]) - 1
 
+        if order < 0 or order >= len(root):
+            exit_with_message("Error! Instruction order is out of bounds.", ERR_XML_STRUCTURE)
+
+        if program[order] != None:
+            exit_with_message("Error! Instruction with order {} was already defined".format(order + 1), ERR_XML_STRUCTURE)
+
         program[order] = Instruction(opcode)
 
         # Check if correct number of args
@@ -161,6 +174,8 @@ def parse_xml_instructions(root):
                 exit_with_message("Error! Wrong tag for arguments.", ERR_XML_STRUCTURE)
 
             arg_num = int(arg.tag[3:])
+
+
             program[order].setArg(arg_num, arg.attrib["type"], arg.text)
 
         # Check argument syntax
@@ -184,9 +199,81 @@ Arguments (write in place of [options]):
 Note: either --source, --input or both parameters has to been present.   
 ''', end="")
 
+class Interpreter:
+    def __init__(self):
+        self.GF = {}
+        self.LF = []
+        self.TF = None
+
+    def __repr__(self):
+        return "<Interpret GF:%s LF: %s TF: %s>" % (str(self.GF), str(self.LF), str(self.TF))
+
+    def MOVE(self, var, symb):
+        ... # TODO
+
+    def CREATEFRAME(self):
+        # Create new TF and throws out old one
+        self.TF = {}
+
+    def PUSHFRAME(self):
+        # Move TF to LF
+        if self.TF == None:  # TF was not created - error 55
+            exit_with_message("Error! PUSHFRAME requires TF to be initialized.", ERR_RUNTIME_FRAME)
+        else:
+            self.LF.append(self.TF)
+            self.TF = None
+
+    def POPFRAME(self):
+        # Move top frame from LF to TF
+        if len(self.LF) == 0: # Empty LF - error 55
+            exit_with_message("Error! POPFRAME requires LF to not be empty.", ERR_RUNTIME_FRAME)
+        else:
+            self.TF = self.LF.pop()
+
+    def DEFVAR(self, var):
+        # Check if correct frame
+        if not re.match(r'^(?:GF@|LF@|TF@)(.*)', var):
+            exit_with_message("Error! Variable in XML has to have valid frame identifier.", ERR_XML_STRUCTURE)
+
+        frame, name = var.split("@", 1)  # Split frame and variable
+        print("Frame: {}, name: {}".format(frame, name))
+
+        # Check if valid name for variable
+        # TODO
+
+        # Define variable in appropriate frame
+        if frame == "GF":  # Define variable in GF
+            ...
+        elif frame == "LF":  # Define variable in LF
+            ...
+        else:  # Define variable in TF
+            ...
+
+
+    def run_code(self, data):
+        instructions = data["instructions"]
+        program_input = data["input"]
+        for instruction in instructions:
+            print("Before state:", self)
+            print("Executing instruction:", instruction)
+
+            if instruction.opcode == "MOVE":
+                self.MOVE(instruction.args[0]["value"], instruction.args[1]["value"])
+            elif instruction.opcode == "CREATEFRAME":
+                self.CREATEFRAME()
+            elif instruction.opcode == "PUSHFRAME":
+                self.PUSHFRAME()
+            elif instruction.opcode == "POPFRAME":
+                self.POPFRAME()
+            elif instruction.opcode == "DEFVAR":
+                self.DEFVAR(instruction.args[0]["value"])
+
+            print("After state:", self)
+
 # MAIN
 
 source_filename = None
+#source_filename = "example.xml"
 input_filename = None
 
 for arg in sys.argv[1:]:
@@ -213,10 +300,6 @@ else:
 
 program = parse_xml_instructions(root)
 
-# Prepare GF, LF, TF
-GF = {}  # Global frame
-LF = []  # Local frame
-TF = None  # Temporary frame - not initialized at start
-
-for instruction in program:
-    print("Executing instruction: {}".format(instruction))
+interpret = Interpreter()
+interpret_input = {"from_stdin": True if input_filename else False, "file": input_filename if input_filename else None}
+interpret.run_code({"instructions": program, "input": interpret_input})
