@@ -96,6 +96,41 @@ class Instruction:
 
         self.args[arg_num - 1] = {"type": arg_type, "value": arg_value}
 
+    def isSymb(self, arg_type):
+        return arg_type == "var" or arg_type == "int" or arg_type == "bool" or arg_type == "string" or arg_type == "nil"
+
+    def checkArgTypes(self):
+        if len(self.args) == 1:
+            # Instruction syntax: <var>
+            if self.opcode in ["DEFVAR", "POPS"]:
+                return self.args[0]["type"] == "var"
+
+            # Instruction syntax: <label>
+            elif self.opcode in ["CALL", "LABEL", "JUMP"]:
+                return self.args[0]["type"] == "label"
+
+            # Instruction syntax: <symb> (var | int | bool | string | nil)
+            else:
+                return self.isSymb(self.args[0]["type"])
+        elif len(self.args) == 2:
+            # Instruction syntax: <var> <symb>
+            if self.opcode in ["MOVE", "INT2CHAR", "STRLEN", "TYPE", "NOT"]:
+                return self.args[0]["type"] == "var" and self.isSymb(self.args[1]["type"])
+
+            # Instruction syntax: <var> <type>
+            else:
+                return self.args[0]["type"] == "var" and self.args[1]["type"] == "type"
+
+        elif len(self.args) == 3:
+            # Instruction syntax: <label> <symb> <symb>
+            if self.opcode in ["JUMPIFEQ", "JUMPIFNEQ"]:
+                return self.args[0]["type"] == "label" and self.isSymb(self.args[1]["type"]) and self.isSymb(self.args[2]["type"])
+
+            # Instruction syntax: <var> <symb> <symb>
+            else:
+                return self.args[0]["type"] == "var" and self.isSymb(self.args[1]["type"]) and self.isSymb(self.args[2]["type"])
+        else:
+            return True
 
 
 # MAIN
@@ -131,6 +166,11 @@ for instruction in root:
         print("Arg num: {}".format(arg.tag[3:]))
         arg_num = int(arg.tag[3:])
         program[order].setArg(arg_num, arg.attrib["type"], arg.text)
+
+    # Check argument syntax
+    if not program[order].checkArgTypes():
+        print("--- Error at instr: {}".format(program[order]))
+        exit_with_message("Error! Wrong types of argument in instruction.", ERR_XML_STRUCTURE)
 
     print(program[order])
 
