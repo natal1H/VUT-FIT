@@ -205,9 +205,13 @@ class Interpreter:
         self.LF = []
         self.TF = None
         self.data_stack = []  # Data stack - stored in format {"type": ..., "value": ...}
+        self.call_stack = []  # Call stack
+        self.labels = {}  # Dict of user defined labels with their position
+        self.position = 0
+        self.executed_instructions = 0
 
     def __repr__(self):
-        return "<Interpret GF:%s LF: %s TF: %s data_stack: %s>" % (str(self.GF), str(self.LF), str(self.TF), str(self.data_stack))
+        return "<Interpret: position in code: %d, executed instructions: %d, GF:%s ,LF: %s ,TF: %s data_stack: %s>" % (self.position + 1, self.executed_instructions, str(self.GF), str(self.LF), str(self.TF), str(self.data_stack))
 
     def get_var_frame_name(self, var):
         # Check if correct frame
@@ -272,7 +276,11 @@ class Interpreter:
                 self.TF[name] = symb
 
     def MOVE(self, var, symb):
-        ... # TODO
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+            symb = self.get_val_from_var(name, frame)
+
+        self.store_to_var(var, symb)
 
     def CREATEFRAME(self):
         # Create new TF and throws out old one
@@ -321,12 +329,23 @@ class Interpreter:
                 self.TF[name] = None
 
     def CALL(self, label):
-        ... # TODO
+        if label not in self.labels:
+            exit_with_message("Error! CALL to unknown label.", ERR_SEMANTIC)
+        else:
+            self.call_stack.append(self.position)  # maybe should be + 1?
+            self.position = self.labels[label]
 
     def RETURN(self):
-        ... # TODO
+        if len(self.call_stack) == 0:
+            exit_with_message("Error! RETURN with empty call stack.", ERR_RUNTIME_MISSING_VAL)
+        else:
+            self.position = self.call_stack.pop()
 
     def PUSHS(self, symb):
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+            symb = self.get_val_from_var(name, frame)
+
         self.data_stack.append(symb)
 
     def POPS(self, var):
@@ -341,7 +360,7 @@ class Interpreter:
 
         if frame == "GF":
             if name not in self.GF.keys():
-                exit_with_message("Error! Attempting POPS with undefined variable in GF.", ERR_RUNTIME_MISSING_VAL)
+                exit_with_message("Error! Attempting POPS with undefined variable in GF.", ERR_RUNTIME_NONEXIST_VAR)
             else:
                 self.GF[name] = self.data_stack.pop()
 
@@ -349,29 +368,69 @@ class Interpreter:
             if len(self.LF) == 0:
                 exit_with_message("Error! Attempting POPS with empty LF stack.", ERR_RUNTIME_MISSING_VAL)
             elif name not in self.LF[-1].keys():
-                exit_with_message("Error! Variable undefined in top LF.", ERR_RUNTIME_MISSING_VAL)
+                exit_with_message("Error! Variable undefined in top LF.", ERR_RUNTIME_NONEXIST_VAR)
             else:
                 self.LF[-1][name] = self.data_stack.pop()
 
         else:  # TF
             if self.TF == None:
-                exit_with_message("Error! Attempting with non-existing TF.", ERR_RUNTIME_MISSING_VAL)
+                exit_with_message("Error! Attempting with non-existing TF.", ERR_RUNTIME_NONEXIST_VAR)
             elif name not in self.TF.keys():
                 exit_with_message("Error! Variable undefined in TF.", ERR_RUNTIME_MISSING_VAL)
             else:
                 self.TF[name] = self.data_stack.pop()
 
     def ADD(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "int" or symb2["type"] != "int":
+            exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "int", "value": symb1["value"] + symb2["value"]})
 
     def SUB(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "int" or symb2["type"] != "int":
+            exit_with_message("Error! Both operands in SUB have to be int.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "int", "value": symb1["value"] - symb2["value"]})
 
     def MUL(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "int" or symb2["type"] != "int":
+            exit_with_message("Error! Both operands in MUL have to be int.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "int", "value": symb1["value"] * symb2["value"]})
 
     def IDIV(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "int" or symb2["type"] != "int":
+            exit_with_message("Error! Both operands in IDIV have to be int.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "int", "value": symb1["value"] // symb2["value"]})
 
     def LT(self, var, symb1, symb2):
         ... # TODO
@@ -383,10 +442,30 @@ class Interpreter:
         ... # TODO
 
     def AND(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "bool" or symb2["type"] != "bool":
+            exit_with_message("Error! Both operands in AND have to be bool.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "int", "value": symb1["value"] and symb2["value"]})
 
     def OR(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "bool" or symb2["type"] != "bool":
+            exit_with_message("Error! Both operands in OR have to be bool.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "int", "value": symb1["value"] or symb2["value"]})
 
     def NOT(self, var, symb):
         ... # TODO
@@ -439,10 +518,16 @@ class Interpreter:
         ... # TODO
 
     def LABEL(self, label):
-        ... # TODO
+        if label in self.labels.keys():
+            exit_with_message("Error! Label redefinition.", ERR_SEMANTIC)
+        else:
+            self.labels[label] = self.position
 
     def JUMP(self, label):
-        ... # TODO
+        if label not in self.labels.keys():
+            exit_with_message("Error! Unknown label", ERR_SEMANTIC)
+        else:
+            self.position = self.labels[label]
 
     def JUMPIFEQ(self, label, symb1, symb2):
         ... # TODO
@@ -451,23 +536,44 @@ class Interpreter:
         ... # TODO
 
     def EXIT(self, symb):
-        ... # TODO
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+            symb = self.get_val_from_var(name, frame)
+
+        if symb["type"] != "int":
+            exit_with_message("Error! Wrong operand in EXIT.", ERR_RUNTIME_OPERAND_VAL)
+
+        if symb["value"] < 0 or symb["value"] > 49:
+            exit_with_message("Error! Exit codes have to be in interval <0,49>.", ERR_RUNTIME_OPERAND_VAL)
+        else:
+            exit(symb["value"])
 
     def DPRINT(self, symb):
         ... # TODO
 
     def BREAK(self):
-        ... # TODO
+        print(self.__repr__(), file=sys.stderr)
 
     def run_code(self, data):
         instructions = data["instructions"]
         program_input = data["input"]
-        for instruction in instructions:
+
+        # Run through all instructions just to set labels
+        for self.position in range(0, len(instructions)):
+            if instructions[self.position].opcode == "LABEL":
+                self.LABEL(instructions[self.position].args[0]["value"])
+
+        self.position = 0;
+
+        # Real run
+        while self.position < len(instructions):
+            instruction = instructions[self.position]
+
             print("Before state:", self, file=sys.stderr)
             print("Executing instruction:", instruction, file=sys.stderr)
 
             if instruction.opcode == "MOVE":
-                self.MOVE(instruction.args[0]["value"], instruction.args[1]["value"])
+                self.MOVE(instruction.args[0]["value"], instruction.args[1])
             elif instruction.opcode == "CREATEFRAME":
                 self.CREATEFRAME()
             elif instruction.opcode == "PUSHFRAME":
@@ -512,13 +618,39 @@ class Interpreter:
                 self.READ(instruction.args[0]["value"], instruction.args[1]["value"])
             elif instruction.opcode == "WRITE":
                 self.WRITE(instruction.args[0])
+            elif instruction.opcode == "CONCAT":
+                self.CONCAT(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "STRLEN":
+                self.STRLEN(instruction.args[0]["value"], instruction.args[1])
+            elif instruction.opcode == "GETCHAR":
+                self.GETCHAR(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "SETCHAR":
+                self.SETCHAR(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "TYPE":
+                self.TYPE(instruction.args[0]["value"], instruction.args[1])
+            #elif instruction.opcode == "LABEL":
+            #    self.LABEL(instruction.args[0]["value"])
+            elif instruction.opcode == "JUMP":
+                self.JUMP(instruction.args[0]["value"])
+            elif instruction.opcode == "JUMPIFEQ":
+                self.JUMPIFEQ(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "JUMPIFNEQ":
+                self.JUMPIFNEQ(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "EXIT":
+                self.EXIT(instruction.args[0])
+            elif instruction.opcode == "DPRINT":
+                self.DPRINT(instruction.args[0])
+            elif instruction.opcode == "BREAK":
+                self.BREAK()
 
             print("After state:", self, "\n", file=sys.stderr)
-
+            self.position += 1
+            self.executed_instructions += 1
 
 # MAIN
 
 source_filename = None
+#source_filename = "example.xml"
 input_filename = None
 
 for arg in sys.argv[1:]:
