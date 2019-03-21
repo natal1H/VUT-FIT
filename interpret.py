@@ -204,9 +204,72 @@ class Interpreter:
         self.GF = {}
         self.LF = []
         self.TF = None
+        self.data_stack = []  # Data stack - stored in format {"type": ..., "value": ...}
 
     def __repr__(self):
-        return "<Interpret GF:%s LF: %s TF: %s>" % (str(self.GF), str(self.LF), str(self.TF))
+        return "<Interpret GF:%s LF: %s TF: %s data_stack: %s>" % (str(self.GF), str(self.LF), str(self.TF), str(self.data_stack))
+
+    def get_var_frame_name(self, var):
+        # Check if correct frame
+        if not re.match(r'^(?:GF@|LF@|TF@)(.*)', var):
+            exit_with_message("Error! Variable in XML has to have valid frame identifier.", ERR_XML_STRUCTURE)
+
+        frame, name = var.split("@", 1)  # Split frame and variable
+        return frame, name
+
+    def get_val_from_var(self, name, frame):
+
+        if frame == "GF":
+            if name not in self.GF.keys():
+                exit_with_message("Error! Attempting to access non-existing variable in GF.", ERR_RUNTIME_NONEXIST_VAR)
+            elif self.GF[name] == None:
+                exit_with_message("Error! Attempting to access value of uninitialized variable in GF.", ERR_RUNTIME_MISSING_VAL)
+            else:
+                return self.GF[name]  # format: {"type": ..., "value": ...}
+        elif frame == "LF":
+            if len(self.LF) == 0:
+                exit_with_message("Error! Empty LF stack.", ERR_RUNTIME_FRAME)
+            elif name not in self.LF[-1].keys():
+                exit_with_message("Error! Non-existing variable in LF.", ERR_RUNTIME_NONEXIST_VAR)
+            elif self.LF[-1][name] == None:
+                exit_with_message("Error! Attempting to access uninitialized variable in LF", ERR_RUNTIME_MISSING_VAL)
+            else:
+                return self.LF[-1][name]  # format: {"type": ..., "value": ...}
+
+        else:
+            if self.TF == None:
+                exit_with_message("Error! Non-existing TF.", ERR_RUNTIME_FRAME)
+            elif name not in self.TF.keys():
+                exit_with_message("Error! Non-existing variable in TF.", ERR_RUNTIME_NONEXIST_VAR)
+            elif self.TF[name] == None:
+                exit_with_message("Error! Uninitialzed variable in TF.", ERR_RUNTIME_MISSING_VAL)
+            else:
+                return self.TF[name]  # format: {"type": ..., "value": ...}
+
+    def store_to_var(self, var, symb):
+        frame, name = self.get_var_frame_name(var)
+
+        if frame == "GF":
+            if name not in self.GF.keys():
+                exit_with_message("Error! Attempting to store symbol in non-existing variable.", ERR_RUNTIME_NONEXIST_VAR)
+            else:
+                self.GF[name] = symb
+
+        elif frame == "LF":
+            if len(self.LF) == 0:
+                exit_with_message("Error! Empty LF stack.", ERR_RUNTIME_FRAME)
+            elif name not in self.LF[-1].keys():
+                exit_with_message("Error! Non-existing variable in top LF.", ERR_RUNTIME_NONEXIST_VAR)
+            else:
+                self.LF[-1][name] = symb
+
+        else:
+            if self.TF == None:
+                exit_with_message("Error! Non-existing TF.", ERR_RUNTIME_FRAME)
+            elif name not in self.TF.keys():
+                exit_with_message("Error! Non-existing variable in TF.", ERR_RUNTIME_NONEXIST_VAR)
+            else:
+                self.TF[name] = symb
 
     def MOVE(self, var, symb):
         ... # TODO
@@ -231,11 +294,7 @@ class Interpreter:
             self.TF = self.LF.pop()
 
     def DEFVAR(self, var):
-        # Check if correct frame
-        if not re.match(r'^(?:GF@|LF@|TF@)(.*)', var):
-            exit_with_message("Error! Variable in XML has to have valid frame identifier.", ERR_XML_STRUCTURE)
-
-        frame, name = var.split("@", 1)  # Split frame and variable
+        frame, name = self.get_var_frame_name(var)
 
         # Check if valid name for variable
         # TODO
@@ -268,28 +327,39 @@ class Interpreter:
         ... # TODO
 
     def PUSHS(self, symb):
-        ... # TODO
+        self.data_stack.append(symb)
 
     def POPS(self, var):
-        # Check if correct frame
-        if not re.match(r'^(?:GF@|LF@|TF@)(.*)', var):
-            exit_with_message("Error! Variable in XML has to have valid frame identifier.", ERR_XML_STRUCTURE)
-
-        frame, name = var.split("@", 1)  # Split frame and variable
+        frame, name = self.get_var_frame_name(var)
 
         # Check if correct variable name
         # TODO
 
+        # Check if data stack not empty
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack in POPS instruction.", ERR_RUNTIME_MISSING_VAL)
+
         if frame == "GF":
             if name not in self.GF.keys():
-                exit_with_message("Error! Attempting POPS with undefined variable.", ERR_RUNTIME_MISSING_VAL)
+                exit_with_message("Error! Attempting POPS with undefined variable in GF.", ERR_RUNTIME_MISSING_VAL)
             else:
-                ...
+                self.GF[name] = self.data_stack.pop()
 
         elif frame == "LF":
-            ...
+            if len(self.LF) == 0:
+                exit_with_message("Error! Attempting POPS with empty LF stack.", ERR_RUNTIME_MISSING_VAL)
+            elif name not in self.LF[-1].keys():
+                exit_with_message("Error! Variable undefined in top LF.", ERR_RUNTIME_MISSING_VAL)
+            else:
+                self.LF[-1][name] = self.data_stack.pop()
+
         else:  # TF
-            ...
+            if self.TF == None:
+                exit_with_message("Error! Attempting with non-existing TF.", ERR_RUNTIME_MISSING_VAL)
+            elif name not in self.TF.keys():
+                exit_with_message("Error! Variable undefined in TF.", ERR_RUNTIME_MISSING_VAL)
+            else:
+                self.TF[name] = self.data_stack.pop()
 
     def ADD(self, var, symb1, symb2):
         ... # TODO
@@ -322,7 +392,19 @@ class Interpreter:
         ... # TODO
 
     def INT2CHAR(self, var, symb):
-        ... # TODO
+        if symb["type"] != "var" and symb["type"] != "int":
+            exit_with_message("Error! Wrong operand type in INT2CHAR.", ERR_RUNTIME_STRING)
+
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+            symb = self.get_val_from_var(name, frame)
+
+        try:
+            char = {"type": "string", "value": chr(symb["value"])}
+            self.store_to_var(var, char)
+
+        except ValueError:
+            exit_with_message("Error! Value out of range for INT2CHAR.", ERR_RUNTIME_STRING)
 
     def STRI2INT(self, var, symb1, symb2):
         ... # TODO
@@ -331,7 +413,15 @@ class Interpreter:
         ... # TODO
 
     def WRITE(self, symb):
-        ... # TODO
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+            symb = self.get_val_from_var(name, frame)
+
+        if symb["type"] == "int" or symb["type"] == "string":
+            print(symb["value"], end="")  # Can be directly printed out
+        elif symb["type"] == "bool":
+            print("true" if symb["value"] else "false", end="")
+
 
     def CONCAT(self, var, symb1, symb2):
         ... # TODO
@@ -373,8 +463,8 @@ class Interpreter:
         instructions = data["instructions"]
         program_input = data["input"]
         for instruction in instructions:
-            print("Before state:", self)
-            print("Executing instruction:", instruction)
+            print("Before state:", self, file=sys.stderr)
+            print("Executing instruction:", instruction, file=sys.stderr)
 
             if instruction.opcode == "MOVE":
                 self.MOVE(instruction.args[0]["value"], instruction.args[1]["value"])
@@ -414,8 +504,17 @@ class Interpreter:
                 self.OR(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
             elif instruction.opcode == "NOT":
                 self.NOT(instruction.args[0]["value"], instruction.args[1])
+            elif instruction.opcode == "INT2CHAR":
+                self.INT2CHAR(instruction.args[0]["value"], instruction.args[1])
+            elif instruction.opcode == "STRI2INT":
+                self.STRI2INT(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "READ":
+                self.READ(instruction.args[0]["value"], instruction.args[1]["value"])
+            elif instruction.opcode == "WRITE":
+                self.WRITE(instruction.args[0])
 
-            print("After state:", self)
+            print("After state:", self, "\n", file=sys.stderr)
+
 
 # MAIN
 
