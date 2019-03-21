@@ -150,7 +150,7 @@ def parse_xml_instructions(root):
     program = [None] * len(root)
 
     for instruction in root:
-        opcode = instruction.attrib["opcode"]
+        opcode = instruction.attrib["opcode"].upper()
         if not is_opcode(opcode):
             exit_with_message("Error! Invalid OPCODE in XML.", ERR_XML_STRUCTURE)
 
@@ -236,19 +236,138 @@ class Interpreter:
             exit_with_message("Error! Variable in XML has to have valid frame identifier.", ERR_XML_STRUCTURE)
 
         frame, name = var.split("@", 1)  # Split frame and variable
-        print("Frame: {}, name: {}".format(frame, name))
 
         # Check if valid name for variable
         # TODO
 
         # Define variable in appropriate frame
         if frame == "GF":  # Define variable in GF
-            ...
+            if name in self.GF.keys():
+                exit_with_message("Error! Attempting to redefine variable in GF.", ERR_SEMANTIC)
+            else:
+                self.GF[name] = None
         elif frame == "LF":  # Define variable in LF
-            ...
+            if len(self.LF) == 0:
+                exit_with_message("Error! Attempting to define variable in empty LF stack.", ERR_RUNTIME_FRAME)
+            elif name in self.LF[-1].keys():
+                exit_with_message("Error! Attempting to redefine variable in LF.", ERR_SEMANTIC)
+            else:
+                self.LF[-1][name] = None
         else:  # Define variable in TF
+            if self.TF == None:
+                exit_with_message("Error! Attempting to define variable in non-existing frame TF.", ERR_RUNTIME_FRAME)
+            elif name in self.TF.keys():
+                exit_with_message("Error! Attempting to redefine variable in TF.", ERR_SEMANTIC)
+            else:
+                self.TF[name] = None
+
+    def CALL(self, label):
+        ... # TODO
+
+    def RETURN(self):
+        ... # TODO
+
+    def PUSHS(self, symb):
+        ... # TODO
+
+    def POPS(self, var):
+        # Check if correct frame
+        if not re.match(r'^(?:GF@|LF@|TF@)(.*)', var):
+            exit_with_message("Error! Variable in XML has to have valid frame identifier.", ERR_XML_STRUCTURE)
+
+        frame, name = var.split("@", 1)  # Split frame and variable
+
+        # Check if correct variable name
+        # TODO
+
+        if frame == "GF":
+            if name not in self.GF.keys():
+                exit_with_message("Error! Attempting POPS with undefined variable.", ERR_RUNTIME_MISSING_VAL)
+            else:
+                ...
+
+        elif frame == "LF":
+            ...
+        else:  # TF
             ...
 
+    def ADD(self, var, symb1, symb2):
+        ... # TODO
+
+    def SUB(self, var, symb1, symb2):
+        ... # TODO
+
+    def MUL(self, var, symb1, symb2):
+        ... # TODO
+
+    def IDIV(self, var, symb1, symb2):
+        ... # TODO
+
+    def LT(self, var, symb1, symb2):
+        ... # TODO
+
+    def GT(self, var, symb1, symb2):
+        ... # TODO
+
+    def EQ(self, var, symb1, symb2):
+        ... # TODO
+
+    def AND(self, var, symb1, symb2):
+        ... # TODO
+
+    def OR(self, var, symb1, symb2):
+        ... # TODO
+
+    def NOT(self, var, symb):
+        ... # TODO
+
+    def INT2CHAR(self, var, symb):
+        ... # TODO
+
+    def STRI2INT(self, var, symb1, symb2):
+        ... # TODO
+
+    def READ(self, var, type):
+        ... # TODO
+
+    def WRITE(self, symb):
+        ... # TODO
+
+    def CONCAT(self, var, symb1, symb2):
+        ... # TODO
+
+    def STRLEN(self, var, symb):
+        ... # TODO
+
+    def GETCHAR(self, var, symb1, symb2):
+        ... # TODO
+
+    def SETCHAR(self, var, symb1, symb2):
+        ... # TODO
+
+    def TYPE(self, var, symb):
+        ... # TODO
+
+    def LABEL(self, label):
+        ... # TODO
+
+    def JUMP(self, label):
+        ... # TODO
+
+    def JUMPIFEQ(self, label, symb1, symb2):
+        ... # TODO
+
+    def JUMPIFNEQ(self, label, symb1, symb2):
+        ... # TODO
+
+    def EXIT(self, symb):
+        ... # TODO
+
+    def DPRINT(self, symb):
+        ... # TODO
+
+    def BREAK(self):
+        ... # TODO
 
     def run_code(self, data):
         instructions = data["instructions"]
@@ -266,14 +385,41 @@ class Interpreter:
             elif instruction.opcode == "POPFRAME":
                 self.POPFRAME()
             elif instruction.opcode == "DEFVAR":
-                self.DEFVAR(instruction.args[0]["value"])
+                self.DEFVAR(instruction.args[0]["value"])  # No need to pass arg type if only 1 allowed, already checked
+            elif instruction.opcode == "CALL":
+                self.CALL(instruction.args[0]["value"])  # Only 1 arg type allowed, no need to pass type
+            elif instruction.opcode == "RETURN":
+                self.RETURN()
+            elif instruction.opcode == "PUSHS":
+                self.PUSHS(instruction.args[0])  # Pass whole arg, because it could be multiple types
+            elif instruction.opcode == "POPS":
+                self.POPS(instruction.args[0]["value"])
+            elif instruction.opcode == "ADD":
+                self.ADD(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "SUB":
+                self.SUB(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "MUL":
+                self.MUL(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "IDIV":
+                self.IDIV(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "LT":
+                self.LT(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "GT":
+                self.GT(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "EQ":
+                self.EQ(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "AND":
+                self.AND(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "OR":
+                self.OR(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
+            elif instruction.opcode == "NOT":
+                self.NOT(instruction.args[0]["value"], instruction.args[1])
 
             print("After state:", self)
 
 # MAIN
 
 source_filename = None
-#source_filename = "example.xml"
 input_filename = None
 
 for arg in sys.argv[1:]:

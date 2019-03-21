@@ -2,8 +2,6 @@
 # VUT FIT - IPP - Project
 # Author: Natália Holková (xholko02)
 
-// TODO - kontrolovať syntaktické chyby typu: ADD <var> <symb1> <symb2> --> a nie sú dodané vhodné typy tokenov
-
 # Define error constants
 define("ERR_SCRIPT_PARAMS", 10); # Error - missing script param or usage of forbidden combination of params
 define("ERR_INPUT_FILES", 11); # Error - opening input files
