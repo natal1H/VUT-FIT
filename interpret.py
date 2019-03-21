@@ -106,6 +106,7 @@ class Instruction:
         # chage value from string to correct type if int or bool
         if arg_type == "int": arg_value = int(arg_value)
         elif arg_type == "bool": arg_value = True if arg_value == "true" else False
+        elif arg_type == "string" and arg_value == None: arg_value = ""
 
         self.args[arg_num - 1] = {"type": arg_type, "value": arg_value}
 
@@ -145,6 +146,21 @@ class Instruction:
         else:
             return True
 
+def check_if_arg_correct(arg_type, arg_val):
+    # TODO
+    if arg_type == "type":
+        if arg_val not in ["int", "string", "bool"]:
+            exit_with_message("Error! Nil cannot be \"type\".", ERR_XML_STRUCTURE)
+    elif arg_type == "var":
+        ...
+    elif arg_type == "string":
+        ...
+    elif arg_type == "int":
+        ...
+    elif arg_type == "bool":
+        ...
+    elif arg_type == "nil":
+        ...
 
 def parse_xml_instructions(root):
     program = [None] * len(root)
@@ -175,6 +191,7 @@ def parse_xml_instructions(root):
 
             arg_num = int(arg.tag[3:])
 
+            check_if_arg_correct(arg.attrib["type"], arg.text)
 
             program[order].setArg(arg_num, arg.attrib["type"], arg.text)
 
@@ -209,6 +226,7 @@ class Interpreter:
         self.labels = {}  # Dict of user defined labels with their position
         self.position = 0
         self.executed_instructions = 0
+        self.program_input = None
 
     def __repr__(self):
         return "<Interpret: position in code: %d, executed instructions: %d, GF:%s ,LF: %s ,TF: %s data_stack: %s>" % (self.position + 1, self.executed_instructions, str(self.GF), str(self.LF), str(self.TF), str(self.data_stack))
@@ -452,7 +470,7 @@ class Interpreter:
         if symb1["type"] != "bool" or symb2["type"] != "bool":
             exit_with_message("Error! Both operands in AND have to be bool.", ERR_RUNTIME_OPERANDS)
         else:
-            self.store_to_var(var, {"type": "int", "value": symb1["value"] and symb2["value"]})
+            self.store_to_var(var, {"type": "bool", "value": symb1["value"] and symb2["value"]})
 
     def OR(self, var, symb1, symb2):
         if symb1["type"] == "var":
@@ -465,10 +483,17 @@ class Interpreter:
         if symb1["type"] != "bool" or symb2["type"] != "bool":
             exit_with_message("Error! Both operands in OR have to be bool.", ERR_RUNTIME_OPERANDS)
         else:
-            self.store_to_var(var, {"type": "int", "value": symb1["value"] or symb2["value"]})
+            self.store_to_var(var, {"type": "bool", "value": symb1["value"] or symb2["value"]})
 
     def NOT(self, var, symb):
-        ... # TODO
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+            symb = self.get_val_from_var(name, frame)
+
+        if symb["type"] != bool:
+            exit_with_message("Error! Operand in NOT has to be bool.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "bool", "value": not symb["value"]})
 
     def INT2CHAR(self, var, symb):
         if symb["type"] != "var" and symb["type"] != "int":
@@ -489,7 +514,26 @@ class Interpreter:
         ... # TODO
 
     def READ(self, var, type):
-        ... # TODO
+        if self.program_input["from_stdin"] == True:
+            input_str = input()
+        else:
+            input_str = self.program_input["file"].pop(0)
+
+        if type == "int":
+            try:
+                input_int = int(input_str)
+                self.store_to_var(var, {"type": "int", "value": input_int})
+            except ValueError:
+                self.store_to_var(var, {"type": "int", "value": 0})
+
+        elif type == "bool":
+            if input_str.upper() != "TRUE" and input_str.upper() != "FALSE":
+                self.store_to_var(var, {"type": "bool", "value": False})
+            else:
+                self.store_to_var(var, {"type": "bool", "value": True if input_str.upper() == "TRUE" else False})
+
+        elif type == "string":
+            self.store_to_var(var, {"type": "string", "value": input_str})
 
     def WRITE(self, symb):
         if symb["type"] == "var":
@@ -503,10 +547,28 @@ class Interpreter:
 
 
     def CONCAT(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "string" or symb2["type"] != "string":
+            exit_with_message("Error! Both operands in CONCAT have to be string.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "string", "value": symb1["value"] + symb2["value"]})
+
 
     def STRLEN(self, var, symb):
-        ... # TODO
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+            symb = self.get_val_from_var(name, frame)
+
+        if symb["type"] != "string":
+            exit_with_message("Error! Operand in STRLEN has to be string.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "int", "value": len(symb["value"])})
 
     def GETCHAR(self, var, symb1, symb2):
         ... # TODO
@@ -549,14 +611,22 @@ class Interpreter:
             exit(symb["value"])
 
     def DPRINT(self, symb):
-        ... # TODO
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+            symb = self.get_val_from_var(name, frame)
+
+        if symb["type"] == "int" or symb["type"] == "string":
+            print(symb["value"], end="", file=sys.stderr)  # Can be directly printed out
+
+        elif symb["type"] == "bool":
+            print("true" if symb["value"] else "false", end="", file=sys.stderr)
 
     def BREAK(self):
         print(self.__repr__(), file=sys.stderr)
 
     def run_code(self, data):
         instructions = data["instructions"]
-        program_input = data["input"]
+        self.program_input = data["input"]
 
         # Run through all instructions just to set labels
         for self.position in range(0, len(instructions)):
@@ -628,8 +698,6 @@ class Interpreter:
                 self.SETCHAR(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
             elif instruction.opcode == "TYPE":
                 self.TYPE(instruction.args[0]["value"], instruction.args[1])
-            #elif instruction.opcode == "LABEL":
-            #    self.LABEL(instruction.args[0]["value"])
             elif instruction.opcode == "JUMP":
                 self.JUMP(instruction.args[0]["value"])
             elif instruction.opcode == "JUMPIFEQ":
@@ -650,7 +718,6 @@ class Interpreter:
 # MAIN
 
 source_filename = None
-#source_filename = "example.xml"
 input_filename = None
 
 for arg in sys.argv[1:]:
@@ -678,5 +745,15 @@ else:
 program = parse_xml_instructions(root)
 
 interpret = Interpreter()
-interpret_input = {"from_stdin": True if input_filename else False, "file": input_filename if input_filename else None}
+if input_filename == None:
+    interpret_input = {"from_stdin": True, "file_content": None}
+else:
+    try:
+        file = open(input_filename, "r")
+        content = file.read().splitlines()
+        file.close()
+    except FileNotFoundError:
+        exit_with_message("Error! Could not open input file.", ERR_INPUT_FILES)
+
+    interpret_input = {"from_stdin": False, "file": content}
 interpret.run_code({"instructions": program, "input": interpret_input})
