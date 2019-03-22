@@ -322,9 +322,6 @@ class Interpreter:
     def DEFVAR(self, var):
         frame, name = self.get_var_frame_name(var)
 
-        # Check if valid name for variable
-        # TODO
-
         # Define variable in appropriate frame
         if frame == "GF":  # Define variable in GF
             if name in self.GF.keys():
@@ -369,9 +366,6 @@ class Interpreter:
     def POPS(self, var):
         frame, name = self.get_var_frame_name(var)
 
-        # Check if correct variable name
-        # TODO
-
         # Check if data stack not empty
         if len(self.data_stack) == 0:
             exit_with_message("Error! Empty data stack in POPS instruction.", ERR_RUNTIME_MISSING_VAL)
@@ -384,7 +378,7 @@ class Interpreter:
 
         elif frame == "LF":
             if len(self.LF) == 0:
-                exit_with_message("Error! Attempting POPS with empty LF stack.", ERR_RUNTIME_MISSING_VAL)
+                exit_with_message("Error! Attempting POPS with empty LF stack.", ERR_RUNTIME_FRAME)
             elif name not in self.LF[-1].keys():
                 exit_with_message("Error! Variable undefined in top LF.", ERR_RUNTIME_NONEXIST_VAR)
             else:
@@ -392,7 +386,7 @@ class Interpreter:
 
         else:  # TF
             if self.TF == None:
-                exit_with_message("Error! Attempting with non-existing TF.", ERR_RUNTIME_NONEXIST_VAR)
+                exit_with_message("Error! Attempting with non-existing TF.", ERR_RUNTIME_FRAME)
             elif name not in self.TF.keys():
                 exit_with_message("Error! Variable undefined in TF.", ERR_RUNTIME_MISSING_VAL)
             else:
@@ -451,13 +445,62 @@ class Interpreter:
             self.store_to_var(var, {"type": "int", "value": symb1["value"] // symb2["value"]})
 
     def LT(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != symb2["type"]:
+            exit_with_message("Errot! Different types of operands.", ERR_RUNTIME_OPERANDS)
+        elif symb1["type"] == "nil" or symb2["type"] == "nil":
+            exit_with_message("Error! Cannot use LT with nil.", ERR_RUNTIME_OPERANDS)
+        else:
+            if symb1["type"] == "bool":
+                res = True if (symb1["value"] == False and symb2["value"] == True) else False
+                self.store_to_var(var, {"type": "bool", "value": res})
+            else:
+                self.store_to_var(var, {"type": "bool", "value": symb1["value"] < symb2["value"]})
+
 
     def GT(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != symb2["type"]:
+            exit_with_message("Errot! Different types of operands.", ERR_RUNTIME_OPERANDS)
+        elif symb1["type"] == "nil" or symb2["type"] == "nil":
+            exit_with_message("Error! Cannot use LT with nil.", ERR_RUNTIME_OPERANDS)
+        else:
+            if symb1["type"] == "bool":
+                res = True if (symb1["value"] == True and symb2["value"] == False) else False
+                self.store_to_var(var, {"type": "bool", "value": res})
+            else:
+                self.store_to_var(var, {"type": "bool", "value": symb1["value"] > symb2["value"]})
 
     def EQ(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] == symb2["type"]:
+            if symb1["type"] == "nil":
+                self.store_to_var(var, {"type": "bool", "value": True})
+            else:
+                self.store_to_var(var, {"type": "bool", "value": symb1["value"] == symb2["value"]})
+        elif symb1["type"] == "nil" or symb2["type"] == "nil":
+            self.store_to_var(var, {"type": "bool", "value": False})
+        else:
+            exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
     def AND(self, var, symb1, symb2):
         if symb1["type"] == "var":
@@ -490,18 +533,18 @@ class Interpreter:
             frame, name = self.get_var_frame_name(symb["value"])
             symb = self.get_val_from_var(name, frame)
 
-        if symb["type"] != bool:
+        if symb["type"] != "bool":
             exit_with_message("Error! Operand in NOT has to be bool.", ERR_RUNTIME_OPERANDS)
         else:
             self.store_to_var(var, {"type": "bool", "value": not symb["value"]})
 
     def INT2CHAR(self, var, symb):
-        if symb["type"] != "var" and symb["type"] != "int":
-            exit_with_message("Error! Wrong operand type in INT2CHAR.", ERR_RUNTIME_STRING)
-
         if symb["type"] == "var":
             frame, name = self.get_var_frame_name(symb["value"])
             symb = self.get_val_from_var(name, frame)
+
+        if symb["type"] != "var" and symb["type"] != "int":
+            exit_with_message("Error! Wrong operand type in INT2CHAR.", ERR_RUNTIME_OPERANDS)
 
         try:
             char = {"type": "string", "value": chr(symb["value"])}
@@ -511,13 +554,34 @@ class Interpreter:
             exit_with_message("Error! Value out of range for INT2CHAR.", ERR_RUNTIME_STRING)
 
     def STRI2INT(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "string" or symb2["type"] != "int":
+            exit_with_message("Error! Wrong types or operands.", ERR_RUNTIME_OPERANDS)
+        elif symb2["value"] < 0 or symb2["value"] >= len(symb1["value"]):
+            exit_with_message("Error! Index out of range.", ERR_RUNTIME_STRING)
+        else:
+            self.store_to_var(var, {"type": "string", "value": ord(symb1["value"][symb2["value"]])})
 
     def READ(self, var, type):
         if self.program_input["from_stdin"] == True:
             input_str = input()
         else:
-            input_str = self.program_input["file"].pop(0)
+            if len(self.program_input["file"]) > 0:
+                input_str = self.program_input["file"].pop(0)
+            else:
+                if type == "string":
+                    self.store_to_var(var, {"type": "int", "value": ""})
+                elif type == "int":
+                    self.store_to_var(var, {"type": "int", "value": 0})
+                else: # bool
+                    self.store_to_var(var, {"type": "bool", "value": False})
+                return
 
         if type == "int":
             try:
@@ -540,7 +604,7 @@ class Interpreter:
             frame, name = self.get_var_frame_name(symb["value"])
             symb = self.get_val_from_var(name, frame)
 
-        if symb["type"] == "int" or symb["type"] == "string":
+        if symb["type"] == "int" or symb["type"] == "string" or symb["type"] == "type":
             print(symb["value"], end="")  # Can be directly printed out
         elif symb["type"] == "bool":
             print("true" if symb["value"] else "false", end="")
@@ -559,7 +623,6 @@ class Interpreter:
         else:
             self.store_to_var(var, {"type": "string", "value": symb1["value"] + symb2["value"]})
 
-
     def STRLEN(self, var, symb):
         if symb["type"] == "var":
             frame, name = self.get_var_frame_name(symb["value"])
@@ -571,13 +634,75 @@ class Interpreter:
             self.store_to_var(var, {"type": "int", "value": len(symb["value"])})
 
     def GETCHAR(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "string" or symb2["type"] != "int":
+            exit_with_message("Error! Wrong operands in GETCHAR.", ERR_RUNTIME_OPERANDS)
+        elif symb2["value"] < 0 or symb2["value"] >= len(symb1["value"]):
+            exit_with_message("Error! Index out of range.", ERR_RUNTIME_STRING)
+        else:
+            self.store_to_var(var, {"type": "string", "value": symb1["value"][symb2["value"]]})
 
     def SETCHAR(self, var, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        frame, name = self.get_var_frame_name(var)
+        val = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "int" or symb2["type"] != "string" or val["type"] != "string":
+            exit_with_message("Error! Wrong operands in GETCHAR.", ERR_RUNTIME_OPERANDS)
+        elif symb1["value"] < 0 or symb1["value"] >= len(val["value"]) or symb2["value"] == "":
+            exit_with_message("Error! Index out of range or empty string", ERR_RUNTIME_STRING)
+        else:
+            new_char = symb2["value"][0]
+            place_index = symb1["value"]
+            val["value"] = val["value"][:place_index] + new_char + val["value"][place_index + 1:]
+            self.store_to_var(var, {"type": "string", "value": val["value"]})
 
     def TYPE(self, var, symb):
-        ... # TODO
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+
+            if frame == "GF":
+                if name not in self.GF.keys():
+                    exit_with_message("Error! Attempting to access non-existing variable in GF.", ERR_RUNTIME_NONEXIST_VAR)
+                elif self.GF[name] == None:
+                    type = ""
+                else:
+                    type = self.GF[name]["type"]
+            elif frame == "LF":
+                if len(self.LF) == 0:
+                    exit_with_message("Error! Empty LF stack.", ERR_RUNTIME_FRAME)
+                elif name not in self.LF[-1].keys():
+                    exit_with_message("Error! Non-existing variable in LF.", ERR_RUNTIME_NONEXIST_VAR)
+                elif self.LF[-1][name] == None:
+                    type = ""
+                else:
+                    type = self.LF[-1][name]["type"]
+
+            else:
+                if self.TF == None:
+                    exit_with_message("Error! Non-existing TF.", ERR_RUNTIME_FRAME)
+                elif name not in self.TF.keys():
+                    exit_with_message("Error! Non-existing variable in TF.", ERR_RUNTIME_NONEXIST_VAR)
+                elif self.TF[name] == None:
+                    type = ""
+                else:
+                    type = self.TF[name]["type"]
+        else:
+            type = symb["type"]
+
+        self.store_to_var(var, {"type": "type", "value": type})
 
     def LABEL(self, label):
         if label in self.labels.keys():
@@ -592,10 +717,46 @@ class Interpreter:
             self.position = self.labels[label]
 
     def JUMPIFEQ(self, label, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+        if label not in self.labels.keys():
+            exit_with_message("Error! Undefined label.", ERR_SEMANTIC)
+
+        if symb1["type"] == symb2["type"]:
+            if symb1["type"] == "nil":
+                jump = True
+            else:
+                jump = symb1["value"] == symb2["value"]
+
+            if jump:
+                self.position = self.labels[label]
+        else:
+            exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
     def JUMPIFNEQ(self, label, symb1, symb2):
-        ... # TODO
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+        if label not in self.labels.keys():
+            exit_with_message("Error! Undefined label.", ERR_SEMANTIC)
+
+        if symb1["type"] == symb2["type"]:
+            if symb1["type"] == "nil":
+                jump = False
+            else:
+                jump = symb1["value"] != symb2["value"]
+
+            if jump:
+                self.position = self.labels[label]
+        else:
+            exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
     def EXIT(self, symb):
         if symb["type"] == "var":
@@ -603,7 +764,7 @@ class Interpreter:
             symb = self.get_val_from_var(name, frame)
 
         if symb["type"] != "int":
-            exit_with_message("Error! Wrong operand in EXIT.", ERR_RUNTIME_OPERAND_VAL)
+            exit_with_message("Error! Wrong operand in EXIT.", ERR_RUNTIME_OPERANDS)
 
         if symb["value"] < 0 or symb["value"] > 49:
             exit_with_message("Error! Exit codes have to be in interval <0,49>.", ERR_RUNTIME_OPERAND_VAL)
