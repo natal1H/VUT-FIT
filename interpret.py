@@ -4,6 +4,7 @@
 import sys
 import xml.etree.ElementTree as ET
 import re
+from pprint import pprint
 
 # Temp - variables with exit codes
 ERR_SCRIPT_PARAMS = 10  # Missing or wrong script parameter
@@ -154,7 +155,10 @@ def check_if_arg_correct(arg_type, arg_val):
     elif arg_type == "var":
         ...
     elif arg_type == "string":
-        ...
+        if arg_val:
+            # Check if contains # character
+            if "#" in arg_val:
+                exit_with_message("Error! String cannot contain #.", ERR_XML_STRUCTURE)
     elif arg_type == "int":
         ...
     elif arg_type == "bool":
@@ -162,11 +166,51 @@ def check_if_arg_correct(arg_type, arg_val):
     elif arg_type == "nil":
         ...
 
+def escape_string(str):
+    new_str = ""
+    i = 0
+    while i < len(str):
+        if str[i] == "\\":
+            esc_seq = str[i + 1: i + 4]
+            new_str += chr(int(esc_seq))
+            i += 4
+        else:
+            new_str += str[i]
+            i += 1
+    return new_str
+
 def parse_xml_instructions(root):
     program = [None] * len(root)
 
+    # Check program language
+    if root.attrib["language"] == None or root.attrib["language"] != "IPPcode19":
+        exit_with_message("Error! Wrong language.", ERR_XML_STRUCTURE)
+
+    for key in root.attrib.keys():
+        if key not in ["language", "name", "description"]:
+            exit_with_message("Error! Wrong program attributes.", ERR_XML_STRUCTURE)
+
+    if root.text != None:
+        if len(root.text.replace(" ", "").replace("\t", "").replace("\n", "")) >0:
+            exit_with_message("Error! Excessive text in program element.", ERR_XML_STRUCTURE)
+
+    if root.tail != None:
+        if len(root.tail.replace(" ", "").replace("\t", "").replace("\n", "")) >0:
+            exit_with_message("Error! Excessive text in program element.", ERR_XML_STRUCTURE)
+
+
     for instruction in root:
-        opcode = instruction.attrib["opcode"].upper()
+        if len(instruction.attrib) != 2 or instruction.attrib["opcode"] == None or instruction.attrib["order"] == None:
+            exit_with_message("Error! Wrong instruction attributes.", ERR_XML_STRUCTURE)
+
+        if instruction.text != None:
+            if len(instruction.text.replace(" ", "").replace("\t", "").replace("\n", "")) >0:
+                exit_with_message("Error! Instruction cannot have text.", ERR_XML_STRUCTURE)
+        if instruction.tail != None:
+            if len(instruction.tail.replace(" ", "").replace("\t", "").replace("\n", "")) >0:
+                exit_with_message("Error! Text at tail of instruction.", ERR_XML_STRUCTURE)
+
+        opcode = instruction.attrib["opcode"]#.upper()
         if not is_opcode(opcode):
             exit_with_message("Error! Invalid OPCODE in XML.", ERR_XML_STRUCTURE)
 
@@ -186,12 +230,27 @@ def parse_xml_instructions(root):
 
         program[order].setNumberOfArgs()  # Prepare array for args
         for arg in instruction:  # Iterate through args and add them to correct position
+            if len(arg.attrib) != 1 or arg.attrib["type"] == None:
+                exit_with_message("Error! Wrong arg attributes.", ERR_XML_STRUCTURE)
+
+            if arg.tail != None:
+                if len(arg.tail.replace(" ", "").replace("\t", "").replace("\n", "")) > 0:
+                    exit_with_message("Error! Text at tail of arg.", ERR_XML_STRUCTURE)
+
+            if len(arg) > 0:
+                exit_with_message("Error! Argument has element.", ERR_XML_STRUCTURE)
+
             if arg.tag not in ["arg1", "arg2", "arg3"]:
                 exit_with_message("Error! Wrong tag for arguments.", ERR_XML_STRUCTURE)
 
             arg_num = int(arg.tag[3:])
+            if arg_num > len(instruction):
+                exit_with_message("Error! Wrong argument numbers.", ERR_XML_STRUCTURE)
 
             check_if_arg_correct(arg.attrib["type"], arg.text)
+
+            if arg.attrib["type"] == "string" and arg.text != None:
+                arg.text = escape_string(arg.text)
 
             program[order].setArg(arg_num, arg.attrib["type"], arg.text)
 
@@ -566,7 +625,7 @@ class Interpreter:
         elif symb2["value"] < 0 or symb2["value"] >= len(symb1["value"]):
             exit_with_message("Error! Index out of range.", ERR_RUNTIME_STRING)
         else:
-            self.store_to_var(var, {"type": "string", "value": ord(symb1["value"][symb2["value"]])})
+            self.store_to_var(var, {"type": "int", "value": ord(symb1["value"][symb2["value"]])})
 
     def READ(self, var, type):
         if self.program_input["from_stdin"] == True:
@@ -576,7 +635,7 @@ class Interpreter:
                 input_str = self.program_input["file"].pop(0)
             else:
                 if type == "string":
-                    self.store_to_var(var, {"type": "int", "value": ""})
+                    self.store_to_var(var, {"type": "string", "value": ""})
                 elif type == "int":
                     self.store_to_var(var, {"type": "int", "value": 0})
                 else: # bool
@@ -597,6 +656,7 @@ class Interpreter:
                 self.store_to_var(var, {"type": "bool", "value": True if input_str.upper() == "TRUE" else False})
 
         elif type == "string":
+
             self.store_to_var(var, {"type": "string", "value": input_str})
 
     def WRITE(self, symb):
@@ -604,8 +664,12 @@ class Interpreter:
             frame, name = self.get_var_frame_name(symb["value"])
             symb = self.get_val_from_var(name, frame)
 
-        if symb["type"] == "int" or symb["type"] == "string" or symb["type"] == "type":
+        if symb["type"] == "int" or symb["type"] == "type":
             print(symb["value"], end="")  # Can be directly printed out
+        elif symb["type"] == "string" and symb["value"] != None:
+            #esc_str = escape_string(symb["value"])
+            #print(esc_str, end="")
+            print(symb["value"], end="")
         elif symb["type"] == "bool":
             print("true" if symb["value"] else "false", end="")
 
@@ -623,6 +687,17 @@ class Interpreter:
         else:
             self.store_to_var(var, {"type": "string", "value": symb1["value"] + symb2["value"]})
 
+    def count_esc_seq(self, string):
+        count = 0
+        i = 0
+        while i < len(string):
+            if string[i] == "\\" and i + 3 < len(string) and string[i+1].isdigit() and string[i+2].isdigit()  and string[i+3].isdigit():
+                count += 1
+                i += 4
+            else:
+                i += 1
+        return count
+
     def STRLEN(self, var, symb):
         if symb["type"] == "var":
             frame, name = self.get_var_frame_name(symb["value"])
@@ -631,7 +706,8 @@ class Interpreter:
         if symb["type"] != "string":
             exit_with_message("Error! Operand in STRLEN has to be string.", ERR_RUNTIME_OPERANDS)
         else:
-            self.store_to_var(var, {"type": "int", "value": len(symb["value"])})
+            len_full = len(symb["value"])# - self.count_esc_seq(symb["value"])*3
+            self.store_to_var(var, {"type": "int", "value": len_full})
 
     def GETCHAR(self, var, symb1, symb2):
         if symb1["type"] == "var":
@@ -734,7 +810,7 @@ class Interpreter:
 
             if jump:
                 self.position = self.labels[label]
-        else:
+        elif symb1["type"] != "nil" and symb2["type"] != "nil":
             exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
     def JUMPIFNEQ(self, label, symb1, symb2):
@@ -755,6 +831,8 @@ class Interpreter:
 
             if jump:
                 self.position = self.labels[label]
+        elif symb1["type"] == "nil" or symb2["type"] == "nil":
+            self.position = self.labels[label]
         else:
             exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
@@ -879,8 +957,11 @@ class Interpreter:
 # MAIN
 
 source_filename = None
+#source_filename = "example.xml"
 input_filename = None
+#input_filename = "input.txt"
 
+#"""
 for arg in sys.argv[1:]:
     if arg == "--help":
         if len(sys.argv) == 2:
@@ -894,7 +975,7 @@ for arg in sys.argv[1:]:
         input_filename = arg[arg.index('=') + 1:]
     else:
         exit_with_message("Error! Unknown parameter.", ERR_SCRIPT_PARAMS)
-
+#"""
 if not source_filename and not input_filename:
     exit_with_message("Error! Neither source nor input file were provided.", ERR_SCRIPT_PARAMS)
 

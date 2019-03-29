@@ -388,11 +388,13 @@ EOD;
     }
 
     function totalAndPassed() {
+        $succesRate = round($this->passed / $this->total * 100, 2);
         $this->html .= <<<EOD
 <hr>
 <p>
 Total number of tests: <b>$this->total</b><br>
 Passed tests: <b>$this->passed</b><br>
+Success rate: <b>$succesRate %</b>
 </p>
 
 EOD;
@@ -572,10 +574,23 @@ function test_interpret_non_recursive($directory, $intFile, $stat) {
                 $stat->generateErrorDetail($detail);
             }
             elseif ($my_rc == 0) {
+                // Special case if both out files are 0 length
+                $len_control_out = strlen(file_get_contents($path . ".out"));
+                $len_my_out = strlen(file_get_contents($path . ".my_out"));
+                if ($len_control_out == 0 and $len_my_out == 0) {
+                    $stat->testResult($directory . $name, true);
+                }
+
                 // Compare outputs
                 exec("diff " . $path . ".out " . $path . ".my_out", $out, $status);
-
                 if ($status != 0) {
+                    echo "Test: " . $path . "<br>";
+                    var_dump($len_control_out);
+                    var_dump($len_control_out);
+                    var_dump(file_get_contents($path . ".out"));
+                    var_dump(file_get_contents($path . ".my_out"));
+                    echo "<br>";
+
                     $stat->testResult($directory . $name, false);
                     $detail = "Output differs";
                     $stat->generateErrorDetail($detail);
