@@ -38,7 +38,9 @@ def is_opcode(opcode):
         "DPRINT", "BREAK",  # Debugging
         # STACK extension
         "CLEARS", "ADDS", "SUBS", "MULS", "IDIVS", "LTS", "GTS", "EQS", "ANDS", "ORS", "NOTS",
-        "INT2CHARS", "STRI2INTS", "JUMPIFEQS", "JUMPIFNEQS"
+        "INT2CHARS", "STRI2INTS", "JUMPIFEQS", "JUMPIFNEQS",
+        # FLOAT extension
+        "INT2FLOAT", "FLOAT2INT", "DIV"
     ]
 
     if opcode in opcodes:
@@ -93,7 +95,7 @@ class Instruction:
                    "CLEARS", "ADDS", "SUBS", "MULS", "IDIVS", "LTS", "GTS", "EQS",
                    "ANDS", "ORS", "NOTS", "INT2CHARS", "STRI2INTS"]
         one_arg = ["DEFVAR", "CALL", "PUSHS", "POPS", "WRITE", "LABEL", "JUMP", "EXIT", "DPRINT", "JUMPIFEQS", "JUMPIFNEQS"]
-        two_args = ["MOVE", "INT2CHAR", "READ", "STRLEN", "TYPE", "NOT"]
+        two_args = ["MOVE", "INT2CHAR", "READ", "STRLEN", "TYPE", "NOT", "INT2FLOAT", "FLOAT2INT"]
 
         if self.opcode in no_args:
             return 0
@@ -112,11 +114,12 @@ class Instruction:
         if arg_type == "int": arg_value = int(arg_value)
         elif arg_type == "bool": arg_value = True if arg_value == "true" else False
         elif arg_type == "string" and arg_value == None: arg_value = ""
+        elif arg_type == "float": arg_value = float.fromhex(arg_value)
 
         self.args[arg_num - 1] = {"type": arg_type, "value": arg_value}
 
     def isSymb(self, arg_type):
-        return arg_type == "var" or arg_type == "int" or arg_type == "bool" or arg_type == "string" or arg_type == "nil"
+        return arg_type == "var" or arg_type == "int" or arg_type == "bool" or arg_type == "string" or arg_type == "nil" or arg_type == "float"
 
     def checkArgTypes(self):
         if len(self.args) == 1:
@@ -133,7 +136,7 @@ class Instruction:
                 return self.isSymb(self.args[0]["type"])
         elif len(self.args) == 2:
             # Instruction syntax: <var> <symb>
-            if self.opcode in ["MOVE", "INT2CHAR", "STRLEN", "TYPE", "NOT"]:
+            if self.opcode in ["MOVE", "INT2CHAR", "STRLEN", "TYPE", "NOT", "INT2FLOAT", "FLOAT2INT"]:
                 return self.args[0]["type"] == "var" and self.isSymb(self.args[1]["type"])
 
             # Instruction syntax: <var> <type>
@@ -154,7 +157,7 @@ class Instruction:
 def check_if_arg_correct(arg_type, arg_val):
     # TODO
     if arg_type == "type":
-        if arg_val not in ["int", "string", "bool"]:
+        if arg_val not in ["int", "string", "bool", "float"]:
             exit_with_message("Error! Nil cannot be \"type\".", ERR_XML_STRUCTURE)
     elif arg_type == "var":
         ...
@@ -168,6 +171,8 @@ def check_if_arg_correct(arg_type, arg_val):
     elif arg_type == "bool":
         ...
     elif arg_type == "nil":
+        ...
+    elif arg_type == "float":
         ...
 
 def escape_string(str):
@@ -276,6 +281,9 @@ Arguments (write in place of [options]):
     --help          display help, no additional arguments can be called
     --source=file   input file with XML, if not present, input will be taken from stdin
     --input=file    file with inputs for program itself, if not present, will be taken from stdin
+    --stats=file    where to output statistics about executed program
+    --insts         count number of executed instructions, --stats has to be called before
+    --vars          count max number of initialized variables, --stats has to be called before
 Note: either --source, --input or both parameters has to been present.   
 ''', end="")
 
@@ -485,28 +493,33 @@ class Interpreter:
         symb1 = self.expand_symbol(symb1)
         symb2 = self.expand_symbol(symb2)
 
-        if symb1["type"] != "int" or symb2["type"] != "int":
-            exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
+        if not ( (symb1["type"] == "int" and symb2["type"] == "int") or (symb1["type"] == "float" and symb2["type"] == "float") ):
+            exit_with_message("Error! Both operands in ADD have to be both int or float.", ERR_RUNTIME_OPERANDS)
         else:
-            self.store_to_var(var, {"type": "int", "value": symb1["value"] + symb2["value"]})
+            type = "float" if symb1["type"] == "float" or symb2["type"] == "float" else "int"
+            self.store_to_var(var, {"type": type, "value": symb1["value"] + symb2["value"]})
 
     def SUB(self, var, symb1, symb2):
         symb1 = self.expand_symbol(symb1)
         symb2 = self.expand_symbol(symb2)
 
-        if symb1["type"] != "int" or symb2["type"] != "int":
-            exit_with_message("Error! Both operands in SUB have to be int.", ERR_RUNTIME_OPERANDS)
+        if not ((symb1["type"] == "int" and symb2["type"] == "int") or (
+                symb1["type"] == "float" and symb2["type"] == "float")):
+            exit_with_message("Error! Both operands in ADD have to be both int or float.", ERR_RUNTIME_OPERANDS)
         else:
-            self.store_to_var(var, {"type": "int", "value": symb1["value"] - symb2["value"]})
+            type = "float" if symb1["type"] == "float" or symb2["type"] == "float" else "int"
+            self.store_to_var(var, {"type": type, "value": symb1["value"] - symb2["value"]})
 
     def MUL(self, var, symb1, symb2):
         symb1 = self.expand_symbol(symb1)
         symb2 = self.expand_symbol(symb2)
 
-        if symb1["type"] != "int" or symb2["type"] != "int":
-            exit_with_message("Error! Both operands in MUL have to be int.", ERR_RUNTIME_OPERANDS)
+        if not ((symb1["type"] == "int" and symb2["type"] == "int") or (
+                symb1["type"] == "float" and symb2["type"] == "float")):
+            exit_with_message("Error! Both operands in ADD have to be both int or float.", ERR_RUNTIME_OPERANDS)
         else:
-            self.store_to_var(var, {"type": "int", "value": symb1["value"] * symb2["value"]})
+            type = "float" if symb1["type"] == "float" or symb2["type"] == "float" else "int"
+            self.store_to_var(var, {"type": type, "value": symb1["value"] * symb2["value"]})
 
     def IDIV(self, var, symb1, symb2):
         symb1 = self.expand_symbol(symb1)
@@ -622,6 +635,8 @@ class Interpreter:
                     self.store_to_var(var, {"type": "string", "value": ""})
                 elif type == "int":
                     self.store_to_var(var, {"type": "int", "value": 0})
+                elif type == "float":
+                    self.store_to_var(var, {"type": "float", "value": 0.0})
                 else: # bool
                     self.store_to_var(var, {"type": "bool", "value": False})
                 return
@@ -640,18 +655,23 @@ class Interpreter:
                 self.store_to_var(var, {"type": "bool", "value": True if input_str.upper() == "TRUE" else False})
 
         elif type == "string":
-
             self.store_to_var(var, {"type": "string", "value": input_str})
+
+        elif type == "float":
+            self.store_to_var(var, {"type": "float", "value": float.fromhex(input_str)})
+
 
     def WRITE(self, symb):
         symb = self.expand_symbol(symb)
 
-        if symb["type"] == "int" or symb["type"] == "type":
+        if symb["type"] in ["int", "type"]:
             print(symb["value"], end="")  # Can be directly printed out
         elif symb["type"] == "string" and symb["value"] != None:
             print(symb["value"], end="")
         elif symb["type"] == "bool":
             print("true" if symb["value"] else "false", end="")
+        elif symb["type"] == "float":
+            print(symb["value"].hex(), end="")
 
     def CONCAT(self, var, symb1, symb2):
         symb1 = self.expand_symbol(symb1)
@@ -852,6 +872,10 @@ class Interpreter:
         if symb1["type"] != "int" or symb2["type"] != "int":
             exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
         else:
+            # Check zero division:
+            if symb2["value"] == 0:
+                exit_with_message("Error! Zero division.", ERR_RUNTIME_OPERAND_VAL)
+
             self.data_stack.append({"type": "int", "value": symb1["value"] // symb2["value"]})
 
     def LTS(self):
@@ -1002,6 +1026,38 @@ class Interpreter:
         else:
             exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
+    # FLOAT extension instructions
+    def INT2FLOAT(self, var, symb):
+        symb = self.expand_symbol(symb)
+
+        if symb["type"] != "int":
+            exit_with_message("Error! Wrong operands in INT2FLOAT.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "float", "value": float(symb["value"])})
+
+    def FLOAT2INT(self, var, symb):
+        symb = self.expand_symbol(symb)
+
+        if symb["type"] != "float":
+            exit_with_message("Error! Wrong operands in FLOAT2INT.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.store_to_var(var, {"type": "int", "value": int(symb["value"])})
+
+    def DIV(self, var, symb1, symb2):
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
+
+        if not ((symb1["type"] == "int" and symb2["type"] == "int") or (
+                symb1["type"] == "float" and symb2["type"] == "float")):
+            exit_with_message("Error! Both operands in ADD have to be both int or float.", ERR_RUNTIME_OPERANDS)
+        else:
+            # Check zero division:
+            if symb2["value"] == 0:
+                exit_with_message("Error! Zero division.", ERR_RUNTIME_OPERAND_VAL)
+
+            type = "float" if symb1["type"] == "float" or symb2["type"] == "float" else "int"
+            self.store_to_var(var, {"type": type, "value": symb1["value"] / symb2["value"]})
+
     def run_code(self, data):
         instructions = data["instructions"]
         self.program_input = data["input"]
@@ -1119,6 +1175,13 @@ class Interpreter:
                 self.JUMPIFEQS(instruction.args[0]["value"])
             elif instruction.opcode == "JUMPIFNEQS":
                 self.JUMPIFNEQS(instruction.args[0]["value"])
+            # FLOAT extension
+            elif instruction.opcode == "INT2FLOAT":
+                self.INT2FLOAT(instruction.args[0]["value"], instruction.args[1])
+            elif instruction.opcode == "FLOAT2INT":
+                self.FLOAT2INT(instruction.args[0]["value"], instruction.args[1])
+            elif instruction.opcode == "DIV":
+                self.DIV(instruction.args[0]["value"], instruction.args[1], instruction.args[2])
 
             #print("After state:", self, "\n", file=sys.stderr)
             self.position += 1
