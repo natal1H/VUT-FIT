@@ -280,7 +280,7 @@ Note: either --source, --input or both parameters has to been present.
 ''', end="")
 
 class Interpreter:
-    def __init__(self):
+    def __init__(self, statistic):
         self.GF = {}
         self.LF = []
         self.TF = None
@@ -290,6 +290,7 @@ class Interpreter:
         self.position = 0
         self.executed_instructions = 0
         self.program_input = None
+        self.statistic = statistic
 
     def __repr__(self):
         return "<Interpret: position in code: %d, executed instructions: %d, GF:%s ,LF: %s ,TF: %s data_stack: %s>" % (self.position + 1, self.executed_instructions, str(self.GF), str(self.LF), str(self.TF), str(self.data_stack))
@@ -361,11 +362,34 @@ class Interpreter:
             exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
         return self.data_stack.pop()
 
-    def MOVE(self, var, symb):
+    def expand_symbol(self, symb):
         if symb["type"] == "var":
             frame, name = self.get_var_frame_name(symb["value"])
-            symb = self.get_val_from_var(name, frame)
+            return self.get_val_from_var(name, frame)
+        else:
+            return symb
 
+    def count_intialized_vars(self):
+        count = 0
+
+        # Count intialized vars in GF
+        for key in self.GF.keys():
+            if self.GF[key] != None: count += 1
+
+        # Count initialized vars in LF
+        for frame in self.LF:
+            for key in frame.keys():
+                if frame[key] != None: count += 1
+
+        # Count initialized vars in TF
+        if self.TF != None:
+            for key in self.TF.keys():
+                if self.TF[key] != None: count += 1
+
+        return count
+
+    def MOVE(self, var, symb):
+        symb = self.expand_symbol(symb)
         self.store_to_var(var, symb)
 
     def CREATEFRAME(self):
@@ -425,10 +449,7 @@ class Interpreter:
             self.position = self.call_stack.pop()
 
     def PUSHS(self, symb):
-        if symb["type"] == "var":
-            frame, name = self.get_var_frame_name(symb["value"])
-            symb = self.get_val_from_var(name, frame)
-
+        symb = self.expand_symbol(symb)
         self.data_stack.append(symb)
 
     def POPS(self, var):
@@ -461,12 +482,8 @@ class Interpreter:
                 self.TF[name] = self.data_stack.pop()
 
     def ADD(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "int" or symb2["type"] != "int":
             exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
@@ -474,12 +491,8 @@ class Interpreter:
             self.store_to_var(var, {"type": "int", "value": symb1["value"] + symb2["value"]})
 
     def SUB(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "int" or symb2["type"] != "int":
             exit_with_message("Error! Both operands in SUB have to be int.", ERR_RUNTIME_OPERANDS)
@@ -487,12 +500,8 @@ class Interpreter:
             self.store_to_var(var, {"type": "int", "value": symb1["value"] - symb2["value"]})
 
     def MUL(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "int" or symb2["type"] != "int":
             exit_with_message("Error! Both operands in MUL have to be int.", ERR_RUNTIME_OPERANDS)
@@ -500,12 +509,8 @@ class Interpreter:
             self.store_to_var(var, {"type": "int", "value": symb1["value"] * symb2["value"]})
 
     def IDIV(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "int" or symb2["type"] != "int":
             exit_with_message("Error! Both operands in IDIV have to be int.", ERR_RUNTIME_OPERANDS)
@@ -513,12 +518,8 @@ class Interpreter:
             self.store_to_var(var, {"type": "int", "value": symb1["value"] // symb2["value"]})
 
     def LT(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != symb2["type"]:
             exit_with_message("Errot! Different types of operands.", ERR_RUNTIME_OPERANDS)
@@ -532,12 +533,8 @@ class Interpreter:
                 self.store_to_var(var, {"type": "bool", "value": symb1["value"] < symb2["value"]})
 
     def GT(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != symb2["type"]:
             exit_with_message("Errot! Different types of operands.", ERR_RUNTIME_OPERANDS)
@@ -551,13 +548,8 @@ class Interpreter:
                 self.store_to_var(var, {"type": "bool", "value": symb1["value"] > symb2["value"]})
 
     def EQ(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] == symb2["type"]:
             if symb1["type"] == "nil":
@@ -570,12 +562,8 @@ class Interpreter:
             exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
     def AND(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "bool" or symb2["type"] != "bool":
             exit_with_message("Error! Both operands in AND have to be bool.", ERR_RUNTIME_OPERANDS)
@@ -583,12 +571,8 @@ class Interpreter:
             self.store_to_var(var, {"type": "bool", "value": symb1["value"] and symb2["value"]})
 
     def OR(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "bool" or symb2["type"] != "bool":
             exit_with_message("Error! Both operands in OR have to be bool.", ERR_RUNTIME_OPERANDS)
@@ -596,9 +580,7 @@ class Interpreter:
             self.store_to_var(var, {"type": "bool", "value": symb1["value"] or symb2["value"]})
 
     def NOT(self, var, symb):
-        if symb["type"] == "var":
-            frame, name = self.get_var_frame_name(symb["value"])
-            symb = self.get_val_from_var(name, frame)
+        symb = self.expand_symbol(symb)
 
         if symb["type"] != "bool":
             exit_with_message("Error! Operand in NOT has to be bool.", ERR_RUNTIME_OPERANDS)
@@ -606,11 +588,9 @@ class Interpreter:
             self.store_to_var(var, {"type": "bool", "value": not symb["value"]})
 
     def INT2CHAR(self, var, symb):
-        if symb["type"] == "var":
-            frame, name = self.get_var_frame_name(symb["value"])
-            symb = self.get_val_from_var(name, frame)
+        symb = self.expand_symbol(symb)
 
-        if symb["type"] != "var" and symb["type"] != "int":
+        if symb["type"] != "int":
             exit_with_message("Error! Wrong operand type in INT2CHAR.", ERR_RUNTIME_OPERANDS)
 
         try:
@@ -621,12 +601,8 @@ class Interpreter:
             exit_with_message("Error! Value out of range for INT2CHAR.", ERR_RUNTIME_STRING)
 
     def STRI2INT(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "string" or symb2["type"] != "int":
             exit_with_message("Error! Wrong types or operands.", ERR_RUNTIME_OPERANDS)
@@ -668,9 +644,7 @@ class Interpreter:
             self.store_to_var(var, {"type": "string", "value": input_str})
 
     def WRITE(self, symb):
-        if symb["type"] == "var":
-            frame, name = self.get_var_frame_name(symb["value"])
-            symb = self.get_val_from_var(name, frame)
+        symb = self.expand_symbol(symb)
 
         if symb["type"] == "int" or symb["type"] == "type":
             print(symb["value"], end="")  # Can be directly printed out
@@ -680,12 +654,8 @@ class Interpreter:
             print("true" if symb["value"] else "false", end="")
 
     def CONCAT(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "string" or symb2["type"] != "string":
             exit_with_message("Error! Both operands in CONCAT have to be string.", ERR_RUNTIME_OPERANDS)
@@ -693,9 +663,7 @@ class Interpreter:
             self.store_to_var(var, {"type": "string", "value": symb1["value"] + symb2["value"]})
 
     def STRLEN(self, var, symb):
-        if symb["type"] == "var":
-            frame, name = self.get_var_frame_name(symb["value"])
-            symb = self.get_val_from_var(name, frame)
+        symb = self.expand_symbol(symb)
 
         if symb["type"] != "string":
             exit_with_message("Error! Operand in STRLEN has to be string.", ERR_RUNTIME_OPERANDS)
@@ -704,12 +672,8 @@ class Interpreter:
             self.store_to_var(var, {"type": "int", "value": len_full})
 
     def GETCHAR(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "string" or symb2["type"] != "int":
             exit_with_message("Error! Wrong operands in GETCHAR.", ERR_RUNTIME_OPERANDS)
@@ -719,12 +683,8 @@ class Interpreter:
             self.store_to_var(var, {"type": "string", "value": symb1["value"][symb2["value"]]})
 
     def SETCHAR(self, var, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         frame, name = self.get_var_frame_name(var)
         val = self.get_val_from_var(name, frame)
@@ -787,12 +747,9 @@ class Interpreter:
             self.position = self.labels[label]
 
     def JUMPIFEQ(self, label, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
+
         if label not in self.labels.keys():
             exit_with_message("Error! Undefined label.", ERR_SEMANTIC)
 
@@ -808,12 +765,9 @@ class Interpreter:
             exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
     def JUMPIFNEQ(self, label, symb1, symb2):
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
+
         if label not in self.labels.keys():
             exit_with_message("Error! Undefined label.", ERR_SEMANTIC)
 
@@ -825,15 +779,11 @@ class Interpreter:
 
             if jump:
                 self.position = self.labels[label]
-        #elif symb1["type"] == "nil" or symb2["type"] == "nil":
-        #    self.position = self.labels[label]
         else:
             exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
     def EXIT(self, symb):
-        if symb["type"] == "var":
-            frame, name = self.get_var_frame_name(symb["value"])
-            symb = self.get_val_from_var(name, frame)
+        symb = self.expand_symbol(symb)
 
         if symb["type"] != "int":
             exit_with_message("Error! Wrong operand in EXIT.", ERR_RUNTIME_OPERANDS)
@@ -844,9 +794,7 @@ class Interpreter:
             exit(symb["value"])
 
     def DPRINT(self, symb):
-        if symb["type"] == "var":
-            frame, name = self.get_var_frame_name(symb["value"])
-            symb = self.get_val_from_var(name, frame)
+        symb = self.expand_symbol(symb)
 
         if symb["type"] == "int" or symb["type"] == "string":
             print(symb["value"], end="", file=sys.stderr)  # Can be directly printed out
@@ -862,19 +810,10 @@ class Interpreter:
         self.data_stack = []
 
     def ADDS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "int" or symb2["type"] != "int":
             exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
@@ -883,19 +822,10 @@ class Interpreter:
 
 
     def SUBS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "int" or symb2["type"] != "int":
             exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
@@ -903,19 +833,10 @@ class Interpreter:
             self.data_stack.append({"type": "int", "value": symb1["value"] - symb2["value"]})
 
     def MULS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "int" or symb2["type"] != "int":
             exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
@@ -923,19 +844,10 @@ class Interpreter:
             self.data_stack.append({"type": "int", "value": symb1["value"] * symb2["value"]})
 
     def IDIVS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "int" or symb2["type"] != "int":
             exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
@@ -943,19 +855,10 @@ class Interpreter:
             self.data_stack.append({"type": "int", "value": symb1["value"] // symb2["value"]})
 
     def LTS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != symb2["type"]:
             exit_with_message("Errot! Different types of operands.", ERR_RUNTIME_OPERANDS)
@@ -969,19 +872,10 @@ class Interpreter:
                 self.data_stack.append({"type": "bool", "value": symb1["value"] < symb2["value"]})
 
     def GTS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != symb2["type"]:
             exit_with_message("Errot! Different types of operands.", ERR_RUNTIME_OPERANDS)
@@ -995,19 +889,10 @@ class Interpreter:
                 self.data_stack.append({"type": "bool", "value": symb1["value"] > symb2["value"]})
 
     def EQS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] == symb2["type"]:
             if symb1["type"] == "nil":
@@ -1020,19 +905,10 @@ class Interpreter:
             exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
     def ANDS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "bool" or symb2["type"] != "bool":
             exit_with_message("Error! Both operands in AND have to be bool.", ERR_RUNTIME_OPERANDS)
@@ -1040,19 +916,10 @@ class Interpreter:
             self.data_stack.append({"type": "bool", "value": symb1["value"] and symb2["value"]})
 
     def ORS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "bool" or symb2["type"] != "bool":
             exit_with_message("Error! Both operands in AND have to be bool.", ERR_RUNTIME_OPERANDS)
@@ -1060,13 +927,8 @@ class Interpreter:
             self.data_stack.append({"type": "bool", "value": symb1["value"] or symb2["value"]})
 
     def NOTS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb = self.data_stack.pop()
-
-        if symb["type"] == "var":
-            frame, name = self.get_var_frame_name(symb["value"])
-            symb = self.get_val_from_var(name, frame)
+        symb = self.get_from_stack()
+        symb = self.expand_symbol(symb)
 
         if symb["type"] != "bool":
             exit_with_message("Error! Operand in NOT has to be bool.", ERR_RUNTIME_OPERANDS)
@@ -1074,13 +936,8 @@ class Interpreter:
             self.data_stack.append({"type": "bool", "value": not symb["value"]})
 
     def INT2CHARS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb = self.data_stack.pop()
-
-        if symb["type"] == "var":
-            frame, name = self.get_var_frame_name(symb["value"])
-            symb = self.get_val_from_var(name, frame)
+        symb = self.get_from_stack()
+        symb = self.expand_symbol(symb)
 
         if symb["type"] != "int":
             exit_with_message("Error! Wrong operand type in INT2CHAR.", ERR_RUNTIME_OPERANDS)
@@ -1093,19 +950,10 @@ class Interpreter:
             exit_with_message("Error! Value out of range for INT2CHAR.", ERR_RUNTIME_STRING)
 
     def STRI2INTS(self):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if symb1["type"] != "string" or symb2["type"] != "int":
             exit_with_message("Error! Wrong types or operands.", ERR_RUNTIME_OPERANDS)
@@ -1115,19 +963,10 @@ class Interpreter:
             self.data_stack.append({"type": "int", "value": ord(symb1["value"][symb2["value"]])})
 
     def JUMPIFEQS(self, label):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if label not in self.labels.keys():
             exit_with_message("Error! Undefined label.", ERR_SEMANTIC)
@@ -1144,19 +983,10 @@ class Interpreter:
             exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
     def JUMPIFNEQS(self, label):
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb2 = self.data_stack.pop()
-        if len(self.data_stack) == 0:
-            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
-        symb1 = self.data_stack.pop()
-
-        if symb1["type"] == "var":
-            frame, name = self.get_var_frame_name(symb1["value"])
-            symb1 = self.get_val_from_var(name, frame)
-        if symb2["type"] == "var":
-            frame, name = self.get_var_frame_name(symb2["value"])
-            symb2 = self.get_val_from_var(name, frame)
+        symb2 = self.get_from_stack()
+        symb1 = self.get_from_stack()
+        symb1 = self.expand_symbol(symb1)
+        symb2 = self.expand_symbol(symb2)
 
         if label not in self.labels.keys():
             exit_with_message("Error! Undefined label.", ERR_SEMANTIC)
@@ -1293,6 +1123,44 @@ class Interpreter:
             #print("After state:", self, "\n", file=sys.stderr)
             self.position += 1
             self.executed_instructions += 1
+            self.statistic.inc_insts()
+            self.statistic.try_change_vars(self.count_intialized_vars())
+
+        # Finished executing instructions
+        if statistic.enabled:
+            statistic.output_stats()
+
+class Stats:
+    def __init__(self):
+        self.file = ""
+        self.options = []
+        self.stats = {"--insts": 0, "--vars": 0}
+        self.enabled = False
+    def enable(self):
+        self.enabled = True
+
+    def set_file(self, file):
+        self.file = file
+
+    def add_option(self, option):
+        self.options.append(option)
+
+    def inc_insts(self):
+        self.stats["--insts"] += 1
+
+    def try_change_vars(self, count):
+        self.stats["--vars"] =  max(self.stats["--vars"], count)
+
+    def output_stats(self):
+        try:
+            file = open(self.file, "w")
+        except FileNotFoundError:
+            exit_with_message("Error! Could not open output file for stats.", ERR_OUTPUT_FILES)
+
+        for option in self.options:
+            file.write(str(self.stats[option]) + "\n")
+
+        file.close()
 
 # MAIN
 
@@ -1300,6 +1168,7 @@ source_filename = None
 #source_filename = "example.xml"
 input_filename = None
 #input_filename = "input.txt"
+statistic = Stats()
 
 #"""
 for arg in sys.argv[1:]:
@@ -1313,6 +1182,14 @@ for arg in sys.argv[1:]:
         source_filename = arg[arg.index('=') + 1:]
     elif re.match(r'--input=(.*)', arg):
         input_filename = arg[arg.index('=') + 1:]
+    elif re.match(r'--stats=(.*)', arg):
+        statistic.enable()
+        statistic.set_file(arg[arg.index('=') + 1:])
+    elif arg == "--insts" or arg == "--vars":
+        if not statistic.enabled:
+            exit_with_message("Error! --stats has to be called before.", ERR_SCRIPT_PARAMS)
+        else:
+            statistic.add_option(arg)
     else:
         exit_with_message("Error! Unknown parameter.", ERR_SCRIPT_PARAMS)
 #"""
@@ -1326,7 +1203,7 @@ else:
 
 program = parse_xml_instructions(root)
 
-interpret = Interpreter()
+interpret = Interpreter(statistic)
 if input_filename == None:
     interpret_input = {"from_stdin": True, "file_content": None}
 else:
