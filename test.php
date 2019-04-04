@@ -480,10 +480,6 @@ function test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOp
             if (!is_file($path . ".out")) {
                 generate_file($path . ".out", "");
             }
-            // Check if it has .in file
-            //if (!is_file($path . ".in")) {
-            //    generate_file($path . ".in", "");
-            //}
 
             // We now have all necessary file - do the test!
             // Run parse.php (or whatever it is called) with current source file and save output to .my_out
@@ -584,12 +580,12 @@ function test_interpret_non_recursive($directory, $intFile, $stat) {
                 // Compare outputs
                 exec("diff " . $path . ".out " . $path . ".my_out", $out, $status);
                 if ($status != 0) {
-                    echo "Test: " . $path . "<br>";
-                    var_dump($len_control_out);
-                    var_dump($len_control_out);
-                    var_dump(file_get_contents($path . ".out"));
-                    var_dump(file_get_contents($path . ".my_out"));
-                    echo "<br>";
+                    //echo "Test: " . $path . "<br>";
+                    //var_dump($len_control_out);
+                    //var_dump($len_control_out);
+                    //var_dump(file_get_contents($path . ".out"));
+                    //var_dump(file_get_contents($path . ".my_out"));
+                    //echo "<br>";
 
                     $stat->testResult($directory . $name, false);
                     $detail = "Output differs";

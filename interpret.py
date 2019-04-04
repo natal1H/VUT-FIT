@@ -4,7 +4,6 @@
 import sys
 import xml.etree.ElementTree as ET
 import re
-from pprint import pprint
 
 # Temp - variables with exit codes
 ERR_SCRIPT_PARAMS = 10  # Missing or wrong script parameter
@@ -36,7 +35,10 @@ def is_opcode(opcode):
         "CONCAT", "STRLEN", "GETCHAR", "SETCHAR",  # Working with strings
         "TYPE",  # Working with types
         "LABEL", "JUMP", "JUMPIFEQ", "JUMPIFNEQ", "EXIT",  # Controlling program flow
-        "DPRINT", "BREAK"  # Debugging
+        "DPRINT", "BREAK",  # Debugging
+        # STACK extension
+        "CLEARS", "ADDS", "SUBS", "MULS", "IDIVS", "LTS", "GTS", "EQS", "ANDS", "ORS", "NOTS",
+        "INT2CHARS", "STRI2INTS", "JUMPIFEQS", "JUMPIFNEQS"
     ]
 
     if opcode in opcodes:
@@ -87,8 +89,10 @@ class Instruction:
         return "<Instruction opcode:%s args: %s>" % (self.opcode, self.args)
 
     def getCorrectNumberOfArgs(self):
-        no_args = ["CREATEFRAME", "PUSHFRAME", "POPFRAME", "RETURN", "BREAK"]
-        one_arg = ["DEFVAR", "CALL", "PUSHS", "POPS", "WRITE", "LABEL", "JUMP", "EXIT", "DPRINT"]
+        no_args = ["CREATEFRAME", "PUSHFRAME", "POPFRAME", "RETURN", "BREAK",
+                   "CLEARS", "ADDS", "SUBS", "MULS", "IDIVS", "LTS", "GTS", "EQS",
+                   "ANDS", "ORS", "NOTS", "INT2CHARS", "STRI2INTS"]
+        one_arg = ["DEFVAR", "CALL", "PUSHS", "POPS", "WRITE", "LABEL", "JUMP", "EXIT", "DPRINT", "JUMPIFEQS", "JUMPIFNEQS"]
         two_args = ["MOVE", "INT2CHAR", "READ", "STRLEN", "TYPE", "NOT"]
 
         if self.opcode in no_args:
@@ -121,7 +125,7 @@ class Instruction:
                 return self.args[0]["type"] == "var"
 
             # Instruction syntax: <label>
-            elif self.opcode in ["CALL", "LABEL", "JUMP"]:
+            elif self.opcode in ["CALL", "LABEL", "JUMP", "JUMPIFEQS", "JUMPIFNEQS"]:
                 return self.args[0]["type"] == "label"
 
             # Instruction syntax: <symb> (var | int | bool | string | nil)
@@ -352,6 +356,11 @@ class Interpreter:
             else:
                 self.TF[name] = symb
 
+    def get_from_stack(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        return self.data_stack.pop()
+
     def MOVE(self, var, symb):
         if symb["type"] == "var":
             frame, name = self.get_var_frame_name(symb["value"])
@@ -522,7 +531,6 @@ class Interpreter:
             else:
                 self.store_to_var(var, {"type": "bool", "value": symb1["value"] < symb2["value"]})
 
-
     def GT(self, var, symb1, symb2):
         if symb1["type"] == "var":
             frame, name = self.get_var_frame_name(symb1["value"])
@@ -667,12 +675,9 @@ class Interpreter:
         if symb["type"] == "int" or symb["type"] == "type":
             print(symb["value"], end="")  # Can be directly printed out
         elif symb["type"] == "string" and symb["value"] != None:
-            #esc_str = escape_string(symb["value"])
-            #print(esc_str, end="")
             print(symb["value"], end="")
         elif symb["type"] == "bool":
             print("true" if symb["value"] else "false", end="")
-
 
     def CONCAT(self, var, symb1, symb2):
         if symb1["type"] == "var":
@@ -687,17 +692,6 @@ class Interpreter:
         else:
             self.store_to_var(var, {"type": "string", "value": symb1["value"] + symb2["value"]})
 
-    def count_esc_seq(self, string):
-        count = 0
-        i = 0
-        while i < len(string):
-            if string[i] == "\\" and i + 3 < len(string) and string[i+1].isdigit() and string[i+2].isdigit()  and string[i+3].isdigit():
-                count += 1
-                i += 4
-            else:
-                i += 1
-        return count
-
     def STRLEN(self, var, symb):
         if symb["type"] == "var":
             frame, name = self.get_var_frame_name(symb["value"])
@@ -706,7 +700,7 @@ class Interpreter:
         if symb["type"] != "string":
             exit_with_message("Error! Operand in STRLEN has to be string.", ERR_RUNTIME_OPERANDS)
         else:
-            len_full = len(symb["value"])# - self.count_esc_seq(symb["value"])*3
+            len_full = len(symb["value"])
             self.store_to_var(var, {"type": "int", "value": len_full})
 
     def GETCHAR(self, var, symb1, symb2):
@@ -810,7 +804,7 @@ class Interpreter:
 
             if jump:
                 self.position = self.labels[label]
-        elif symb1["type"] != "nil" and symb2["type"] != "nil":
+        else:
             exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
     def JUMPIFNEQ(self, label, symb1, symb2):
@@ -831,8 +825,8 @@ class Interpreter:
 
             if jump:
                 self.position = self.labels[label]
-        elif symb1["type"] == "nil" or symb2["type"] == "nil":
-            self.position = self.labels[label]
+        #elif symb1["type"] == "nil" or symb2["type"] == "nil":
+        #    self.position = self.labels[label]
         else:
             exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
 
@@ -863,6 +857,321 @@ class Interpreter:
     def BREAK(self):
         print(self.__repr__(), file=sys.stderr)
 
+    # STACK instructions
+    def CLEARS(self):
+        self.data_stack = []
+
+    def ADDS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "int" or symb2["type"] != "int":
+            exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.data_stack.append({"type": "int", "value": symb1["value"] + symb2["value"]})
+
+
+    def SUBS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "int" or symb2["type"] != "int":
+            exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.data_stack.append({"type": "int", "value": symb1["value"] - symb2["value"]})
+
+    def MULS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "int" or symb2["type"] != "int":
+            exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.data_stack.append({"type": "int", "value": symb1["value"] * symb2["value"]})
+
+    def IDIVS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "int" or symb2["type"] != "int":
+            exit_with_message("Error! Both operands in ADD have to be int.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.data_stack.append({"type": "int", "value": symb1["value"] // symb2["value"]})
+
+    def LTS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != symb2["type"]:
+            exit_with_message("Errot! Different types of operands.", ERR_RUNTIME_OPERANDS)
+        elif symb1["type"] == "nil" or symb2["type"] == "nil":
+            exit_with_message("Error! Cannot use LT with nil.", ERR_RUNTIME_OPERANDS)
+        else:
+            if symb1["type"] == "bool":
+                res = True if (symb1["value"] == False and symb2["value"] == True) else False
+                self.data_stack.append({"type": "bool", "value": res})
+            else:
+                self.data_stack.append({"type": "bool", "value": symb1["value"] < symb2["value"]})
+
+    def GTS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != symb2["type"]:
+            exit_with_message("Errot! Different types of operands.", ERR_RUNTIME_OPERANDS)
+        elif symb1["type"] == "nil" or symb2["type"] == "nil":
+            exit_with_message("Error! Cannot use LT with nil.", ERR_RUNTIME_OPERANDS)
+        else:
+            if symb1["type"] == "bool":
+                res = True if (symb1["value"] == True and symb2["value"] == False) else False
+                self.data_stack.append({"type": "bool", "value": res})
+            else:
+                self.data_stack.append({"type": "bool", "value": symb1["value"] > symb2["value"]})
+
+    def EQS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] == symb2["type"]:
+            if symb1["type"] == "nil":
+                self.data_stack.append({"type": "bool", "value": True})
+            else:
+                self.data_stack.append({"type": "bool", "value": symb1["value"] == symb2["value"]})
+        elif symb1["type"] == "nil" or symb2["type"] == "nil":
+            self.data_stack.append({"type": "bool", "value": False})
+        else:
+            exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
+
+    def ANDS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "bool" or symb2["type"] != "bool":
+            exit_with_message("Error! Both operands in AND have to be bool.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.data_stack.append({"type": "bool", "value": symb1["value"] and symb2["value"]})
+
+    def ORS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "bool" or symb2["type"] != "bool":
+            exit_with_message("Error! Both operands in AND have to be bool.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.data_stack.append({"type": "bool", "value": symb1["value"] or symb2["value"]})
+
+    def NOTS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb = self.data_stack.pop()
+
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+            symb = self.get_val_from_var(name, frame)
+
+        if symb["type"] != "bool":
+            exit_with_message("Error! Operand in NOT has to be bool.", ERR_RUNTIME_OPERANDS)
+        else:
+            self.data_stack.append({"type": "bool", "value": not symb["value"]})
+
+    def INT2CHARS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb = self.data_stack.pop()
+
+        if symb["type"] == "var":
+            frame, name = self.get_var_frame_name(symb["value"])
+            symb = self.get_val_from_var(name, frame)
+
+        if symb["type"] != "int":
+            exit_with_message("Error! Wrong operand type in INT2CHAR.", ERR_RUNTIME_OPERANDS)
+
+        try:
+            char = {"type": "string", "value": chr(symb["value"])}
+            self.data_stack.append(char)
+
+        except ValueError:
+            exit_with_message("Error! Value out of range for INT2CHAR.", ERR_RUNTIME_STRING)
+
+    def STRI2INTS(self):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if symb1["type"] != "string" or symb2["type"] != "int":
+            exit_with_message("Error! Wrong types or operands.", ERR_RUNTIME_OPERANDS)
+        elif symb2["value"] < 0 or symb2["value"] >= len(symb1["value"]):
+            exit_with_message("Error! Index out of range.", ERR_RUNTIME_STRING)
+        else:
+            self.data_stack.append({"type": "int", "value": ord(symb1["value"][symb2["value"]])})
+
+    def JUMPIFEQS(self, label):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if label not in self.labels.keys():
+            exit_with_message("Error! Undefined label.", ERR_SEMANTIC)
+
+        if symb1["type"] == symb2["type"]:
+            if symb1["type"] == "nil":
+                jump = True
+            else:
+                jump = symb1["value"] == symb2["value"]
+
+            if jump:
+                self.position = self.labels[label]
+        else:
+            exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
+
+    def JUMPIFNEQS(self, label):
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb2 = self.data_stack.pop()
+        if len(self.data_stack) == 0:
+            exit_with_message("Error! Empty data stack.", ERR_RUNTIME_MISSING_VAL)
+        symb1 = self.data_stack.pop()
+
+        if symb1["type"] == "var":
+            frame, name = self.get_var_frame_name(symb1["value"])
+            symb1 = self.get_val_from_var(name, frame)
+        if symb2["type"] == "var":
+            frame, name = self.get_var_frame_name(symb2["value"])
+            symb2 = self.get_val_from_var(name, frame)
+
+        if label not in self.labels.keys():
+            exit_with_message("Error! Undefined label.", ERR_SEMANTIC)
+
+        if symb1["type"] == symb2["type"]:
+            if symb1["type"] == "nil":
+                jump = False
+            else:
+                jump = symb1["value"] != symb2["value"]
+
+            if jump:
+                self.position = self.labels[label]
+        else:
+            exit_with_message("Error! Wrong types of operands.", ERR_RUNTIME_OPERANDS)
+
     def run_code(self, data):
         instructions = data["instructions"]
         self.program_input = data["input"]
@@ -878,8 +1187,8 @@ class Interpreter:
         while self.position < len(instructions):
             instruction = instructions[self.position]
 
-            print("Before state:", self, file=sys.stderr)
-            print("Executing instruction:", instruction, file=sys.stderr)
+            #print("Before state:", self, file=sys.stderr)
+            #print("Executing instruction:", instruction, file=sys.stderr)
 
             if instruction.opcode == "MOVE":
                 self.MOVE(instruction.args[0]["value"], instruction.args[1])
@@ -949,8 +1258,39 @@ class Interpreter:
                 self.DPRINT(instruction.args[0])
             elif instruction.opcode == "BREAK":
                 self.BREAK()
+            # STACK extension instructions
+            elif instruction.opcode == "CLEARS":
+                self.CLEARS()
+            elif instruction.opcode == "ADDS":
+                self.ADDS()
+            elif instruction.opcode == "SUBS":
+                self.SUBS()
+            elif instruction.opcode == "MULS":
+                self.MULS()
+            elif instruction.opcode == "IDIVS":
+                self.IDIVS()
+            elif instruction.opcode == "LTS":
+                self.LTS()
+            elif instruction.opcode == "GTS":
+                self.GTS()
+            elif instruction.opcode == "EQS":
+                self.EQS()
+            elif instruction.opcode == "ANDS":
+                self.ANDS()
+            elif instruction.opcode == "ORS":
+                self.ORS()
+            elif instruction.opcode == "NOTS":
+                self.NOTS()
+            elif instruction.opcode == "INT2CHARS":
+                self.INT2CHARS()
+            elif instruction.opcode == "STRI2INTS":
+                self.STRI2INTS()
+            elif instruction.opcode == "JUMPIFEQS":
+                self.JUMPIFEQS(instruction.args[0]["value"])
+            elif instruction.opcode == "JUMPIFNEQS":
+                self.JUMPIFNEQS(instruction.args[0]["value"])
 
-            print("After state:", self, "\n", file=sys.stderr)
+            #print("After state:", self, "\n", file=sys.stderr)
             self.position += 1
             self.executed_instructions += 1
 
