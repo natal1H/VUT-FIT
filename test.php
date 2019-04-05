@@ -1,6 +1,10 @@
 <?php
-# VUT FIT - IPP - Project
-# Author: Natália Holková (xholko02)
+/**
+ * VUT FIT - IPP - Project - script for automated testing
+ *
+ * @author Natália Holková (xholko02)
+ * @file test.php
+ */
 
 define("ERR_SCRIPT_PARAMS", 10); # Error - missing script param or usage of forbidden combination of params
 define("ERR_INPUT_FILES", 11); # Error - opening input files
@@ -26,8 +30,8 @@ class Parameters {
         $this->parseFile = "parse.php";
         $this->intFile = "interpret.py";
         $this->directory = "./";
-        $this->jexamxml = realpath("/pub/courses/ipp/jexamxml/jexamxml.jar");
-        $this->jexamxmlOptions = realpath("/pub/courses/ipp/jexamxml/options");
+        $this->jexamxml = realpath("/pub/courses/ipp/jexamxml/jexamxml.jar"); // Default path to JExamXML .jar on Merlin
+        $this->jexamxmlOptions = realpath("/pub/courses/ipp/jexamxml/options"); // Default path to JExamXML options on Merlin
 
         $this->options = array(
             "help" => 0,
@@ -41,27 +45,41 @@ class Parameters {
         );
     }
 
+    /**
+     * Returns directory where are test files stored
+     * @return string Directory with tests
+     */
     public function getDirectory() {
         return $this->directory;
     }
 
+    /**
+     * Returns location of parse.php script
+     * @return string Location of parse.php script
+     */
     public function getParseFile() {
         return $this->parseFile;
     }
 
+    /**
+     * Returns location of interpret.py script
+     * @return string Location of interpret.py script
+     */
     public function getIntFile() {
         return $this->intFile;
     }
 
     /**
-     * @return string
+     * Returns location of JExamXML .jar file
+     * @return string Location of JExamXML .jar file
      */
     public function getJexamxml() {
         return $this->jexamxml;
     }
 
     /**
-     * @return string
+     * Returns location on JExamXML options file
+     * @return string Location of JExamXML options file
      */
     public function getJexamxmlOptions() {
         return $this->jexamxmlOptions;
@@ -69,7 +87,7 @@ class Parameters {
 
     /**
      * Increase number of times option was input
-     * @param $option Name of option
+     * @param $option string Name of option
      */
     function incOption($option) {
         $this->options[$option] += 1;
@@ -141,9 +159,10 @@ class Parameters {
                             return ERR_INPUT_FILES;
                         }
 
+                        // Set JExamXML location
                         $this->jexamxmlOptions = realpath($this->jexamxml . "options");
                         $this->jexamxml .= "jexamxml.jar";
-			$this->jexamxml = realpath($this->jexamxml);
+			            $this->jexamxml = realpath($this->jexamxml);
                     }
                     else { // Error, unknown
                         error_log("Error! Unknown parameter " . $arg);
@@ -221,8 +240,8 @@ class Parameters {
             display_help();
             exit(ERR_OK);
         }
-        elseif ($this->options["parse-only"] == 1) {
-            $stat->generateParseBeginning();
+        elseif ($this->options["parse-only"] == 1) { // Parse-only testing
+            $stat->generateTestBeginning("parse.php");
             if ($this->options["recursive"] == 0)
                 // Non-recursive test only for parse
                 test_parse_non_recursive($this->directory, $this->parseFile, $this->jexamxml, $this->jexamxmlOptions, $stat);
@@ -232,8 +251,8 @@ class Parameters {
             $stat->generateTestEnd();
             $stat->totalAndPassed();
         }
-        elseif ($this->options["int-only"] == 1) {
-            $stat->generateIntBeginning();
+        elseif ($this->options["int-only"] == 1) { // Int-only testing
+            $stat->generateTestBeginning("interpret.py");
             if ($this->options["recursive"] == 0)
                 // Non-recursive test only for parse
                 test_interpret_non_recursive($this->directory, $this->intFile, $stat);
@@ -243,8 +262,8 @@ class Parameters {
             $stat->generateTestEnd();
             $stat->totalAndPassed();
         }
-        else {
-            $stat->generateParseBeginning();
+        else { // Testing both parse and interpret
+            $stat->generateTestBeginning("parse.php and interpret.py");
             if ($this->options["recursive"] == 0)
                 // Non-recursive test only for parse
                 test_both_non_recursive($this->directory, $this->parseFile, $this->intFile, $stat);
@@ -323,9 +342,12 @@ EOD;
 EOD;
     }
 
-    function generateParseBeginning() {
+    /**
+     * Generate beginning of testing
+     */
+    function generateTestBeginning($subject) {
         $this->html .= <<<EOD
-<h2>Testing parse.php</h2>
+<h2>Testing $subject</h2>
 
 <div class="pane">
 <table>
@@ -338,21 +360,10 @@ EOD;
 EOD;
     }
 
-    function generateIntBeginning() {
-        $this->html .= <<<EOD
-<h2>Testing interpret.py</h2>
-
-<div class="pane">
-<table>
-    <tr>
-        <th>#</th>
-        <th>Test</th>
-        <th>Result</th>
-    </tr>
-
-EOD;
-    }
-
+    /**
+     * Generate details on why test failed
+     * @param $detail Error detail message
+     */
     function generateErrorDetail($detail) {
         $this->html .= <<<EOD
 <tr>
@@ -363,13 +374,20 @@ EOD;
 </tr>
 
 EOD;
-
     }
 
+    /**
+     * Generate end of testing
+     */
     function generateTestEnd() {
         $this->html .= "</table>\n</div>\n";
     }
 
+    /**
+     * Generate output for single test
+     * @param $path string Path to test
+     * @param $passed boolean Was test passed?
+     */
     function testResult($path, $passed) {
         $result = ($passed == true) ? "OK" : "ERROR";
         $testClass = ($passed == true) ? "okTest" : "errorTest";
@@ -384,9 +402,11 @@ EOD;
 </tr>
 
 EOD;
-
     }
 
+    /**
+     * Generate info on how many tests passed
+     */
     function totalAndPassed() {
         $succesRate = round($this->passed / $this->total * 100, 2);
         $this->html .= <<<EOD
@@ -436,13 +456,13 @@ EOL;
 
 /**
  * Generate file with content
- * @param $path Full path to file
- * @param $content Content to put in file
+ * @param $path string Full path to file
+ * @param $content string Content to put in file
  * @return int Error ok - ERR_OK or ERR_OUTPUT_FILES
  */
 function generate_file($path, $content) {
     $handle = fopen($path, "w");
-    if ($handle == false) {
+    if ($handle == false) { // Check if file could be created
         error_log("Error! Could not create " . $path . ".\n");
         return ERR_OUTPUT_FILES;
     }
@@ -452,20 +472,26 @@ function generate_file($path, $content) {
     return ERR_OK;
 }
 
+/**
+ * Remove temporarily created file
+ * @param $path string Path to file
+ * @return bool Removed success
+ */
 function remove_tmp_file($path) {
     return unlink($path);
 }
 
 /**
  * Automatic test only for parse, non-recursive option.
- * @param $directory
- * @param $parseFile
- * @param $jexamxml
- * @param $jexamxmlOptions
- * @param @param $stat Object from class HTMLStats
+ * @param $directory string Test directory
+ * @param $parseFile string Location of parse.php file
+ * @param $jexamxml string Location of JExamXML .jar file
+ * @param $jexamxmlOptions string Location of JExamXML options file
+ * @param $stat Object from class HTMLStats
  */
 function test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat) {
-    $files = scandir($directory);
+    $files = scandir($directory); // Get files in directory
+
     foreach ($files as $file) {
         if (is_file($directory . $file) && (preg_match("/.src/", $file))) {
 
@@ -522,11 +548,21 @@ function test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOp
     }
 }
 
+/**
+ * Automatic test of parse.php, recursive option
+ * @param $directory string Test directory
+ * @param $parseFile string Location of parse.php file
+ * @param $jexamxml string Location of JExamXML .jar file
+ * @param $jexamxmlOptions string Location of JExamXML options file
+ * @param $stat Object from class HTMLStats
+ */
 function test_parse_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat) {
     $files = scandir($directory);
+
+    // Iterate through files in directory
     foreach ($files as $file) {
         if (is_dir($directory . $file) && $file != "." && $file != "..") {
-            // Is directory
+            // Is directory - run recursive for new directory
             $currentDir = $directory . $file . "/";
             test_parse_recursive($currentDir, $parseFile, $jexamxml, $jexamxmlOptions, $stat);
         }
@@ -536,8 +572,16 @@ function test_parse_recursive($directory, $parseFile, $jexamxml, $jexamxmlOption
     test_parse_non_recursive($directory, $parseFile, $jexamxml, $jexamxmlOptions, $stat);
 }
 
+/**
+ * Automatic testing of intepret.py, non-recursive
+ * @param $directory string Test directory
+ * @param $intFile string Location of interpret.py file
+ * @param $stat Object from class HTMLStats
+ */
 function test_interpret_non_recursive($directory, $intFile, $stat) {
     $files = scandir($directory);
+
+    // Iterate through files in directory
     foreach ($files as $file) {
         if (is_file($directory . $file) && (preg_match("/.src/", $file))) {
 
@@ -580,13 +624,7 @@ function test_interpret_non_recursive($directory, $intFile, $stat) {
                 // Compare outputs
                 exec("diff " . $path . ".out " . $path . ".my_out", $out, $status);
                 if ($status != 0) {
-                    //echo "Test: " . $path . "<br>";
-                    //var_dump($len_control_out);
-                    //var_dump($len_control_out);
-                    //var_dump(file_get_contents($path . ".out"));
-                    //var_dump(file_get_contents($path . ".my_out"));
-                    //echo "<br>";
-
+                    // Output differs - test failed
                     $stat->testResult($directory . $name, false);
                     $detail = "Output differs";
                     $stat->generateErrorDetail($detail);
@@ -608,6 +646,12 @@ function test_interpret_non_recursive($directory, $intFile, $stat) {
     }
 }
 
+/**
+ * Automatic testing of intepret.py, recursive
+ * @param $directory string Test directory
+ * @param $intFile string Location of interpret.py file
+ * @param $stat Object from class HTMLStats
+ */
 function test_interpret_recursive($directory, $intFile, $stat) {
     $files = scandir($directory);
     foreach ($files as $file) {
@@ -622,6 +666,13 @@ function test_interpret_recursive($directory, $intFile, $stat) {
     test_interpret_non_recursive($directory, $intFile, $stat);
 }
 
+/**
+ * Automatic testing of both parse.php and intepret.py, non-recursive
+ * @param $directory string Test directory
+ * @param $parseFile string Location of parse.php file
+ * @param $intFile string Location of interpret.py file
+ * @param $stat Object from class HTMLStats
+ */
 function test_both_non_recursive($directory, $parseFile, $intFile, $stat) {
     $files = scandir($directory);
     foreach ($files as $file) {
@@ -683,15 +734,20 @@ function test_both_non_recursive($directory, $parseFile, $intFile, $stat) {
             if (file_exists($path . ".my_out"))
                 remove_tmp_file($path . ".my_out"); // remove .my_out
             if (file_exists($path . ".my_xml"))
-                remove_tmp_file($path . ".my_xml"); // remove .my_out
-            if (file_exists($directory . "diffs.xml"))
-                remove_tmp_file($directory . "diffs.xml"); // remove diffs.xml
+                remove_tmp_file($path . ".my_xml"); // remove .my_xml
             if (file_exists($path . ".out.log"))
                 remove_tmp_file($path . ".out.log"); // remove .log
         }
     }
 }
 
+/**
+ * Automatic testing of both parse.php and intepret.py, recursive
+ * @param $directory string Test directory
+ * @param $parseFile string Location of parse.php file
+ * @param $intFile string Location of interpret.py file
+ * @param $stat Object from class HTMLStats
+ */
 function test_both_recursive($directory, $parseFile, $intFile, $stat) {
     $files = scandir($directory);
     foreach ($files as $file) {
