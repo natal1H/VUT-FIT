@@ -6,10 +6,15 @@
  * @author Natália Holková (xholko02)
  **/
 
+#ifndef MAIN_H
+#define MAIN_H
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+
+#include "tcpIPv4.h"
 
 typedef enum {
     ERR_OK = 0,  // Everything OK
@@ -43,3 +48,5 @@ bool is_integer(char *str);
  * @return Number of occurrences
  */
 int count_char_occurrences(char *str, char ch);
+
+#endif

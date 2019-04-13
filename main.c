@@ -86,12 +86,6 @@ int main(int argc, char **argv) {
         i++;
     }
 
-    // Test - print out params
-    printf("Interface: %s\n", (params.interface == NULL) ? "null" : params.interface);
-    printf("Port ranges UDP: %s\n", (params.port_range_udp == NULL) ? "null" : params.port_range_udp);
-    printf("Port ranges TCP: %s\n", (params.port_range_tcp == NULL) ? "null" : params.port_range_tcp);
-    printf("Domain or IP address: %s\n", (params.domain_or_ip == NULL) ? "null" : params.domain_or_ip);
-
     // Check port range - which format was input
     // UDP port range
     if (params.port_range_udp != NULL) {
@@ -102,7 +96,6 @@ int main(int argc, char **argv) {
             // Test if is integer (a.k.a single port
             if (is_integer(params.port_range_udp)) {
                 int port = atoi(params.port_range_udp);
-                printf("Single port: %d\n", port);
 
                 udp_ports = (int *) malloc(sizeof(int) * 1); // single port
                 udp_ports[0] = port;
@@ -113,7 +106,6 @@ int main(int argc, char **argv) {
                 if (res != NULL) {
                     // Contains at least one ,
                     int expected_ports = count_char_occurrences(params.port_range_udp, ',') + 1; // Count number of , in string
-                    printf("Expecting %d ports.\n", expected_ports);
 
                     udp_ports = (int *) malloc(sizeof(int) * expected_ports);
                     udp_ports_len = expected_ports;
@@ -155,11 +147,8 @@ int main(int argc, char **argv) {
         }
         else {
             // Format X-Y (from X to Y including)
-            char *first_part = malloc(sizeof(char) * (res - params.port_range_udp));
-            printf("Allocated: %ld\n", res - params.port_range_udp);
+            char *first_part = (char *) malloc(sizeof(char) * (res - params.port_range_udp));
             memcpy(first_part, params.port_range_udp, res - params.port_range_udp);
-            printf("First part: %s\n", first_part);
-            printf("Part after: %s\n", res + 1);
 
             int begin_port = atoi(first_part);
             int end_port = atoi(res + 1);
@@ -174,8 +163,6 @@ int main(int argc, char **argv) {
             }
 
             int expected_ports = end_port - begin_port + 1;
-
-            printf("Begin port: %d, end port: %d, expected ports: %d\n", begin_port, end_port, expected_ports);
 
             udp_ports = (int *) malloc(sizeof(int) * expected_ports);
             udp_ports_len = expected_ports;
@@ -194,7 +181,6 @@ int main(int argc, char **argv) {
             // Test if is integer (a.k.a single port
             if (is_integer(params.port_range_tcp)) {
                 int port = atoi(params.port_range_tcp);
-                printf("Single port: %d\n", port);
 
                 tcp_ports = (int *) malloc(sizeof(int) * 1); // single port
                 tcp_ports[0] = port;
@@ -205,7 +191,6 @@ int main(int argc, char **argv) {
                 if (res != NULL) {
                     // Contains at least one ,
                     int expected_ports = count_char_occurrences(params.port_range_tcp, ',') + 1; // Count number of , in string
-                    printf("Expecting %d ports.\n", expected_ports);
 
                     tcp_ports = (int *) malloc(sizeof(int) * expected_ports);
                     tcp_ports_len = expected_ports;
@@ -245,11 +230,8 @@ int main(int argc, char **argv) {
         }
         else {
             // Format X-Y (from X to Y including)
-            char *first_part = malloc(sizeof(char) * (res - params.port_range_tcp));
-            printf("Allocated: %ld\n", res - params.port_range_tcp);
+            char *first_part = (char *) malloc(sizeof(char) * (res - params.port_range_tcp));
             memcpy(first_part, params.port_range_tcp, res - params.port_range_tcp);
-            printf("First part: %s\n", first_part);
-            printf("Part after: %s\n", res + 1);
 
             int begin_port = atoi(first_part);
             int end_port = atoi(res + 1);
@@ -265,8 +247,6 @@ int main(int argc, char **argv) {
 
             int expected_ports = end_port - begin_port + 1;
 
-            printf("Begin port: %d, end port: %d, expected ports: %d\n", begin_port, end_port, expected_ports);
-
             tcp_ports = (int *) malloc(sizeof(int) * expected_ports);
             tcp_ports_len = expected_ports;
             for (int i = 0, j = begin_port; j <= end_port; i++, j++) {
@@ -275,16 +255,17 @@ int main(int argc, char **argv) {
         }
     }
 
-    // temp - print out port range
     if (udp_ports != NULL) {
         printf("UDP ports:\n");
         for (int i = 0; i < udp_ports_len; i++)
             printf("port %d\n", udp_ports[i]);
+
+        // Call function to perform UDP port scan
+        // TODO
     }
     if (tcp_ports != NULL) {
-        printf("TCP ports:\n");
-        for (int i = 0; i < tcp_ports_len; i++)
-            printf("port %d\n", tcp_ports[i]);
+        // Call function to perform TCP port scan
+        return tcp_IPv4_port_scan(tcp_ports, tcp_ports_len, params.domain_or_ip, params.interface);
     }
 
     return ERR_OK; // 0
