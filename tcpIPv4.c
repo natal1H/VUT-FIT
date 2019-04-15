@@ -1,24 +1,8 @@
 #include "tcpIPv4.h"
 
-int get_filter_expr_tcpIPv4(int port, char *filter_expr) {
-    char port_str[5];
-    sprintf(port_str, "%d", port);
+// TODO - clean up structures in case of sudden error
 
-    strcpy(filter_expr, "tcp src port ");
-    strcat(filter_expr, port_str);
-    strcat(filter_expr, " and tcp dst port 42");
-
-    printf("Filter expression: %s\n", filter_expr);
-
-}
-
-int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip) {
-    printf("TCP port scan (IPv4)\n");
-
-    printf("Interface: %s\n", (interface == NULL) ? "null" : interface);
-    printf("dest IP address: %s\n", (dest_address == NULL) ? "null" : dest_address);
-    printf("source IP address: %s\n", (source_address == NULL) ? "null" : source_address);
-
+int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip) {
     // NECESSARY DECLARATIONS
     int s = socket (PF_INET, SOCK_RAW, IPPROTO_TCP);	/* open raw socket */
     char datagram[4096];	/* this buffer will contain ip header, tcp header,
@@ -60,7 +44,6 @@ int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest
     printf("TCP ports:\n");
     for (int i = 0; i < num_ports; i++) {
         int dest_port = tcp_ports[i];
-        printf("port %d\n", dest_port);
 
         sin.sin_port = htons (dest_port);
 
@@ -83,116 +66,96 @@ int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest
         get_filter_expr_tcpIPv4(dest_port, filter_expr);
         if (pcap_compile(handle, &filter, filter_expr, 0, ip) == -1) {
             printf("Bad filter - %s\n", pcap_geterr(handle));
-            return 2;
+            return ERR_TCP_LIBPCAP;
         }
         if (pcap_setfilter(handle, &filter) == -1) {
             printf("Error setting filter - %s\n", pcap_geterr(handle));
-            return 2;
+            return ERR_TCP_LIBPCAP;
         }
-        printf("filter set\n");
 
-        struct pcap_pkthdr header; // Header that pcap gives us
-        const u_char *packet = NULL; // Received raw data
+        //struct pcap_pkthdr header; // Header that pcap gives us
+        //const u_char *packet = NULL; // Received raw data
 
         //Send the packet
         if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) < 0) {
-            perror("sendto failed");
+            if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) < 0)
+                fprintf(stderr, "Error! Failed to send packet to port %d twice, this port will not be tested.\n", dest_port);
         }
         //Data send successfully
-        else {
-            printf ("Packet send to port %d \n" , dest_port);
-        }
 
         // Grab packet
+        int *port_ptr = &dest_port;
+        alarm(PCAP_TIMEOUT);
+        signal(SIGALRM, alarm_handler);
 
-        packet = pcap_next(handle, &header);
-        if (packet != NULL) {
-            // print its lenght
-            printf("Jacked a packet with length of %d\n", header.len);
-
-            const struct sniff_ethernet *ethernet; // The ethernet header
-            const struct sniff_ip *ip; // The IP header
-            const struct sniff_tcp *tcp; // The TCP header
-            const char *payload; // Packet payload
-
-            u_int size_ip;
-            u_int size_tcp;
-
-            ethernet = (struct sniff_ethernet *) (packet);
-            ip = (struct sniff_ip *) (packet + SIZE_ETHERNET);
-            size_ip = IP_HL(ip) * 4;
-            if (size_ip < 20) {
-                printf("   * Invalid IP header length: %u bytes\n", size_ip);
-                return -1;
-            }
-            tcp = (struct sniff_tcp *) (packet + SIZE_ETHERNET + size_ip);
-            size_tcp = TH_OFF(tcp) * 4;
-            if (size_tcp < 20) {
-                printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
-                return -1;
-            }
-            payload = (u_char * )(packet + SIZE_ETHERNET + size_ip + size_tcp);
-
-            // print source and destination IP addresses
-            printf("       From: %s\n", inet_ntoa(ip->ip_src));
-            printf("         To: %s\n", inet_ntoa(ip->ip_dst));
-            printf("      Flags: %x\n", tcp->th_flags);
-
-            if (is_open_port(tcp->th_flags)) {
-                printf("port %d: open\n", dest_port);
-            } else if (is_closed_port(tcp->th_flags)) {
-                printf("port %d: closed\n", dest_port);
-            }
+        int ret = pcap_loop(handle, 1, grab_packet, (u_char *) port_ptr);
+        if (ret == -1) {
+            fprintf(stderr, "Error! An error occurred in loop\n"); // No need to exit whole program
         }
-        else {
-            printf("No response from first send packet. Sending another one.\n");
-            packet = pcap_next(handle, &header);
-            if (packet != NULL) {
-                // print its length
-                printf("Jacked a packet with length of %d\n", header.len);
-
-                const struct sniff_ethernet *ethernet; // The ethernet header
-                const struct sniff_ip *ip; // The IP header
-                const struct sniff_tcp *tcp; // The TCP header
-                const char *payload; // Packet payload
-
-                u_int size_ip;
-                u_int size_tcp;
-
-                ethernet = (struct sniff_ethernet *) (packet);
-                ip = (struct sniff_ip *) (packet + SIZE_ETHERNET);
-                size_ip = IP_HL(ip) * 4;
-                if (size_ip < 20) {
-                    printf("   * Invalid IP header length: %u bytes\n", size_ip);
-                    return -1;
-                }
-                tcp = (struct sniff_tcp *) (packet + SIZE_ETHERNET + size_ip);
-                size_tcp = TH_OFF(tcp) * 4;
-                if (size_tcp < 20) {
-                    printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
-                    return -1;
-                }
-                payload = (u_char * )(packet + SIZE_ETHERNET + size_ip + size_tcp);
-
-                // print source and destination IP addresses
-                printf("       From: %s\n", inet_ntoa(ip->ip_src));
-                printf("         To: %s\n", inet_ntoa(ip->ip_dst));
-                printf("      Flags: %x\n", tcp->th_flags);
-
-                if (is_open_port(tcp->th_flags)) {
-                    printf("port %d: open\n", dest_port);
-                } else if (is_closed_port(tcp->th_flags)) {
-                    printf("port %d: closed\n", dest_port);
-                }
+        else if (ret == -2) {
+            // pcap_breakloop was called - timeout
+            // send another packet - if timeout again happens, it's a filtered port
+            if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) < 0) {
+                if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) < 0)
+                    fprintf(stderr, "Error! Failed to send packet to port %d twice, this port will not be tested.\n", dest_port);
             }
-            else {
+            // Grab packet
+            alarm(PCAP_TIMEOUT);
+            signal(SIGALRM, alarm_handler);
+
+            int second_ret = pcap_loop(handle, 1, grab_packet, (u_char *) port_ptr);
+            if (second_ret == -1) {
+                fprintf(stderr, "Error! An error occurred in loop\n"); // No need to exit whole program
+            }
+            else if (second_ret = -2) {
+                // Filtered port
                 printf("port %d: filtered\n", dest_port);
             }
+
         }
 
     }
 
     return 0;
+}
+
+void get_filter_expr_tcpIPv4(int port, char *filter_expr) {
+    char port_str[5];
+    sprintf(port_str, "%d", port);
+
+    strcpy(filter_expr, "tcp src port ");
+    strcat(filter_expr, port_str);
+    strcat(filter_expr, " and tcp dst port 42");
+}
+
+void alarm_handler(int sig) {
+    pcap_breakloop(handle);
+}
+
+void grab_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
+    int *checked_port = (int *) args;
+    const struct sniff_ethernet *ethernet; // The ethernet header
+    const struct sniff_ip *ip; // The IP header
+    const struct sniff_tcp *tcp; // The TCP header
+    const char *payload; // Packet payload
+
+    u_int size_ip;
+    u_int size_tcp;
+
+    ethernet = (struct sniff_ethernet *) (packet);
+    ip = (struct sniff_ip *) (packet + SIZE_ETHERNET);
+    size_ip = IP_HL(ip) * 4;
+
+    tcp = (struct sniff_tcp *) (packet + SIZE_ETHERNET + size_ip);
+    size_tcp = TH_OFF(tcp) * 4;
+
+    payload = (u_char * )(packet + SIZE_ETHERNET + size_ip + size_tcp);
+
+    if (is_open_port(tcp->th_flags)) {
+        printf("port %d: open\n", *checked_port);
+    } else if (is_closed_port(tcp->th_flags)) {
+        printf("port %d: closed\n", *checked_port);
+    }
 }
 
 bool is_open_port(u_char th_flags) {

@@ -14,8 +14,10 @@
 #include <stdlib.h>
 #include <pcap.h>
 #include <stdbool.h>
+#include <signal.h>
 
 #include "errCodes.h"
+#include "main.h" // because of pcap_t *handle
 
 /**
  * 96 bit (12 bytes) pseudo header needed for tcp header checksum calculation
@@ -83,6 +85,8 @@ struct sniff_tcp {
     u_short th_urp;		/* urgent pointer */
 };
 
+#define PCAP_TIMEOUT 2
+
 /**
  *
  * @param handle
@@ -94,7 +98,9 @@ struct sniff_tcp {
  * @param ip
  * @return
  */
-int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip);
+int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip);
+
+void get_filter_expr_tcpIPv4(int port, char *filter_expr);
 
 /**
  *
@@ -135,5 +141,8 @@ void fill_TCP_header(struct tcphdr *tcph, int dest_port);
  */
 void fill_pseudo_header(struct pseudo_header *psh, struct sockaddr_in sin, char *data, char *source_ip);
 
+void grab_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet);
+
+void alarm_handler(int sig);
 
 #endif

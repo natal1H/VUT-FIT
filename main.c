@@ -129,25 +129,21 @@ char *lookup_host (const char *host, int *ver) {
     char *dest_address = (char *) malloc(sizeof(char) * 100); // TODO
     void *ptr;
 
-    memset (&hints, 0, sizeof (hints));
+    memset(&hints, 0, sizeof (hints));
     hints.ai_family = PF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags |= AI_CANONNAME;
 
-    errcode = getaddrinfo (host, NULL, &hints, &res);
-    if (errcode != 0)
-    {
-        perror("getaddrinfo");
+    errcode = getaddrinfo(host, NULL, &hints, &res);
+    if (errcode != 0) {
+        fprintf(stderr, "Error! Couldn't get IP address from domain.\n");
         return NULL;
     }
 
-    printf ("Host: %s\n", host);
-    while (res)
-    {
-        inet_ntop (res->ai_family, res->ai_addr->sa_data, addrstr, 100);
+    while (res) {
+        inet_ntop(res->ai_family, res->ai_addr->sa_data, addrstr, 100);
 
-        switch (res->ai_family)
-        {
+        switch (res->ai_family) {
             case AF_INET:
                 ptr = &((struct sockaddr_in *) res->ai_addr)->sin_addr;
                 break;
@@ -156,11 +152,8 @@ char *lookup_host (const char *host, int *ver) {
                 break;
         }
         inet_ntop (res->ai_family, ptr, addrstr, 100);
-        printf ("IPv%d address: %s (%s)\n", res->ai_family == PF_INET6 ? 6 : 4,
-                addrstr, res->ai_canonname);
 
         strcpy(dest_address, addrstr);
-        printf("Copying %s\n", addrstr);
         if (res->ai_family != PF_INET6) {// If it has both, use first IPv4
             *ver = 4;
             break;
@@ -191,16 +184,9 @@ int get_source_ip(char *source_ip, int version, char *interface) {
         ifr.ifr_addr.sa_family = AF_INET6;
     }
 
-    /* I want IP address attached to "eth0" */
     strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
-
     ioctl(fd, SIOCGIFADDR, &ifr);
-
     close(fd);
-
-    // display result
-    printf("source IP: %s\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
-
     strcpy(source_ip, inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 
     return 0;
@@ -217,16 +203,25 @@ int main(int argc, char **argv) {
     int dest_ip_version;
     char *source_address = NULL;
 
+    if (argc == 1) {
+        // No argment
+        display_usage();
+        return 0;
+    }
+    else if (argc == 2 && (strcmp(argv[1], "--help") == 0)) {
+        // Display help
+        display_help();
+        return 0;
+    }
+
     // Parse arguments
     int i = 0;
     while (i < argc) {
-        printf("ARG: %s\n", argv[i]);
         if (strcmp(argv[i], "-pu") == 0) {
             // Next should be port range
             if (i+1 < argc) {
                 i++;
                 params.port_range_udp = argv[i];
-                printf("Setting udp range\n");
             }
             else {
                 fprintf(stderr, "Error! You need to input UDP port range for scanning after -pu.\n");
@@ -277,30 +272,21 @@ int main(int argc, char **argv) {
             return ERR_PARAMS;
     }
 
-    printf("Interface: %s\n", (params.interface == NULL) ? "null" : params.interface);
-    printf("IP address: %s\n", (params.domain_or_ip == NULL) ? "null" : params.domain_or_ip);
-
     // Check address:
     if (params.domain_or_ip != NULL) {
         int version = ip_version(params.domain_or_ip);
         if (version == -1) {
             // Entered domain, not IP address -> convert it
-            printf("User entered domain name\n");
             destination_address = lookup_host(params.domain_or_ip, &dest_ip_version);
             if (destination_address == NULL) {
                 exit(ERR_PARAMS);
             }
-            else {
-                printf("Converted destination address: %s, version: %d\n", destination_address, dest_ip_version);
-            }
         }
         else if (version == 4) {
-            printf("User entered IPv4 address\n");
             destination_address = params.domain_or_ip;
             dest_ip_version = 4;
         }
         else {
-            printf("User entered IPv6 address\n");
             destination_address = params.domain_or_ip;
             dest_ip_version = 6;
         }
@@ -311,21 +297,16 @@ int main(int argc, char **argv) {
         if (destination_address == NULL) {
             exit(ERR_PARAMS);
         }
-        else {
-            printf("Converted destination address: %s, version: %d\n", destination_address, dest_ip_version);
-        }
     }
 
-    // TODO: fix if not input interface
+    // TODO - if localhost and not -i -> choose lo
     char *interface;
     char error_buffer[PCAP_ERRBUF_SIZE];
     if (params.interface != NULL) {
         interface = params.interface;
     }
     else {
-        printf("Going to choose interface\n");
         interface = pcap_lookupdev(error_buffer);
-        printf("Interface chosen: %s\n", interface);
     }
 
     // Get the source IP
@@ -337,58 +318,47 @@ int main(int argc, char **argv) {
     }
     get_source_ip(source_address, dest_ip_version, interface);
 
-    pcap_t *handle;
     bpf_u_int32 subnet_mask, ip;
 
     if (pcap_lookupnet(interface, &ip, &subnet_mask, error_buffer) == -1) {
-        printf("Could not get information for device: %s\n", interface);
+        fprintf(stderr, "Error! Couldn't get information for device: %s\n", interface);
         ip = 0;
         subnet_mask = 0;
     }
     handle = pcap_open_live(interface, BUFSIZ, 1, 1000, error_buffer);
     if (handle == NULL) {
-        printf("Could not open %s - %s\n", interface, error_buffer);
-        return 2;
+        fprintf(stderr, "Error! Couldn't open %s - %s\n", interface, error_buffer);
+        return ERR_MAIN_LIBPCAP;
     }
 
-    /*
-    printf("Initializing pcap handle\n");
-    char error_buffer[PCAP_ERRBUF_SIZE];
-    pcap_t *handle = pcap_create(params.interface, error_buffer);
-    pcap_set_rfmon(handle, 1);
-    pcap_set_promisc(handle, 1); // Capture packets that are not yours
-    pcap_set_snaplen(handle, 2048); // Snapshot length
-    pcap_set_timeout(handle, 1000); // Timeout in milliseconds
 
-    bpf_u_int32 subnet_mask, ip;
-    if (pcap_lookupnet(params.interface, &ip, &subnet_mask, error_buffer) == -1) {
-        printf("Could not get information for device: %s\n", params.interface);
-        ip = 0;
-        subnet_mask = 0;
-    }
-
-    pcap_activate(handle);
-    */
+    printf("Destination IP address: %s\n", (destination_address == NULL) ? "null" : destination_address);
+    printf("Source IP address: %s\n", (source_address == NULL) ? "null" : source_address);
+    printf("Interface: %s\n", (interface == NULL) ? "null" : interface);
 
     if (dest_ip_version == 4) {
         if (udp_ports != NULL) {
-            printf("UDP ports:\n");
-            for (int i = 0; i < udp_ports_len; i++)
-                printf("port %d\n", udp_ports[i]);
 
             // Call function to perform UDP port scan
             // TODO
         }
         if (tcp_ports != NULL) {
-            printf("TCP ports:\n");
-            for (int i = 0; i < tcp_ports_len; i++)
-                printf("port %d\n", tcp_ports[i]);
             // Call function to perform TCP port scan
-            tcp_IPv4_port_scan(handle, tcp_ports, tcp_ports_len, destination_address, source_address, interface, ip);
+            tcp_IPv4_port_scan(tcp_ports, tcp_ports_len, destination_address, source_address, interface, ip);
         }
     }
 
     pcap_close(handle);
 
     return ERR_OK; // 0
+}
+
+void display_usage() {
+    // TODO
+    printf("This will display how to properly call program.\n");
+}
+
+void display_help() {
+    // TODO
+    printf("This will display more thorough help.\n");
 }

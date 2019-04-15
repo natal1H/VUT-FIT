@@ -25,6 +25,8 @@ typedef struct {
     char *domain_or_ip;
 } Params_t;
 
+pcap_t *handle;
+
 /**
  * Initialize Params_t structure by setting all attributes to NULL
  * @param params Params_t Structure to be initialized
@@ -61,5 +63,9 @@ int *check_port_range(char *ports_str, int *ports_len);
  * @return
  */
 char *lookup_host (const char *host, int *ver);
+
+void display_usage();
+
+void display_help();
 
 #endif
