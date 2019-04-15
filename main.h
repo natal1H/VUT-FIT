@@ -1,11 +1,3 @@
-/**
- * VUT FIT - IPK - project no. 2
- * Header file for main source code.
- *
- * @file main.h
- * @author Natália Holková (xholko02)
- **/
-
 #ifndef MAIN_H
 #define MAIN_H
 
@@ -13,13 +5,16 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <unistd.h>
 
-#include "tcpIPv4.h"
-
-typedef enum {
-    ERR_OK = 0,  // Everything OK
-    ERR_PARAMS   // Error with command line arguments, something missing
-} ECODES;
+#include "errCodes.h"
 
 typedef struct {
     char *port_range_tcp;
@@ -48,5 +43,21 @@ bool is_integer(char *str);
  * @return Number of occurrences
  */
 int count_char_occurrences(char *str, char ch);
+
+/**
+ *
+ * @param ports_str
+ * @param ports_len
+ * @return
+ */
+int *check_port_range(char *ports_str, int *ports_len);
+
+/**
+ *
+ * @param host
+ * @param ver
+ * @return
+ */
+char *lookup_host (const char *host, int *ver);
 
 #endif
