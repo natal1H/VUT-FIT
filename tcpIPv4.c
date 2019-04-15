@@ -91,6 +91,9 @@ int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest
         }
         printf("filter set\n");
 
+        struct pcap_pkthdr header; // Header that pcap gives us
+        const u_char *packet; // Received raw data
+
         //Send the packet
         if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) < 0) {
             perror("sendto failed");
@@ -100,9 +103,56 @@ int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest
             printf ("Packet send to port %d \n" , dest_port);
         }
 
+        // Grab packet
+        packet = pcap_next(handle, &header);
+        // print its lenght
+        printf("Jacked a packet with length of %d\n", header.len);
+
+        const struct sniff_ethernet *ethernet; /* The ethernet header */
+        const struct sniff_ip *ip; /* The IP header */
+        const struct sniff_tcp *tcp; /* The TCP header */
+        const char *payload; /* Packet payload */
+
+        u_int size_ip;
+        u_int size_tcp;
+
+        ethernet = (struct sniff_ethernet*)(packet);
+        ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
+        size_ip = IP_HL(ip)*4;
+        if (size_ip < 20) {
+            printf("   * Invalid IP header length: %u bytes\n", size_ip);
+            return -1;
+        }
+        tcp = (struct sniff_tcp*)(packet + SIZE_ETHERNET + size_ip);
+        size_tcp = TH_OFF(tcp)*4;
+        if (size_tcp < 20) {
+            printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
+            return -1;
+        }
+        payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
+
+        /* print source and destination IP addresses */
+        printf("       From: %s\n", inet_ntoa(ip->ip_src));
+        printf("         To: %s\n", inet_ntoa(ip->ip_dst));
+        printf("      Flags: %x\n", tcp->th_flags);
+
+        if (is_open_port(tcp->th_flags)) {
+            printf("port %d: open\n", dest_port);
+        }
+        else if (is_closed_port(tcp->th_flags)) {
+            printf("port %d: closed\n", dest_port);
+        }
     }
 
     return 0;
+}
+
+bool is_open_port(u_char th_flags) {
+    return ((th_flags & TH_SYN) && (th_flags & TH_ACK));
+}
+
+bool is_closed_port(u_char th_flags) {
+    return ((th_flags & TH_RST) && (th_flags & TH_ACK));
 }
 
 void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data) {

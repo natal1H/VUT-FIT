@@ -356,6 +356,25 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    /*
+    printf("Initializing pcap handle\n");
+    char error_buffer[PCAP_ERRBUF_SIZE];
+    pcap_t *handle = pcap_create(params.interface, error_buffer);
+    pcap_set_rfmon(handle, 1);
+    pcap_set_promisc(handle, 1); // Capture packets that are not yours
+    pcap_set_snaplen(handle, 2048); // Snapshot length
+    pcap_set_timeout(handle, 1000); // Timeout in milliseconds
+
+    bpf_u_int32 subnet_mask, ip;
+    if (pcap_lookupnet(params.interface, &ip, &subnet_mask, error_buffer) == -1) {
+        printf("Could not get information for device: %s\n", params.interface);
+        ip = 0;
+        subnet_mask = 0;
+    }
+
+    pcap_activate(handle);
+    */
+
     if (dest_ip_version == 4) {
         if (udp_ports != NULL) {
             printf("UDP ports:\n");
@@ -373,6 +392,8 @@ int main(int argc, char **argv) {
             tcp_IPv4_port_scan(handle, tcp_ports, tcp_ports_len, destination_address, source_address, params.interface, ip);
         }
     }
+
+    pcap_close(handle);
 
     return ERR_OK; // 0
 }
