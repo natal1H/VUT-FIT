@@ -16,8 +16,8 @@ int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest
     printf("TCP port scan (IPv4)\n");
 
     printf("Interface: %s\n", (interface == NULL) ? "null" : interface);
-    printf("IP address: %s\n", (dest_address == NULL) ? "null" : dest_address);
-    printf("IP address: %s\n", (source_address == NULL) ? "null" : source_address);
+    printf("dest IP address: %s\n", (dest_address == NULL) ? "null" : dest_address);
+    printf("source IP address: %s\n", (source_address == NULL) ? "null" : source_address);
 
     // NECESSARY DECLARATIONS
     int s = socket (PF_INET, SOCK_RAW, IPPROTO_TCP);	/* open raw socket */
@@ -41,13 +41,13 @@ int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest
     memset (datagram, 0, 4096);	/* zero out the buffer */
 
     // IP header fill in
-    fill_IP_header(iph, sin, data);
+    fill_IP_header(iph, sin, data, source_address);
 
     //IP checksum
     iph->check = csum ((unsigned short *) datagram, iph->tot_len);
 
     //Now the TCP checksum
-    fill_pseudo_header(&psh, sin, data);
+    fill_pseudo_header(&psh, sin, data, source_address);
 
     int psize = sizeof(struct pseudo_header) + sizeof(struct tcphdr) + strlen(data);
     pseudogram = (char *) malloc(psize);
@@ -92,7 +92,7 @@ int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest
         printf("filter set\n");
 
         struct pcap_pkthdr header; // Header that pcap gives us
-        const u_char *packet; // Received raw data
+        const u_char *packet = NULL; // Received raw data
 
         //Send the packet
         if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) < 0) {
@@ -104,44 +104,92 @@ int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest
         }
 
         // Grab packet
+
         packet = pcap_next(handle, &header);
-        // print its lenght
-        printf("Jacked a packet with length of %d\n", header.len);
+        if (packet != NULL) {
+            // print its lenght
+            printf("Jacked a packet with length of %d\n", header.len);
 
-        const struct sniff_ethernet *ethernet; /* The ethernet header */
-        const struct sniff_ip *ip; /* The IP header */
-        const struct sniff_tcp *tcp; /* The TCP header */
-        const char *payload; /* Packet payload */
+            const struct sniff_ethernet *ethernet; // The ethernet header
+            const struct sniff_ip *ip; // The IP header
+            const struct sniff_tcp *tcp; // The TCP header
+            const char *payload; // Packet payload
 
-        u_int size_ip;
-        u_int size_tcp;
+            u_int size_ip;
+            u_int size_tcp;
 
-        ethernet = (struct sniff_ethernet*)(packet);
-        ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
-        size_ip = IP_HL(ip)*4;
-        if (size_ip < 20) {
-            printf("   * Invalid IP header length: %u bytes\n", size_ip);
-            return -1;
+            ethernet = (struct sniff_ethernet *) (packet);
+            ip = (struct sniff_ip *) (packet + SIZE_ETHERNET);
+            size_ip = IP_HL(ip) * 4;
+            if (size_ip < 20) {
+                printf("   * Invalid IP header length: %u bytes\n", size_ip);
+                return -1;
+            }
+            tcp = (struct sniff_tcp *) (packet + SIZE_ETHERNET + size_ip);
+            size_tcp = TH_OFF(tcp) * 4;
+            if (size_tcp < 20) {
+                printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
+                return -1;
+            }
+            payload = (u_char * )(packet + SIZE_ETHERNET + size_ip + size_tcp);
+
+            // print source and destination IP addresses
+            printf("       From: %s\n", inet_ntoa(ip->ip_src));
+            printf("         To: %s\n", inet_ntoa(ip->ip_dst));
+            printf("      Flags: %x\n", tcp->th_flags);
+
+            if (is_open_port(tcp->th_flags)) {
+                printf("port %d: open\n", dest_port);
+            } else if (is_closed_port(tcp->th_flags)) {
+                printf("port %d: closed\n", dest_port);
+            }
         }
-        tcp = (struct sniff_tcp*)(packet + SIZE_ETHERNET + size_ip);
-        size_tcp = TH_OFF(tcp)*4;
-        if (size_tcp < 20) {
-            printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
-            return -1;
-        }
-        payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
+        else {
+            printf("No response from first send packet. Sending another one.\n");
+            packet = pcap_next(handle, &header);
+            if (packet != NULL) {
+                // print its length
+                printf("Jacked a packet with length of %d\n", header.len);
 
-        /* print source and destination IP addresses */
-        printf("       From: %s\n", inet_ntoa(ip->ip_src));
-        printf("         To: %s\n", inet_ntoa(ip->ip_dst));
-        printf("      Flags: %x\n", tcp->th_flags);
+                const struct sniff_ethernet *ethernet; // The ethernet header
+                const struct sniff_ip *ip; // The IP header
+                const struct sniff_tcp *tcp; // The TCP header
+                const char *payload; // Packet payload
 
-        if (is_open_port(tcp->th_flags)) {
-            printf("port %d: open\n", dest_port);
+                u_int size_ip;
+                u_int size_tcp;
+
+                ethernet = (struct sniff_ethernet *) (packet);
+                ip = (struct sniff_ip *) (packet + SIZE_ETHERNET);
+                size_ip = IP_HL(ip) * 4;
+                if (size_ip < 20) {
+                    printf("   * Invalid IP header length: %u bytes\n", size_ip);
+                    return -1;
+                }
+                tcp = (struct sniff_tcp *) (packet + SIZE_ETHERNET + size_ip);
+                size_tcp = TH_OFF(tcp) * 4;
+                if (size_tcp < 20) {
+                    printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
+                    return -1;
+                }
+                payload = (u_char * )(packet + SIZE_ETHERNET + size_ip + size_tcp);
+
+                // print source and destination IP addresses
+                printf("       From: %s\n", inet_ntoa(ip->ip_src));
+                printf("         To: %s\n", inet_ntoa(ip->ip_dst));
+                printf("      Flags: %x\n", tcp->th_flags);
+
+                if (is_open_port(tcp->th_flags)) {
+                    printf("port %d: open\n", dest_port);
+                } else if (is_closed_port(tcp->th_flags)) {
+                    printf("port %d: closed\n", dest_port);
+                }
+            }
+            else {
+                printf("port %d: filtered\n", dest_port);
+            }
         }
-        else if (is_closed_port(tcp->th_flags)) {
-            printf("port %d: closed\n", dest_port);
-        }
+
     }
 
     return 0;
@@ -155,7 +203,7 @@ bool is_closed_port(u_char th_flags) {
     return ((th_flags & TH_RST) && (th_flags & TH_ACK));
 }
 
-void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data) {
+void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data, char *source_ip) {
     iph->ihl = 5;
     iph->version = 4;
     iph->tos = 0;
@@ -165,7 +213,7 @@ void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data) {
     iph->ttl = 255;
     iph->protocol = IPPROTO_TCP;
     iph->check = 0;		//Set to 0 before calculating checksum
-    iph->saddr = inet_addr ("127.0.0.1");	//Spoof the source ip address
+    iph->saddr = inet_addr (source_ip);	//Spoof the source ip address
     iph->daddr = sin.sin_addr.s_addr;
 }
 
@@ -186,8 +234,8 @@ void fill_TCP_header(struct tcphdr *tcph, int dest_port) {
     tcph->urg_ptr = 0;
 }
 
-void fill_pseudo_header(struct pseudo_header *psh, struct sockaddr_in sin, char *data) {
-    psh->source_address = inet_addr("127.0.0.1");
+void fill_pseudo_header(struct pseudo_header *psh, struct sockaddr_in sin, char *data, char *source_ip) {
+    psh->source_address = inet_addr(source_ip);
     psh->dest_address = sin.sin_addr.s_addr;
     psh->placeholder = 0;
     psh->protocol = IPPROTO_TCP;

@@ -118,7 +118,7 @@ bool is_closed_port(u_char th_flags);
  */
 unsigned short csum(unsigned short *ptr,int nbytes);
 
-void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data);
+void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data, char *source_ip);
 
 /**
  *
@@ -133,7 +133,7 @@ void fill_TCP_header(struct tcphdr *tcph, int dest_port);
  * @param sin
  * @param data
  */
-void fill_pseudo_header(struct pseudo_header *psh, struct sockaddr_in sin, char *data);
+void fill_pseudo_header(struct pseudo_header *psh, struct sockaddr_in sin, char *data, char *source_ip);
 
 
 #endif

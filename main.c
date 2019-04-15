@@ -317,6 +317,16 @@ int main(int argc, char **argv) {
     }
 
     // TODO: fix if not input interface
+    char *interface;
+    char error_buffer[PCAP_ERRBUF_SIZE];
+    if (params.interface != NULL) {
+        interface = params.interface;
+    }
+    else {
+        printf("Going to choose interface\n");
+        interface = pcap_lookupdev(error_buffer);
+        printf("Interface chosen: %s\n", interface);
+    }
 
     // Get the source IP
     if (dest_ip_version == 4) {
@@ -325,34 +335,19 @@ int main(int argc, char **argv) {
     else {
         source_address = (char *) malloc(sizeof(char) * INET6_ADDRSTRLEN);
     }
-    get_source_ip(source_address, dest_ip_version, params.interface);
+    get_source_ip(source_address, dest_ip_version, interface);
 
-    // TODO: fix if not input interface
-
-    // Initialize pcap handle
-    /*
-    printf("Initializing pcap handle\n");
-    char error_buffer[PCAP_ERRBUF_SIZE];
-    pcap_t *handle = pcap_create(params.interface, error_buffer);
-    pcap_set_rfmon(handle, 1);
-    pcap_set_promisc(handle, 1); // Capture packets that are not yours
-    pcap_set_snaplen(handle, 2048); // Snapshot length
-    pcap_set_timeout(handle, 1000); // Timeout in milliseconds
-    pcap_activate(handle);
-    */
-    char *dev = params.interface; // TODO - zmeniť - lo ak localhost, inak eth0 ?
     pcap_t *handle;
-    char error_buffer[PCAP_ERRBUF_SIZE];
     bpf_u_int32 subnet_mask, ip;
 
-    if (pcap_lookupnet(dev, &ip, &subnet_mask, error_buffer) == -1) {
-        printf("Could not get information for device: %s\n", dev);
+    if (pcap_lookupnet(interface, &ip, &subnet_mask, error_buffer) == -1) {
+        printf("Could not get information for device: %s\n", interface);
         ip = 0;
         subnet_mask = 0;
     }
-    handle = pcap_open_live(dev, BUFSIZ, 1, 1000, error_buffer);
+    handle = pcap_open_live(interface, BUFSIZ, 1, 1000, error_buffer);
     if (handle == NULL) {
-        printf("Could not open %s - %s\n", dev, error_buffer);
+        printf("Could not open %s - %s\n", interface, error_buffer);
         return 2;
     }
 
@@ -389,7 +384,7 @@ int main(int argc, char **argv) {
             for (int i = 0; i < tcp_ports_len; i++)
                 printf("port %d\n", tcp_ports[i]);
             // Call function to perform TCP port scan
-            tcp_IPv4_port_scan(handle, tcp_ports, tcp_ports_len, destination_address, source_address, params.interface, ip);
+            tcp_IPv4_port_scan(handle, tcp_ports, tcp_ports_len, destination_address, source_address, interface, ip);
         }
     }
 
