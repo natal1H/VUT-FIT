@@ -13,8 +13,10 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <pcap.h>
 
 #include "errCodes.h"
+#include "tcpIPv4.h"
 
 typedef struct {
     char *port_range_tcp;

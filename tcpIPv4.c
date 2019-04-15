@@ -1,10 +1,23 @@
 #include "tcpIPv4.h"
 
-int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *address, char *interface) {
+int get_filter_expr_tcpIPv4(int port, char *filter_expr) {
+    char port_str[5];
+    sprintf(port_str, "%d", port);
+
+    strcpy(filter_expr, "tcp src port ");
+    strcat(filter_expr, port_str);
+    strcat(filter_expr, " and tcp dst port 42");
+
+    printf("Filter expression: %s\n", filter_expr);
+
+}
+
+int tcp_IPv4_port_scan(pcap_t *handle, int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip) {
     printf("TCP port scan (IPv4)\n");
 
     printf("Interface: %s\n", (interface == NULL) ? "null" : interface);
-    printf("IP address: %s\n", (address == NULL) ? "null" : address);
+    printf("IP address: %s\n", (dest_address == NULL) ? "null" : dest_address);
+    printf("IP address: %s\n", (source_address == NULL) ? "null" : source_address);
 
     // NECESSARY DECLARATIONS
     int s = socket (PF_INET, SOCK_RAW, IPPROTO_TCP);	/* open raw socket */
@@ -23,7 +36,7 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *address, char *inter
     strcpy(data , "Nothing suspicious here...");
     struct pseudo_header psh;
     sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = inet_addr (address);
+    sin.sin_addr.s_addr = inet_addr (dest_address);
 
     memset (datagram, 0, 4096);	/* zero out the buffer */
 
@@ -40,6 +53,9 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *address, char *inter
     pseudogram = (char *) malloc(psize);
 
     memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header));
+
+    char *filter_expr = (char *) malloc(sizeof(char) * 38);
+    struct bpf_program filter;
 
     printf("TCP ports:\n");
     for (int i = 0; i < num_ports; i++) {
@@ -63,6 +79,17 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *address, char *inter
             perror("Error setting IP_HDRINCL");
             exit(0);
         }
+
+        get_filter_expr_tcpIPv4(dest_port, filter_expr);
+        if (pcap_compile(handle, &filter, filter_expr, 0, ip) == -1) {
+            printf("Bad filter - %s\n", pcap_geterr(handle));
+            return 2;
+        }
+        if (pcap_setfilter(handle, &filter) == -1) {
+            printf("Error setting filter - %s\n", pcap_geterr(handle));
+            return 2;
+        }
+        printf("filter set\n");
 
         //Send the packet
         if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) < 0) {
