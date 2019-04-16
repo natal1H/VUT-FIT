@@ -338,9 +338,8 @@ int main(int argc, char **argv) {
 
     if (dest_ip_version == 4) {
         if (udp_ports != NULL) {
-
             // Call function to perform UDP port scan
-            // TODO
+            udp_IPv4_port_scan(udp_ports, udp_ports_len, destination_address, source_address, interface, ip);
         }
         if (tcp_ports != NULL) {
             // Call function to perform TCP port scan

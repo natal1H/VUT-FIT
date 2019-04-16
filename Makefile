@@ -1,6 +1,6 @@
-SOURCES = main.c tcpIPv4.c
+SOURCES = main.c tcpIPv4.c udpIPv4.c
 
 all: build
 
 build:
-	gcc $(SOURCES) -o ipk-scan -lpcap
+	gcc -Wall -Werror $(SOURCES) -o ipk-scan -lpcap

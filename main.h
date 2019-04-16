@@ -17,6 +17,7 @@
 
 #include "errCodes.h"
 #include "tcpIPv4.h"
+#include "udpIPv4.h"
 
 typedef struct {
     char *port_range_tcp;
@@ -24,6 +25,17 @@ typedef struct {
     char *interface;
     char *domain_or_ip;
 } Params_t;
+
+/**
+ * 96 bit (12 bytes) pseudo header needed for tcp header checksum calculation
+ */
+struct pseudo_header {
+    u_int32_t source_address;
+    u_int32_t dest_address;
+    u_int8_t placeholder;
+    u_int8_t protocol;
+    u_int16_t tcp_length;
+};
 
 pcap_t *handle;
 

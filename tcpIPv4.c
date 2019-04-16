@@ -18,7 +18,7 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
     //Data part
     data = datagram + sizeof(struct iphdr) + sizeof(struct tcphdr);
     strcpy(data , "Nothing suspicious here...");
-    struct pseudo_header psh;
+    struct pseudo_header_tcpIPv4 psh;
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = inet_addr (dest_address);
 
@@ -33,10 +33,10 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
     //Now the TCP checksum
     fill_pseudo_header(&psh, sin, data, source_address);
 
-    int psize = sizeof(struct pseudo_header) + sizeof(struct tcphdr) + strlen(data);
+    int psize = sizeof(struct pseudo_header_tcpIPv4) + sizeof(struct tcphdr) + strlen(data);
     pseudogram = (char *) malloc(psize);
 
-    memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header));
+    memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header_tcpIPv4));
 
     char *filter_expr = (char *) malloc(sizeof(char) * 38);
     struct bpf_program filter;
@@ -50,7 +50,7 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
         // TCP header fill in
         fill_TCP_header(tcph, dest_port);
 
-        memcpy(pseudogram + sizeof(struct pseudo_header) , tcph , sizeof(struct tcphdr) + strlen(data));
+        memcpy(pseudogram + sizeof(struct pseudo_header_tcpIPv4) , tcph , sizeof(struct tcphdr) + strlen(data));
 
         tcph->check = csum( (unsigned short*) pseudogram , psize);
 
@@ -72,9 +72,6 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
             printf("Error setting filter - %s\n", pcap_geterr(handle));
             return ERR_TCP_LIBPCAP;
         }
-
-        //struct pcap_pkthdr header; // Header that pcap gives us
-        //const u_char *packet = NULL; // Received raw data
 
         //Send the packet
         if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) < 0) {
@@ -107,7 +104,7 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
             if (second_ret == -1) {
                 fprintf(stderr, "Error! An error occurred in loop\n"); // No need to exit whole program
             }
-            else if (second_ret = -2) {
+            else if (second_ret == -2) {
                 // Filtered port
                 printf("port %d: filtered\n", dest_port);
             }
@@ -134,22 +131,22 @@ void alarm_handler(int sig) {
 
 void grab_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
     int *checked_port = (int *) args;
-    const struct sniff_ethernet *ethernet; // The ethernet header
+    //const struct sniff_ethernet *ethernet; // The ethernet header
     const struct sniff_ip *ip; // The IP header
     const struct sniff_tcp *tcp; // The TCP header
-    const char *payload; // Packet payload
+    //const char *payload; // Packet payload
 
     u_int size_ip;
-    u_int size_tcp;
+    //u_int size_tcp;
 
-    ethernet = (struct sniff_ethernet *) (packet);
+    //ethernet = (struct sniff_ethernet *) (packet);
     ip = (struct sniff_ip *) (packet + SIZE_ETHERNET);
     size_ip = IP_HL(ip) * 4;
 
     tcp = (struct sniff_tcp *) (packet + SIZE_ETHERNET + size_ip);
-    size_tcp = TH_OFF(tcp) * 4;
+    //size_tcp = TH_OFF(tcp) * 4;
 
-    payload = (u_char * )(packet + SIZE_ETHERNET + size_ip + size_tcp);
+    //payload = (u_char * )(packet + SIZE_ETHERNET + size_ip + size_tcp);
 
     if (is_open_port(tcp->th_flags)) {
         printf("port %d: open\n", *checked_port);
@@ -176,7 +173,7 @@ void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data, char 
     iph->ttl = 255;
     iph->protocol = IPPROTO_TCP;
     iph->check = 0;		//Set to 0 before calculating checksum
-    iph->saddr = inet_addr (source_ip);	//Spoof the source ip address
+    iph->saddr = inet_addr (source_ip);
     iph->daddr = sin.sin_addr.s_addr;
 }
 
@@ -197,7 +194,7 @@ void fill_TCP_header(struct tcphdr *tcph, int dest_port) {
     tcph->urg_ptr = 0;
 }
 
-void fill_pseudo_header(struct pseudo_header *psh, struct sockaddr_in sin, char *data, char *source_ip) {
+void fill_pseudo_header(struct pseudo_header_tcpIPv4 *psh, struct sockaddr_in sin, char *data, char *source_ip) {
     psh->source_address = inet_addr(source_ip);
     psh->dest_address = sin.sin_addr.s_addr;
     psh->placeholder = 0;

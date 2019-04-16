@@ -22,7 +22,7 @@
 /**
  * 96 bit (12 bytes) pseudo header needed for tcp header checksum calculation
  */
-struct pseudo_header {
+struct pseudo_header_tcpIPv4 {
     u_int32_t source_address;
     u_int32_t dest_address;
     u_int8_t placeholder;
@@ -139,7 +139,7 @@ void fill_TCP_header(struct tcphdr *tcph, int dest_port);
  * @param sin
  * @param data
  */
-void fill_pseudo_header(struct pseudo_header *psh, struct sockaddr_in sin, char *data, char *source_ip);
+void fill_pseudo_header(struct pseudo_header_tcpIPv4 *psh, struct sockaddr_in sin, char *data, char *source_ip);
 
 void grab_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet);
 
