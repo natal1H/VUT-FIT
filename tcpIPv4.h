@@ -18,17 +18,7 @@
 
 #include "errCodes.h"
 #include "main.h" // because of pcap_t *handle
-
-/**
- * 96 bit (12 bytes) pseudo header needed for tcp header checksum calculation
- */
-struct pseudo_header_tcpIPv4 {
-    u_int32_t source_address;
-    u_int32_t dest_address;
-    u_int8_t placeholder;
-    u_int8_t protocol;
-    u_int16_t tcp_length;
-};
+#include "commonIPv4.h"
 
 /* Ethernet addresses are 6 bytes */
 #define ETHER_ADDR_LEN	6
@@ -118,28 +108,10 @@ bool is_closed_port(u_char th_flags);
 
 /**
  *
- * @param ptr
- * @param nbytes
- * @return
- */
-unsigned short csum(unsigned short *ptr,int nbytes);
-
-void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data, char *source_ip);
-
-/**
- *
  * @param tcph
  * @param dest_port
  */
 void fill_TCP_header(struct tcphdr *tcph, int dest_port);
-
-/**
- *
- * @param psh
- * @param sin
- * @param data
- */
-void fill_pseudo_header(struct pseudo_header_tcpIPv4 *psh, struct sockaddr_in sin, char *data, char *source_ip);
 
 void grab_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet);
 

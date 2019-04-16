@@ -1,4 +1,4 @@
-SOURCES = main.c tcpIPv4.c udpIPv4.c
+SOURCES = main.c tcpIPv4.c udpIPv4.c commonIPv4.c
 
 all: build
 

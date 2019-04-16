@@ -3,10 +3,7 @@
 int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip) {
     // NECESSARY DECLARATIONS
     int s = socket (PF_INET, SOCK_RAW, IPPROTO_TCP);	/* open raw socket */
-    char datagram[4096];	/* this buffer will contain ip header, tcp header,
-			   and payload. we'll point an ip header structure
-			   at its beginning, and a tcp header structure after
-			   that to write the header values into it */
+    char datagram[4096];
     char *data, *pseudogram;
     //IP header
     struct iphdr *iph = (struct iphdr *) datagram;
@@ -16,25 +13,25 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
     //Data part
     data = datagram + sizeof(struct iphdr) + sizeof(struct tcphdr);
     strcpy(data , "Nothing suspicious here...");
-    struct pseudo_header_tcpIPv4 psh;
+    struct pseudo_header psh;
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = inet_addr (dest_address);
 
     memset (datagram, 0, 4096);	/* zero out the buffer */
 
     // IP header fill in
-    fill_IP_header(iph, sin, data, source_address);
+    fill_IP_header(iph, sin, data, source_address, IPPROTO_TCP, sizeof(struct tcphdr));
 
     //IP checksum
-    iph->check = csum ((unsigned short *) datagram, iph->tot_len);
+    iph->check = csum((unsigned short *) datagram, iph->tot_len);
 
     //Now the TCP checksum
-    fill_pseudo_header(&psh, sin, data, source_address);
+    fill_pseudo_header(&psh, sin, data, source_address, IPPROTO_TCP, sizeof(struct tcphdr));
 
-    int psize = sizeof(struct pseudo_header_tcpIPv4) + sizeof(struct tcphdr) + strlen(data);
+    int psize = sizeof(struct pseudo_header) + sizeof(struct tcphdr) + strlen(data);
     pseudogram = (char *) malloc(psize);
 
-    memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header_tcpIPv4));
+    memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header));
 
     char *filter_expr = (char *) malloc(sizeof(char) * 38);
     struct bpf_program filter;
@@ -47,7 +44,7 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
         // TCP header fill in
         fill_TCP_header(tcph, dest_port);
 
-        memcpy(pseudogram + sizeof(struct pseudo_header_tcpIPv4) , tcph , sizeof(struct tcphdr) + strlen(data));
+        memcpy(pseudogram + sizeof(struct pseudo_header) , tcph , sizeof(struct tcphdr) + strlen(data));
 
         tcph->check = csum( (unsigned short*) pseudogram , psize);
 
@@ -56,8 +53,8 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
         const int *val = &one;
 
         if (setsockopt (s, IPPROTO_IP, IP_HDRINCL, val, sizeof (one)) < 0) {
-            perror("Error setting IP_HDRINCL");
-            exit(0);
+            fprintf(stderr, "Error! Could not set up socket.\n");
+            exit(ERR_TCP_SOCKET);
         }
 
         get_filter_expr_tcpIPv4(dest_port, filter_expr);
@@ -128,22 +125,12 @@ void alarm_handler(int sig) {
 
 void grab_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
     int *checked_port = (int *) args;
-    //const struct sniff_ethernet *ethernet; // The ethernet header
     const struct sniff_ip *ip; // The IP header
     const struct sniff_tcp *tcp; // The TCP header
-    //const char *payload; // Packet payload
-
     u_int size_ip;
-    //u_int size_tcp;
-
-    //ethernet = (struct sniff_ethernet *) (packet);
     ip = (struct sniff_ip *) (packet + SIZE_ETHERNET);
     size_ip = IP_HL(ip) * 4;
-
     tcp = (struct sniff_tcp *) (packet + SIZE_ETHERNET + size_ip);
-    //size_tcp = TH_OFF(tcp) * 4;
-
-    //payload = (u_char * )(packet + SIZE_ETHERNET + size_ip + size_tcp);
 
     if (is_open_port(tcp->th_flags)) {
         printf("%d/tcp\t open\n", *checked_port);
@@ -160,22 +147,9 @@ bool is_closed_port(u_char th_flags) {
     return ((th_flags & TH_RST) && (th_flags & TH_ACK));
 }
 
-void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data, char *source_ip) {
-    iph->ihl = 5;
-    iph->version = 4;
-    iph->tos = 0;
-    iph->tot_len = sizeof (struct iphdr) + sizeof (struct tcphdr) + strlen(data);
-    iph->id = htonl (54321);	//Id of this packet
-    iph->frag_off = 0;
-    iph->ttl = 255;
-    iph->protocol = IPPROTO_TCP;
-    iph->check = 0;		//Set to 0 before calculating checksum
-    iph->saddr = inet_addr (source_ip);
-    iph->daddr = sin.sin_addr.s_addr;
-}
 
 void fill_TCP_header(struct tcphdr *tcph, int dest_port) {
-    tcph->source = htons(42);
+    tcph->source = htons(SRC_PORT);
     tcph->dest = htons(dest_port);
     tcph->seq = 0;
     tcph->ack_seq = 0;
@@ -189,35 +163,4 @@ void fill_TCP_header(struct tcphdr *tcph, int dest_port) {
     tcph->window = htons (5840);	/* maximum allowed window size */
     tcph->check = 0;	//leave checksum 0 now, filled later by pseudo header
     tcph->urg_ptr = 0;
-}
-
-void fill_pseudo_header(struct pseudo_header_tcpIPv4 *psh, struct sockaddr_in sin, char *data, char *source_ip) {
-    psh->source_address = inet_addr(source_ip);
-    psh->dest_address = sin.sin_addr.s_addr;
-    psh->placeholder = 0;
-    psh->protocol = IPPROTO_TCP;
-    psh->tcp_length = htons(sizeof(struct tcphdr) + strlen(data) );
-}
-
-unsigned short csum(unsigned short *ptr,int nbytes) {
-    register long sum;
-    unsigned short oddbyte;
-    register short answer;
-
-    sum=0;
-    while(nbytes>1) {
-        sum+=*ptr++;
-        nbytes-=2;
-    }
-    if(nbytes==1) {
-        oddbyte=0;
-        *((u_char*)&oddbyte)=*(u_char*)ptr;
-        sum+=oddbyte;
-    }
-
-    sum = (sum>>16)+(sum & 0xffff);
-    sum = sum + (sum>>16);
-    answer=(short)~sum;
-
-    return(answer);
 }
