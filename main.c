@@ -202,6 +202,7 @@ int main(int argc, char **argv) {
     char *destination_address = NULL;
     int dest_ip_version;
     char *source_address = NULL;
+    bool domain_entered = false;
 
     if (argc == 1) {
         // No argment
@@ -281,6 +282,7 @@ int main(int argc, char **argv) {
             if (destination_address == NULL) {
                 exit(ERR_PARAMS);
             }
+            domain_entered = true;
         }
         else if (version == 4) {
             destination_address = params.domain_or_ip;
@@ -331,10 +333,12 @@ int main(int argc, char **argv) {
         return ERR_MAIN_LIBPCAP;
     }
 
+    if (domain_entered)
+        printf("Interesting ports on %s (%s):\n", params.domain_or_ip, destination_address);
+    else
+        printf("Interesting ports on %s:\n", destination_address);
 
-    printf("Destination IP address: %s\n", (destination_address == NULL) ? "null" : destination_address);
-    printf("Source IP address: %s\n", (source_address == NULL) ? "null" : source_address);
-    printf("Interface: %s\n", (interface == NULL) ? "null" : interface);
+    printf("PORT\t STATE\n");
 
     if (dest_ip_version == 4) {
         if (udp_ports != NULL) {

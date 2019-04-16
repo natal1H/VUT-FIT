@@ -78,7 +78,6 @@ int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
         return ERR_TCP_LIBPCAP;
     }
 
-    printf("UDP ports:\n");
     for (int i = 0; i < num_ports; i++) {
         int dest_port = udp_ports[i];
 
@@ -116,7 +115,7 @@ int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
         }
         else if (ret == -2) { // Breakloop
             // Port open or filtered
-            printf("port %d: open|filtered\n", dest_port);
+            printf("%d/udp\t open\n", dest_port);
         }
     }
 
@@ -125,5 +124,5 @@ int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
 
 void grab_udp_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
     int *checked_port = (int *) args;
-    printf("port %d: closed\n", *checked_port);
+    printf("%d/udp\t closed\n", *checked_port);
 }

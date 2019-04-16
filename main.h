@@ -14,6 +14,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <pcap.h>
+#include <stdbool.h>
 
 #include "errCodes.h"
 #include "tcpIPv4.h"

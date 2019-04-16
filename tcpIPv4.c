@@ -1,7 +1,5 @@
 #include "tcpIPv4.h"
 
-// TODO - clean up structures in case of sudden error
-
 int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip) {
     // NECESSARY DECLARATIONS
     int s = socket (PF_INET, SOCK_RAW, IPPROTO_TCP);	/* open raw socket */
@@ -41,7 +39,6 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
     char *filter_expr = (char *) malloc(sizeof(char) * 38);
     struct bpf_program filter;
 
-    printf("TCP ports:\n");
     for (int i = 0; i < num_ports; i++) {
         int dest_port = tcp_ports[i];
 
@@ -65,11 +62,11 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
 
         get_filter_expr_tcpIPv4(dest_port, filter_expr);
         if (pcap_compile(handle, &filter, filter_expr, 0, ip) == -1) {
-            printf("Bad filter - %s\n", pcap_geterr(handle));
+            fprintf(stderr, "Errror! Bad TCP filter - %s\n", pcap_geterr(handle));
             return ERR_TCP_LIBPCAP;
         }
         if (pcap_setfilter(handle, &filter) == -1) {
-            printf("Error setting filter - %s\n", pcap_geterr(handle));
+            fprintf(stderr, "Error setting filter - %s\n", pcap_geterr(handle));
             return ERR_TCP_LIBPCAP;
         }
 
@@ -106,7 +103,7 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
             }
             else if (second_ret == -2) {
                 // Filtered port
-                printf("port %d: filtered\n", dest_port);
+                printf("%d/tcp\t filtered\n", dest_port);
             }
 
         }
@@ -149,9 +146,9 @@ void grab_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *p
     //payload = (u_char * )(packet + SIZE_ETHERNET + size_ip + size_tcp);
 
     if (is_open_port(tcp->th_flags)) {
-        printf("port %d: open\n", *checked_port);
+        printf("%d/tcp\t open\n", *checked_port);
     } else if (is_closed_port(tcp->th_flags)) {
-        printf("port %d: closed\n", *checked_port);
+        printf("%d/tcp\t closed\n", *checked_port);
     }
 }
 
