@@ -21,6 +21,7 @@
 #include "tcpIPv4.h"
 #include "udpIPv4.h"
 #include "tcpIPv6.h"
+#include "udpIPv6.h"
 
 typedef struct {
     char *port_range_tcp;
