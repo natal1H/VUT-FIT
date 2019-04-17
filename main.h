@@ -15,10 +15,12 @@
 #include <unistd.h>
 #include <pcap.h>
 #include <stdbool.h>
+#include <ifaddrs.h>
 
 #include "errCodes.h"
 #include "tcpIPv4.h"
 #include "udpIPv4.h"
+#include "tcpIPv6.h"
 
 typedef struct {
     char *port_range_tcp;

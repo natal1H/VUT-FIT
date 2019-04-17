@@ -152,8 +152,9 @@ char *lookup_host (const char *host, int *ver) {
                 break;
         }
         inet_ntop (res->ai_family, ptr, addrstr, 100);
-
+        printf("Dest IP: %s\n", addrstr);
         strcpy(dest_address, addrstr);
+
         if (res->ai_family != PF_INET6) {// If it has both, use first IPv4
             *ver = 4;
             break;
@@ -162,6 +163,15 @@ char *lookup_host (const char *host, int *ver) {
             *ver = 6;
         }
 
+        /*
+        if (res->ai_family != PF_INET) {// If it has both, use first IPv6
+            *ver = 6;
+            break;
+        }
+        else {
+            *ver = 4;
+        }
+        */
         res = res->ai_next;
     }
 
@@ -169,20 +179,13 @@ char *lookup_host (const char *host, int *ver) {
 }
 
 // Inspired by: http://www.geekpage.jp/en/programming/linux-network/get-ipaddr.php
-int get_source_ip(char *source_ip, int version, char *interface) {
+int get_source_ipv4(char *source_ip, char *interface) {
     int fd;
     struct ifreq ifr;
 
-    if (version == 4) {
-        fd = socket(AF_INET, SOCK_DGRAM, 0);
-        // I want to get an IPv4 IP address
-        ifr.ifr_addr.sa_family = AF_INET;
-    }
-    else {
-        fd = socket(AF_INET6, SOCK_DGRAM, 0);
-        // I want to get an IPv4 IP address
-        ifr.ifr_addr.sa_family = AF_INET6;
-    }
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    // I want to get an IPv4 IP address
+    ifr.ifr_addr.sa_family = AF_INET;
 
     strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
     ioctl(fd, SIOCGIFADDR, &ifr);
@@ -190,6 +193,41 @@ int get_source_ip(char *source_ip, int version, char *interface) {
     strcpy(source_ip, inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 
     return 0;
+}
+
+int get_source_ipv6(char *source_ip, char *interface) {
+    struct ifaddrs *ifa, *ifa_tmp;
+    char addr[50];
+
+    if (getifaddrs(&ifa) == -1) {
+        perror("getifaddrs failed");
+        exit(-1);
+    }
+
+    bool found = false;
+
+    ifa_tmp = ifa;
+    while (ifa_tmp) {
+        if ((ifa_tmp->ifa_addr) && ((ifa_tmp->ifa_addr->sa_family == AF_INET) ||
+                                    (ifa_tmp->ifa_addr->sa_family == AF_INET6))) {
+            if (ifa_tmp->ifa_addr->sa_family == AF_INET6 && (strcmp(ifa_tmp->ifa_name, interface) == 0)) { // AF_INET6
+                // create IPv6 string
+                struct sockaddr_in6 *in6 = (struct sockaddr_in6*) ifa_tmp->ifa_addr;
+                inet_ntop(AF_INET6, &in6->sin6_addr, addr, sizeof(addr));
+
+                //printf("name = %s\n", ifa_tmp->ifa_name);
+                //printf("addr = %s\n", addr);
+
+                strcpy(source_ip, addr);
+                found = true;
+
+                break;
+            }
+
+        }
+        ifa_tmp = ifa_tmp->ifa_next;
+    }
+    return (found) ? 0 : 1;
 }
 
 int main(int argc, char **argv) {
@@ -314,11 +352,12 @@ int main(int argc, char **argv) {
     // Get the source IP
     if (dest_ip_version == 4) {
         source_address = (char *) malloc(sizeof(char) * INET_ADDRSTRLEN);
+        get_source_ipv4(source_address, interface);
     }
     else {
         source_address = (char *) malloc(sizeof(char) * INET6_ADDRSTRLEN);
+        get_source_ipv6(source_address, interface);
     }
-    get_source_ip(source_address, dest_ip_version, interface);
 
     bpf_u_int32 subnet_mask, ip;
 
@@ -332,6 +371,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Error! Couldn't open %s - %s\n", interface, error_buffer);
         return ERR_MAIN_LIBPCAP;
     }
+
+    printf("Source IP: %s\n", source_address); // TODO - remove
 
     if (domain_entered)
         printf("Interesting ports on %s (%s):\n", params.domain_or_ip, destination_address);
@@ -348,6 +389,16 @@ int main(int argc, char **argv) {
         if (tcp_ports != NULL) {
             // Call function to perform TCP port scan
             tcp_IPv4_port_scan(tcp_ports, tcp_ports_len, destination_address, source_address, interface, ip);
+        }
+    }
+    else {
+        if (udp_ports != NULL) {
+            // Call function to perform UDP port scan
+            // TODO
+        }
+        if (tcp_ports != NULL) {
+            // Call function to perform TCP port scan
+            tcp_IPv6_port_scan(tcp_ports, tcp_ports_len, destination_address, source_address, interface, ip);
         }
     }
 

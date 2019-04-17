@@ -15,7 +15,7 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
     strcpy(data , "Nothing suspicious here...");
     struct pseudo_header psh;
     sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = inet_addr (dest_address);
+    sin.sin_addr.s_addr = inet_addr(dest_address);
 
     memset (datagram, 0, 4096);	/* zero out the buffer */
 
