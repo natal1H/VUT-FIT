@@ -1,5 +1,14 @@
 #include "tcpIPv6.h"
 
+void get_filter_expr_tcpIPv6(int port, char *filter_expr) {
+    char port_str[5];
+    sprintf(port_str, "%d", port);
+
+    strcpy(filter_expr, "tcp src port ");
+    strcat(filter_expr, port_str);
+    strcat(filter_expr, " and tcp dst port 42");
+}
+
 int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *selected_interface, bpf_u_int32 ip) {
 
     int i, status, frame_length, sd, bytes, *tcp_flags;
@@ -135,9 +144,18 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
     memcpy (ether_frame + ETH_HDRLEN, &iphdr, IP6_HDRLEN * sizeof (uint8_t));
 
 
+    char *filter_expr = (char *) malloc(sizeof(char) * 38);
+    struct bpf_program filter;
+
+    // Submit request for a raw socket descriptor.
+    if ((sd = socket (PF_PACKET, SOCK_RAW, htons (ETH_P_ALL))) < 0) {
+        perror ("socket() failed ");
+        exit (EXIT_FAILURE);
+    }
+
+
     for (int curr_port = 0; curr_port < num_ports; curr_port++) {
         int dest_port = tcp_ports[curr_port];
-        printf("Port %d\n", dest_port);
 
         // TCP header
         // Source port number (16 bits)
@@ -183,13 +201,17 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
         // TCP header
         memcpy (ether_frame + ETH_HDRLEN + IP6_HDRLEN, &tcphdr, TCP_HDRLEN * sizeof (uint8_t));
 
-        printf("here\n");
 
-        // Submit request for a raw socket descriptor.
-        if ((sd = socket (PF_PACKET, SOCK_RAW, htons (ETH_P_ALL))) < 0) {
-            perror ("socket() failed ");
-            exit (EXIT_FAILURE);
+        get_filter_expr_tcpIPv6(dest_port, filter_expr);
+        if (pcap_compile(handle, &filter, filter_expr, 0, ip) == -1) {
+            fprintf(stderr, "Errror! Bad TCP filter - %s\n", pcap_geterr(handle));
+            return ERR_TCP_LIBPCAP;
         }
+        if (pcap_setfilter(handle, &filter) == -1) {
+            fprintf(stderr, "Error setting filter - %s\n", pcap_geterr(handle));
+            return ERR_TCP_LIBPCAP;
+        }
+
 
         // Send ethernet frame to socket.
         if ((bytes = sendto (sd, ether_frame, frame_length, 0, (struct sockaddr *) &device, sizeof (device))) <= 0) {
@@ -197,7 +219,37 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
             exit (EXIT_FAILURE);
         }
 
-        printf("here2\n");
+        // Grab packet
+        int *port_ptr = &dest_port;
+        alarm(PCAP_TIMEOUT);
+        signal(SIGALRM, alarm_handler);
+
+        int ret = pcap_loop(handle, 1, grab_packet_tcpIPv6, (u_char *) port_ptr);
+        if (ret == -1) {
+            fprintf(stderr, "Error! An error occurred in loop\n"); // No need to exit whole program
+        }
+        else if (ret == -2) {
+            // pcap_breakloop was called - timeout
+            // send another packet - if timeout again happens, it's a filtered port
+            if (sendto (sd, ether_frame, frame_length, 0, (struct sockaddr *) &device, sizeof (device)) <= 0) {
+                if (sendto (sd, ether_frame, frame_length, 0, (struct sockaddr *) &device, sizeof (device)) <= 0)
+                    fprintf(stderr, "Error! Failed to send packet to port %d twice, this port will not be tested.\n", dest_port);
+            }
+            // Grab packet
+            alarm(PCAP_TIMEOUT);
+            signal(SIGALRM, alarm_handler);
+
+            int second_ret = pcap_loop(handle, 1, grab_packet, (u_char *) port_ptr);
+            if (second_ret == -1) {
+                fprintf(stderr, "Error! An error occurred in loop\n"); // No need to exit whole program
+            }
+            else if (second_ret == -2) {
+                // Filtered port
+                printf("%d/tcp\t filtered\n", dest_port);
+            }
+
+        }
+
     }
 
     // Close socket descriptor.
@@ -214,6 +266,22 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
     free (tcp_flags);
 
     return (EXIT_SUCCESS);
+}
+
+void grab_packet_tcpIPv6(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
+    int *checked_port = (int *) args;
+    //const struct ip6_hdr *ip; // The IP header
+    const struct sniff_tcp *tcp; // The TCP header
+    u_int size_ip = 40;
+    //ip = (struct ip6_hdr *) (packet + SIZE_ETHERNET);
+    //size_ip = IP_HL(ip) * 4;
+    tcp = (struct sniff_tcp *) (packet + SIZE_ETHERNET + size_ip);
+
+    if (is_open_port(tcp->th_flags)) {
+        printf("%d/tcp\t open\n", *checked_port);
+    } else if (is_closed_port(tcp->th_flags)) {
+        printf("%d/tcp\t closed\n", *checked_port);
+    }
 }
 
 // Computing the internet checksum (RFC 1071).

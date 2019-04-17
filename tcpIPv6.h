@@ -24,6 +24,8 @@
 #include <pcap.h>
 
 #include <errno.h>            // errno, perror()
+#include "tcpIPv4.h"
+
 
 // Define some constants.
 #define ETHER_ADDR_LEN	6
@@ -39,5 +41,11 @@ uint8_t *allocate_ustrmem (int);
 int *allocate_intmem (int);
 
 int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip);
+
+bool is_open_port(u_char th_flags);
+bool is_closed_port(u_char th_flags);
+
+void grab_packet_tcpIPv6(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet);
+void alarm_handler2(int sig);
 
 #endif
