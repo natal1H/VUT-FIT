@@ -12,7 +12,7 @@
  * Perform UDP port scan (IPv6)
  */
 int udp_IPv6_port_scan(int *udp_ports, int num_ports, char *dest_address, char *source_address, char *selected_interface, bpf_u_int32 ip) {
-    int i, status, datalen, frame_length, sd, bytes;
+    int status, datalen, frame_length, sd, bytes;
     char *interface, *target, *src_ip, *dst_ip;
     struct ip6_hdr iphdr;
     struct udphdr udphdr;
