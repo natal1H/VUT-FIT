@@ -16,8 +16,8 @@
 #include <pcap.h>
 #include <stdbool.h>
 #include <ifaddrs.h>
+#include <errno.h>
 
-#include "errCodes.h"
 #include "tcpIPv4.h"
 #include "udpIPv4.h"
 #include "tcpIPv6.h"
@@ -54,23 +54,38 @@ bool is_integer(char *str);
 int count_char_occurrences(char *str, char ch);
 
 /**
- *
- * @param ports_str
- * @param ports_len
- * @return
+ * Check port range entered as string and convert it to array of int
+ * @param ports_str Port range in string form
+ * @param ports_len Port range as array of numbers
+ * @return Success or failure
  */
 int *check_port_range(char *ports_str, int *ports_len);
 
 /**
- *
- * @param host
- * @param ver
- * @return
+ * Lookup host ip address by entered domain
+ * @param host Host domain
+ * @param ver What version of IP adress was return
+ * @return IP address in string form or NULL on failure
  */
-char *lookup_host (const char *host, int *ver);
+char *lookup_host(const char *host, int *ver);
 
+/**
+ * Get source IP with selected interface
+ * @param source_ip Pointer to where store IP address
+ * @param interface Name of interface
+ * @param version Preferred version of IP address
+ * @return Success or failure
+ */
+int get_source_ip(char *source_ip, char *interface, int version);
+
+/**
+ * Print out how to call program
+ */
 void display_usage();
 
+/**
+ * Print out help message
+ */
 void display_help();
 
 #endif

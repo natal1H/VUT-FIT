@@ -113,20 +113,25 @@ int *check_port_range(char *ports_str, int *ports_len) {
 
 int ip_version(char *src) {
     char buf[16];
-    if (inet_pton(AF_INET, src, buf)) {
+    if (inet_pton(AF_INET, src, buf))
         return 4;
-    } else if (inet_pton(AF_INET6, src, buf)) {
+    else if (inet_pton(AF_INET6, src, buf))
         return 6;
-    }
-    return -1;
+    else
+        return -1;
 }
 
-// inspired by: http://www.logix.cz/michal/devel/various/getaddrinfo.c.xp
+/***************************************************************************************
+*    Title: getaddrinfo.c - Simple example of using getaddrinfo(3) function.
+*    Author: Michal Ludvig <michal@logix.cz> (c) 2002, 2003
+*            http://www.logix.cz/michal/devel/
+*    Availability: http://www.logix.cz/michal/devel/various/getaddrinfo.c.xp
+***************************************************************************************/
 char *lookup_host (const char *host, int *ver) {
     struct addrinfo hints, *res;
     int errcode;
     char addrstr[100];
-    char *dest_address = (char *) malloc(sizeof(char) * 100); // TODO
+    char *dest_address = (char *) malloc(sizeof(char) * 100);
     void *ptr;
 
     memset(&hints, 0, sizeof (hints));
@@ -152,7 +157,7 @@ char *lookup_host (const char *host, int *ver) {
                 break;
         }
         inet_ntop (res->ai_family, ptr, addrstr, 100);
-        printf("Dest IP: %s\n", addrstr);
+        //printf("Dest IP: %s\n", addrstr);
         strcpy(dest_address, addrstr);
 
         if (res->ai_family != PF_INET6) {// If it has both, use first IPv4
@@ -168,34 +173,23 @@ char *lookup_host (const char *host, int *ver) {
             *ver = 6;
             break;
         }
-        else {
+        else
             *ver = 4;
-        }
         */
+
         res = res->ai_next;
     }
 
     return dest_address;
 }
 
-// Inspired by: http://www.geekpage.jp/en/programming/linux-network/get-ipaddr.php
-int get_source_ipv4(char *source_ip, char *interface) {
-    int fd;
-    struct ifreq ifr;
-
-    fd = socket(AF_INET, SOCK_DGRAM, 0);
-    // I want to get an IPv4 IP address
-    ifr.ifr_addr.sa_family = AF_INET;
-
-    strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
-    ioctl(fd, SIOCGIFADDR, &ifr);
-    close(fd);
-    strcpy(source_ip, inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
-
-    return 0;
-}
-
-int get_source_ipv6(char *source_ip, char *interface) {
+/***************************************************************************************
+*    Title: how to get IPV6 interface address using getifaddr() function
+*    Author: dbush
+*            https://stackoverflow.com/users/1687119/dbush
+*    Availability: https://stackoverflow.com/questions/33125710/how-to-get-ipv6-interface-address-using-getifaddr-function
+***************************************************************************************/
+int get_source_ip(char *source_ip, char *interface, int version) {
     struct ifaddrs *ifa, *ifa_tmp;
     char addr[50];
 
@@ -208,22 +202,31 @@ int get_source_ipv6(char *source_ip, char *interface) {
 
     ifa_tmp = ifa;
     while (ifa_tmp) {
-        if ((ifa_tmp->ifa_addr) && ((ifa_tmp->ifa_addr->sa_family == AF_INET) ||
-                                    (ifa_tmp->ifa_addr->sa_family == AF_INET6))) {
-            if (ifa_tmp->ifa_addr->sa_family == AF_INET6 && (strcmp(ifa_tmp->ifa_name, interface) == 0)) { // AF_INET6
-                // create IPv6 string
-                struct sockaddr_in6 *in6 = (struct sockaddr_in6*) ifa_tmp->ifa_addr;
-                inet_ntop(AF_INET6, &in6->sin6_addr, addr, sizeof(addr));
+        if ((ifa_tmp->ifa_addr) && ((ifa_tmp->ifa_addr->sa_family == AF_INET) || (ifa_tmp->ifa_addr->sa_family == AF_INET6))) {
+            if (version == 6) {
+                if (ifa_tmp->ifa_addr->sa_family == AF_INET6 &&
+                    (strcmp(ifa_tmp->ifa_name, interface) == 0)) { // AF_INET6
+                    // create IPv6 string
+                    struct sockaddr_in6 *in6 = (struct sockaddr_in6 *) ifa_tmp->ifa_addr;
+                    inet_ntop(AF_INET6, &in6->sin6_addr, addr, sizeof(addr));
 
-                //printf("name = %s\n", ifa_tmp->ifa_name);
-                //printf("addr = %s\n", addr);
+                    strcpy(source_ip, addr);
+                    found = true;
 
-                strcpy(source_ip, addr);
-                found = true;
+                    break;
+                }
+            } else if (version == 4) {
+                if (ifa_tmp->ifa_addr->sa_family == AF_INET &&
+                    (strcmp(ifa_tmp->ifa_name, interface) == 0)) { // AF_INET
+                    struct sockaddr_in *in = (struct sockaddr_in *) ifa_tmp->ifa_addr;
+                    inet_ntop(AF_INET, &in->sin_addr, addr, sizeof(addr));
 
-                break;
+                    strcpy(source_ip, addr);
+                    found = true;
+
+                    break;
+                }
             }
-
         }
         ifa_tmp = ifa_tmp->ifa_next;
     }
@@ -302,13 +305,13 @@ int main(int argc, char **argv) {
     if (params.port_range_udp != NULL) {
         udp_ports = check_port_range(params.port_range_udp, &udp_ports_len);
         if (udp_ports == NULL)
-            return ERR_PARAMS;
+            return 1;
     }
     // TCP port range
     if (params.port_range_tcp != NULL) {
         tcp_ports = check_port_range(params.port_range_tcp, &tcp_ports_len);
         if (tcp_ports == NULL)
-            return ERR_PARAMS;
+            return 1;
     }
 
     // Check address:
@@ -332,11 +335,9 @@ int main(int argc, char **argv) {
         }
     }
     else {
-        // Default: localhost
-        destination_address = lookup_host("localhost", &dest_ip_version);
-        if (destination_address == NULL) {
-            exit(ERR_PARAMS);
-        }
+        // Domain or IP address not provided
+        fprintf(stderr, "Error! Domain or IP address is compulsory argument\n");
+        return 1;
     }
 
     // TODO - if localhost and not -i -> choose lo
@@ -350,14 +351,11 @@ int main(int argc, char **argv) {
     }
 
     // Get the source IP
-    if (dest_ip_version == 4) {
+    if (dest_ip_version == 4)
         source_address = (char *) malloc(sizeof(char) * INET_ADDRSTRLEN);
-        get_source_ipv4(source_address, interface);
-    }
-    else {
+    else
         source_address = (char *) malloc(sizeof(char) * INET6_ADDRSTRLEN);
-        get_source_ipv6(source_address, interface);
-    }
+    get_source_ip(source_address, interface, dest_ip_version);
 
     bpf_u_int32 subnet_mask, ip;
 
@@ -369,7 +367,7 @@ int main(int argc, char **argv) {
     handle = pcap_open_live(interface, BUFSIZ, 1, 1000, error_buffer);
     if (handle == NULL) {
         fprintf(stderr, "Error! Couldn't open %s - %s\n", interface, error_buffer);
-        return ERR_MAIN_LIBPCAP;
+        return 1;
     }
 
     printf("Source IP: %s\n", source_address); // TODO - remove
@@ -404,15 +402,19 @@ int main(int argc, char **argv) {
 
     pcap_close(handle);
 
-    return ERR_OK; // 0
+    return 0;
 }
 
 void display_usage() {
-    // TODO
-    printf("This will display how to properly call program.\n");
+    printf("Program usage:\n");
+    printf("./ipk-scan {-i <interface>} -pu <port-ranges> -pt <port-ranges> [<domain-name> | <IP-address>]\n");
 }
 
 void display_help() {
-    // TODO
-    printf("This will display more thorough help.\n");
+    printf("Application for scanning ports on selected network machine.\n");
+    printf("Usage\n");
+    printf("\t./ipk-scan {-i <interface>} -pu <port-ranges> -pt <port-ranges> [<domain-name> | <IP-address>]\n");
+    printf("where: -pt performs TCP scan\n");
+    printf("       -pu performs UDP scan\n");
+    printf("       parameters with {} are optional\n");
 }
