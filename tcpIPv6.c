@@ -160,50 +160,32 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
         int dest_port = tcp_ports[curr_port];
 
         // TCP header
-        // Source port number (16 bits)
-        tcphdr.th_sport = htons (42);
-        // Destination port number (16 bits)
-        tcphdr.th_dport = htons (dest_port);
-        // Sequence number (32 bits)
-        tcphdr.th_seq = htonl (0);
-        // Acknowledgement number (32 bits): 0 in first packet of SYN/ACK process
-        tcphdr.th_ack = htonl (0);
-        // Reserved (4 bits): should be 0
-        tcphdr.th_x2 = 0;
-        // Data offset (4 bits): size of TCP header in 32-bit words
-        tcphdr.th_off = TCP_HDRLEN / 4;
+        tcphdr.th_sport = htons (42); // Source port number (16 bits)
+        tcphdr.th_dport = htons (dest_port); // Destination port number (16 bits)
+        tcphdr.th_seq = htonl (0); // Sequence number (32 bits)
+        tcphdr.th_ack = htonl (0); // Acknowledgement number (32 bits): 0 in first packet of SYN/ACK process
+        tcphdr.th_x2 = 0; // Reserved (4 bits): should be 0
+        tcphdr.th_off = TCP_HDRLEN / 4; // Data offset (4 bits): size of TCP header in 32-bit words
         // Flags (8 bits)
-        // FIN flag (1 bit)
-        tcp_flags[0] = 0;
-        // SYN flag (1 bit): set to 1
-        tcp_flags[1] = 1;
-        // RST flag (1 bit)
-        tcp_flags[2] = 0;
-        // PSH flag (1 bit)
-        tcp_flags[3] = 0;
-        // ACK flag (1 bit)
-        tcp_flags[4] = 0;
-        // URG flag (1 bit)
-        tcp_flags[5] = 0;
-        // ECE flag (1 bit)
-        tcp_flags[6] = 0;
-        // CWR flag (1 bit)
-        tcp_flags[7] = 0;
+        tcp_flags[0] = 0; // FIN flag (1 bit)
+        tcp_flags[1] = 1; // SYN flag (1 bit): set to 1
+        tcp_flags[2] = 0; // RST flag (1 bit)
+        tcp_flags[3] = 0; // PSH flag (1 bit)
+        tcp_flags[4] = 0; // ACK flag (1 bit)
+        tcp_flags[5] = 0; // URG flag (1 bit)
+        tcp_flags[6] = 0; // ECE flag (1 bit)
+        tcp_flags[7] = 0; // CWR flag (1 bit)
         tcphdr.th_flags = 0;
-        for (i=0; i<8; i++) {
+        for (i=0; i<8; i++)
             tcphdr.th_flags += (tcp_flags[i] << i);
-        }
-        // Window size (16 bits)
-        tcphdr.th_win = htons (65535);
-        // Urgent pointer (16 bits): 0 (only valid if URG flag is set)
-        tcphdr.th_urp = htons (0);
-        // TCP checksum (16 bits)
-        tcphdr.th_sum = tcp6_checksum (iphdr, tcphdr);
 
-        // TCP header
-        memcpy (ether_frame + ETH_HDRLEN + IP6_HDRLEN, &tcphdr, TCP_HDRLEN * sizeof (uint8_t));
+        tcphdr.th_win = htons (65535); // Window size (16 bits)
+        tcphdr.th_urp = htons (0); // Urgent pointer (16 bits): 0 (only valid if URG flag is set)
+        tcphdr.th_sum = tcp6_checksum (iphdr, tcphdr); // TCP checksum (16 bits)
 
+        memcpy (ether_frame + ETH_HDRLEN + IP6_HDRLEN, &tcphdr, TCP_HDRLEN * sizeof (uint8_t)); // Copy TCP header
 
+        // Prepare filter
         get_filter_expr_tcpIPv6(dest_port, filter_expr);
         if (pcap_compile(handle, &filter, filter_expr, 0, ip) == -1) {
             fprintf(stderr, "Errror! Bad TCP filter - %s\n", pcap_geterr(handle));
@@ -213,7 +195,6 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
             fprintf(stderr, "Error setting filter - %s\n", pcap_geterr(handle));
             return 1;
         }
-
 
         // Send ethernet frame to socket.
         if ((bytes = sendto (sd, ether_frame, frame_length, 0, (struct sockaddr *) &device, sizeof (device))) <= 0) {
