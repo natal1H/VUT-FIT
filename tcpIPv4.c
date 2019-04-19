@@ -88,7 +88,7 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
         alarm(PCAP_TIMEOUT);
         signal(SIGALRM, alarm_handler);
 
-        int ret = pcap_loop(handle, 1, grab_packet, (u_char *) port_ptr);
+        int ret = pcap_loop(handle, 1, grab_tcp_packet, (u_char *) port_ptr);
         if (ret == -1) {
             fprintf(stderr, "Error! An error occurred in loop\n"); // No need to exit whole program
         }
@@ -103,7 +103,7 @@ int tcp_IPv4_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
             alarm(PCAP_TIMEOUT);
             signal(SIGALRM, alarm_handler);
 
-            int second_ret = pcap_loop(handle, 1, grab_packet, (u_char *) port_ptr);
+            int second_ret = pcap_loop(handle, 1, grab_tcp_packet, (u_char *) port_ptr);
             if (second_ret == -1) {
                 fprintf(stderr, "Error! An error occurred in loop\n"); // No need to exit whole program
             }
@@ -145,7 +145,7 @@ void alarm_handler(int sig) {
 *    Author: Tim Carstens
 *    Availability: https://www.tcpdump.org/pcap.html
 ***************************************************************************************/
-void grab_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
+void grab_tcp_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
     int *checked_port = (int *) args;
     const struct sniff_ip *ip; // The IP header
     const struct sniff_tcp *tcp; // The TCP header

@@ -1,5 +1,13 @@
 #include "udpIPv4.h"
 
+/***************************************************************************************
+ * Perform UDP port scan on selected ports (version with IPv4 address)
+ *
+ *    Disclaimer: Creating UDP packets was inspired by following:
+ *
+ *    Title: C network programming - Programming raw udp sockets in C on linux
+ *    Availability: https://github.com/seifzadeh/c-network-programming-best-snipts/blob/master/Programming%20raw%20udp%20sockets%20in%20C%20on%20Linux
+ ***************************************************************************************/
 int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip) {
     //Create a raw socket of type IPPROTO
     int s = socket (AF_INET, SOCK_RAW, IPPROTO_RAW);
@@ -27,9 +35,10 @@ int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
     //Ip checksum
     iph->check = csum((unsigned short *) datagram, iph->tot_len);
 
-    //Now the UDP checksum using the pseudo header
+    // Fill in pseudo header
     fill_pseudo_header(&psh, sin, data, source_address, IPPROTO_UDP, sizeof(struct udphdr));
 
+    // Prepare packet filter
     char filter_expr[] = "icmp[0] = 3";
     struct bpf_program filter;
     if (pcap_compile(handle, &filter, filter_expr, 0, ip) == -1) {
@@ -41,10 +50,11 @@ int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
         return 1;
     }
 
+    // Iterate through all ports
     for (int i = 0; i < num_ports; i++) {
         int dest_port = udp_ports[i];
 
-        sin.sin_port = htons(dest_port);
+        sin.sin_port = htons(dest_port); // Set destination port in address structure
 
         //UDP header
         fill_UDP_header(udph, dest_port, data);
@@ -55,6 +65,7 @@ int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
         memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header));
         memcpy(pseudogram + sizeof(struct pseudo_header) , udph , sizeof(struct udphdr) + strlen(data));
 
+        // Calculate UDP checksum
         udph->check = csum((unsigned short*) pseudogram , psize);
 
         //Send the packet
@@ -81,11 +92,17 @@ int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
     return 0;
 }
 
+/*
+ * Grab filtered UDP packet
+ */
 void grab_udp_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
     int *checked_port = (int *) args;
     printf("%d/udp\t closed\n", *checked_port);
 }
 
+/*
+ * Fill out UDP header
+ */
 void fill_UDP_header(struct udphdr *udph, int dest_port, char *data) {
     udph->source = htons(SRC_PORT);
     udph->dest = htons (dest_port);

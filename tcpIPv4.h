@@ -122,7 +122,7 @@ void fill_TCP_header(struct tcphdr *tcph, int dest_port);
  * @param pkthdr Packet header
  * @param packet Packet content
  */
-void grab_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet);
+void grab_tcp_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet);
 
 /**
  * Alarm program when time set for pcap_loop timeout passed

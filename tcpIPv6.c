@@ -239,7 +239,7 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
             alarm(PCAP_TIMEOUT);
             signal(SIGALRM, alarm_handler);
 
-            int second_ret = pcap_loop(handle, 1, grab_packet, (u_char *) port_ptr);
+            int second_ret = pcap_loop(handle, 1, grab_packet_tcpIPv6, (u_char *) port_ptr);
             if (second_ret == -1) {
                 fprintf(stderr, "Error! An error occurred in loop\n"); // No need to exit whole program
             }

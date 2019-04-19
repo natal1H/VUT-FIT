@@ -24,15 +24,33 @@ struct pseudo_header {
 };
 
 /**
- *
+ * Checksum function
  * @param ptr
- * @param nbytes
- * @return
+ * @param nbytes Number of bytes
+ * @return Checksum
  */
 unsigned short csum(unsigned short *ptr,int nbytes);
 
+/**
+ * Fill in pseudo header
+ * @param psh Pointer to pseudo header
+ * @param sin Destination address structure
+ * @param data Data
+ * @param source_ip Source IP address
+ * @param protocol Protocol name
+ * @param size_tcp_udp Size of structure (TCP of UDP based on from where it's called)
+ */
 void fill_pseudo_header(struct pseudo_header *psh, struct sockaddr_in sin, char *data, char *source_ip,  uint8_t protocol, size_t size_tcp_udp);
 
+/**
+ * Fill in IP header
+ * @param iph Pointer to IP header
+ * @param sin Destination address structure
+ * @param data Data
+ * @param source_ip Source IP address
+ * @param protocol Protocol name (TCP or UDP)
+ * @param size_tcp_udp Size of structure (TCP of UDP based on from where it's called)
+ */
 void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data, char *source_ip, u_int8_t protocol, size_t size_tcp_udp);
 
 
