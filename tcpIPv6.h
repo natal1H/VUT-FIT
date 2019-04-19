@@ -20,7 +20,6 @@
 #include <net/if.h>           // struct ifreq
 #include <linux/if_ether.h>   // ETH_P_IP = 0x0800, ETH_P_IPV6 = 0x86DD
 #include <linux/if_packet.h>  // struct sockaddr_ll (see man 7 packet)
-//#include <net/ethernet.h>
 #include <pcap.h>
 
 #include <errno.h>            // errno, perror()

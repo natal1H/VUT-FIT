@@ -11,7 +11,6 @@
 #include <arpa/inet.h>
 
 #include "main.h" // Because of pcap_t handle
-#include "errCodes.h"
 #include "commonIPv4.h"
 
 int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip);

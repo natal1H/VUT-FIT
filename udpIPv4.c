@@ -6,7 +6,7 @@ int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
     if (s == -1) {
         //socket creation failed, may be because of non-root privileges
         fprintf(stderr, "Error! Failed to create raw UDP socket.\n");
-        exit(ERR_UDP_SOCKET);
+        exit(1);
     }
     char datagram[4096], *data , *pseudogram; //Datagram to represent the packet
     memset (datagram, 0, 4096); //zero out the packet buffer
@@ -34,11 +34,11 @@ int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
     struct bpf_program filter;
     if (pcap_compile(handle, &filter, filter_expr, 0, ip) == -1) {
         printf("Bad filter - %s\n", pcap_geterr(handle));
-        return ERR_TCP_LIBPCAP;
+        return 1;
     }
     if (pcap_setfilter(handle, &filter) == -1) {
         printf("Error setting filter - %s\n", pcap_geterr(handle));
-        return ERR_TCP_LIBPCAP;
+        return 1;
     }
 
     for (int i = 0; i < num_ports; i++) {

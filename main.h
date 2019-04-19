@@ -62,6 +62,13 @@ int count_char_occurrences(char *str, char ch);
 int *check_port_range(char *ports_str, int *ports_len);
 
 /**
+ * Determine what version is IP address
+ * @param src String representing IP address
+ * @return Version
+ */
+int ip_version(char *src);
+
+/**
  * Lookup host ip address by entered domain
  * @param host Host domain
  * @param ver What version of IP adress was return

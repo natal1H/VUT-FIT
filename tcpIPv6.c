@@ -205,11 +205,11 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
         get_filter_expr_tcpIPv6(dest_port, filter_expr);
         if (pcap_compile(handle, &filter, filter_expr, 0, ip) == -1) {
             fprintf(stderr, "Errror! Bad TCP filter - %s\n", pcap_geterr(handle));
-            return ERR_TCP_LIBPCAP;
+            return 1;
         }
         if (pcap_setfilter(handle, &filter) == -1) {
             fprintf(stderr, "Error setting filter - %s\n", pcap_geterr(handle));
-            return ERR_TCP_LIBPCAP;
+            return 1;
         }
 
 
