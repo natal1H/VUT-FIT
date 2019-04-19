@@ -55,3 +55,10 @@ void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data, char 
     iph->saddr = inet_addr (source_ip);    //Spoof the source ip address
     iph->daddr = sin.sin_addr.s_addr;
 }
+
+/*
+ * Alarm program when time set for pcap_loop timeout passed
+ */
+void alarm_handler(int sig) {
+    pcap_breakloop(handle);
+}

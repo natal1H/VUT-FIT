@@ -1,14 +1,16 @@
 #include "tcpIPv6.h"
 
-void get_filter_expr_tcpIPv6(int port, char *filter_expr) {
-    char port_str[5];
-    sprintf(port_str, "%d", port);
+/***************************************************************************************
+ *    Disclaimer: Creating TCP packets was inspired by tutorial:
+ *
+ *    Title: C Language Examples of IPv4 and IPv6 Raw Sockets for Linux
+ *    Availability: http://www.pdbuchan.com/rawsock/rawsock.html
+ *                  www.pdbuchan.com/rawsock/tcp6_ll.c
+ ***************************************************************************************/
 
-    strcpy(filter_expr, "tcp src port ");
-    strcat(filter_expr, port_str);
-    strcat(filter_expr, " and tcp dst port 42");
-}
-
+/*
+ * Perform TCP port scan (IPv6)
+ */
 int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *selected_interface, bpf_u_int32 ip) {
 
     int i, status, frame_length, sd, bytes, *tcp_flags;
@@ -222,7 +224,7 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
         // Grab packet
         int *port_ptr = &dest_port;
         alarm(PCAP_TIMEOUT);
-        signal(SIGALRM, alarm_handler);
+        signal(SIGALRM, alarm_handler_IPv6);
 
         int ret = pcap_loop(handle, 1, grab_packet_tcpIPv6, (u_char *) port_ptr);
         if (ret == -1) {
@@ -237,7 +239,7 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
             }
             // Grab packet
             alarm(PCAP_TIMEOUT);
-            signal(SIGALRM, alarm_handler);
+            signal(SIGALRM, alarm_handler_IPv6);
 
             int second_ret = pcap_loop(handle, 1, grab_packet_tcpIPv6, (u_char *) port_ptr);
             if (second_ret == -1) {
@@ -268,6 +270,21 @@ int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *
     return (EXIT_SUCCESS);
 }
 
+/*
+ * Get filter expression based on destination port
+ */
+void get_filter_expr_tcpIPv6(int port, char *filter_expr) {
+    char port_str[5];
+    sprintf(port_str, "%d", port);
+
+    strcpy(filter_expr, "tcp src port ");
+    strcat(filter_expr, port_str);
+    strcat(filter_expr, " and tcp dst port 42");
+}
+
+/*
+ * Grab filtered TCP packet
+ */
 void grab_packet_tcpIPv6(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
     int *checked_port = (int *) args;
     //const struct ip6_hdr *ip; // The IP header
@@ -277,50 +294,15 @@ void grab_packet_tcpIPv6(u_char *args, const struct pcap_pkthdr* pkthdr, const u
     //size_ip = IP_HL(ip) * 4;
     tcp = (struct sniff_tcp *) (packet + SIZE_ETHERNET + size_ip);
 
-    if (is_open_port(tcp->th_flags)) {
+    if (is_open_port_tcpIPv6(tcp->th_flags)) {
         printf("%d/tcp\t open\n", *checked_port);
-    } else if (is_closed_port(tcp->th_flags)) {
+    } else if (is_closed_port_tcpIPv6(tcp->th_flags)) {
         printf("%d/tcp\t closed\n", *checked_port);
     }
 }
 
-// Computing the internet checksum (RFC 1071).
-// Note that the internet checksum does not preclude collisions.
-uint16_t
-checksum (uint16_t *addr, int len)
-{
-    int count = len;
-    register uint32_t sum = 0;
-    uint16_t answer = 0;
-
-    // Sum up 2-byte values until none or only one byte left.
-    while (count > 1) {
-        sum += *(addr++);
-        count -= 2;
-    }
-
-    // Add left-over byte, if any.
-    if (count > 0) {
-        sum += *(uint8_t *) addr;
-    }
-
-    // Fold 32-bit sum into 16 bits; we lose information by doing this,
-    // increasing the chances of a collision.
-    // sum = (lower 16 bits) + (upper 16 bits shifted right 16 bits)
-    while (sum >> 16) {
-        sum = (sum & 0xffff) + (sum >> 16);
-    }
-
-    // Checksum is one's compliment of sum.
-    answer = ~sum;
-
-    return (answer);
-}
-
 // Build IPv6 TCP pseudo-header and call checksum function (Section 8.1 of RFC 2460).
-uint16_t
-tcp6_checksum (struct ip6_hdr iphdr, struct tcphdr tcphdr)
-{
+uint16_t tcp6_checksum (struct ip6_hdr iphdr, struct tcphdr tcphdr) {
     uint32_t lvalue;
     char buf[IP_MAXPACKET], cvalue;
     char *ptr;
@@ -406,65 +388,16 @@ tcp6_checksum (struct ip6_hdr iphdr, struct tcphdr tcphdr)
     return checksum ((uint16_t *) buf, chksumlen);
 }
 
-// Allocate memory for an array of chars.
-char *
-allocate_strmem (int len)
-{
-    void *tmp;
-
-    if (len <= 0) {
-        fprintf (stderr, "ERROR: Cannot allocate memory because len = %i in allocate_strmem().\n", len);
-        exit (EXIT_FAILURE);
-    }
-
-    tmp = (char *) malloc (len * sizeof (char));
-    if (tmp != NULL) {
-        memset (tmp, 0, len * sizeof (char));
-        return (tmp);
-    } else {
-        fprintf (stderr, "ERROR: Cannot allocate memory for array allocate_strmem().\n");
-        exit (EXIT_FAILURE);
-    }
+/*
+ * Function to analyze TCP flags and decide if port is open
+ */
+bool is_open_port_tcpIPv6(u_char th_flags) {
+    return ((th_flags & TH_SYN) && (th_flags & TH_ACK));
 }
 
-// Allocate memory for an array of unsigned chars.
-uint8_t *
-allocate_ustrmem (int len)
-{
-    void *tmp;
-
-    if (len <= 0) {
-        fprintf (stderr, "ERROR: Cannot allocate memory because len = %i in allocate_ustrmem().\n", len);
-        exit (EXIT_FAILURE);
-    }
-
-    tmp = (uint8_t *) malloc (len * sizeof (uint8_t));
-    if (tmp != NULL) {
-        memset (tmp, 0, len * sizeof (uint8_t));
-        return (tmp);
-    } else {
-        fprintf (stderr, "ERROR: Cannot allocate memory for array allocate_ustrmem().\n");
-        exit (EXIT_FAILURE);
-    }
-}
-
-// Allocate memory for an array of ints.
-int *
-allocate_intmem (int len)
-{
-    void *tmp;
-
-    if (len <= 0) {
-        fprintf (stderr, "ERROR: Cannot allocate memory because len = %i in allocate_intmem().\n", len);
-        exit (EXIT_FAILURE);
-    }
-
-    tmp = (int *) malloc (len * sizeof (int));
-    if (tmp != NULL) {
-        memset (tmp, 0, len * sizeof (int));
-        return (tmp);
-    } else {
-        fprintf (stderr, "ERROR: Cannot allocate memory for array allocate_intmem().\n");
-        exit (EXIT_FAILURE);
-    }
+/*
+ * Function to analyze TCP flags and decide if port is closed
+ */
+bool is_closed_port_tcpIPv6(u_char th_flags) {
+    return ((th_flags & TH_RST) && (th_flags & TH_ACK));
 }

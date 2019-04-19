@@ -10,7 +10,9 @@
 #include <netinet/ip.h>
 #include <stdint.h>
 #include <string.h>
+#include <pcap.h>
 
+#include "main.h"
 
 /**
  * 96 bit (12 bytes) pseudo header needed for tcp header checksum calculation
@@ -53,5 +55,10 @@ void fill_pseudo_header(struct pseudo_header *psh, struct sockaddr_in sin, char 
  */
 void fill_IP_header(struct iphdr *iph, struct sockaddr_in sin, char *data, char *source_ip, u_int8_t protocol, size_t size_tcp_udp);
 
+/**
+ * Alarm program when time set for pcap_loop timeout passed
+ * @param sig Signal signaling timeout
+ */
+void alarm_handler(int sig);
 
 #endif

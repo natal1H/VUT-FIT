@@ -131,13 +131,6 @@ void get_filter_expr_tcpIPv4(int port, char *filter_expr) {
     strcat(filter_expr, " and tcp dst port 42");
 }
 
-/*
- * Alarm program when time set for pcap_loop timeout passed
- */
-void alarm_handler(int sig) {
-    pcap_breakloop(handle);
-}
-
 /***************************************************************************************
 *    Disclaimer: Typecasting received packet (along with used structures) was done according to this tutorial:
 *

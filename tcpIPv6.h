@@ -22,9 +22,8 @@
 #include <linux/if_packet.h>  // struct sockaddr_ll (see man 7 packet)
 #include <pcap.h>
 
-#include <errno.h>            // errno, perror()
-#include "tcpIPv4.h"
-
+#include "main.h"
+#include "commonIPv6.h"
 
 // Define some constants.
 #define ETHER_ADDR_LEN	6
@@ -32,19 +31,53 @@
 #define IP6_HDRLEN 40  // IPv6 header length
 #define TCP_HDRLEN 20  // TCP header length, excludes options data
 
-// Function prototypes
-uint16_t checksum (uint16_t *, int);
-uint16_t tcp6_checksum (struct ip6_hdr, struct tcphdr);
-char *allocate_strmem (int);
-uint8_t *allocate_ustrmem (int);
-int *allocate_intmem (int);
+/**
+ * Build IPv6 TCP pseudo-header and call checksum function (Section 8.1 of RFC 2460).
+ * @param iphdr
+ * @param tcphdr
+ * @return
+ */
+uint16_t tcp6_checksum (struct ip6_hdr iphdr, struct tcphdr tcphdr);
 
+/**
+ * Perform TCP port scan (IPv6)
+ * @param tcp_ports Array containing ports to scan
+ * @param num_ports Number of ports to scan
+ * @param dest_address Destination IP address
+ * @param source_address Source IP address
+ * @param interface Name of interface
+ * @param ip
+ * @return Success or failure
+ */
 int tcp_IPv6_port_scan(int *tcp_ports, int num_ports, char *dest_address, char *source_address, char *interface, bpf_u_int32 ip);
 
-bool is_open_port(u_char th_flags);
-bool is_closed_port(u_char th_flags);
+/**
+ * Determine if port is open
+ * @param th_flags TCP flags
+ * @return True if is open
+ */
+bool is_open_port_tcpIPv6(u_char th_flags);
 
+/**
+ * Determine if port is closed
+ * @param th_flags TCP flags
+ * @return True if is closed
+ */
+bool is_closed_port_tcpIPv6(u_char th_flags);
+
+/**
+ * Grab filtered TCP packet
+ * @param args Passed arguments
+ * @param pkthdr Packet header
+ * @param packet Packet payload
+ */
 void grab_packet_tcpIPv6(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet);
-void alarm_handler2(int sig);
+
+/**
+ * Get filter expression based on destination port
+ * @param port Port that is being scanned
+ * @param filter_expr Where to store filter expression
+ */
+void get_filter_expr_tcpIPv6(int port, char *filter_expr);
 
 #endif

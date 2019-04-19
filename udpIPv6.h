@@ -19,26 +19,42 @@
 #include <net/if.h>           // struct ifreq
 #include <linux/if_ether.h>   // ETH_P_IP = 0x0800, ETH_P_IPV6 = 0x86DD
 #include <linux/if_packet.h>  // struct sockaddr_ll (see man 7 packet)
-//#include <net/ethernet.h>
 #include <pcap.h>
 
-#include <errno.h>            // errno, perror()
-
 #include "main.h"
-#include "tcpIPv4.h"
+#include "commonIPv6.h"
 
 // Define some constants.
-#define ETH_HDRLEN 14  // Ethernet header length // TODO
+#define ETH_HDRLEN 14  // Ethernet header length
 #define IP6_HDRLEN 40  // IPv6 header length
 #define UDP_HDRLEN  8  // UDP header length, excludes data
 
-// Function prototypes
-uint16_t checksum2 (uint16_t *, int);
-uint16_t udp6_checksum2 (struct ip6_hdr, struct udphdr, uint8_t *, int);
-char *allocate_strmem2 (int);
-uint8_t *allocate_ustrmem2 (int);
+/**
+ * Build IPv6 UDP pseudo-header and call checksum function (Section 8.1 of RFC 2460). * @param iphdr IPv6 header
+ * @param udphdr UDP header
+ * @param payload Payload
+ * @param payloadlen Length of payload
+ * @return Checksum
+ */
+uint16_t udp6_checksum(struct ip6_hdr iphdr, struct udphdr udphdr, uint8_t *payload, int payloadlen);
 
+/**
+ * Perform UDP port scan (IPv6)
+ * @param udp_ports Array containing ports to scan
+ * @param num_ports Number of ports to scan
+ * @param dest_address Destination IP address
+ * @param source_address Source IP address
+ * @param selected_interface Name of selected interface
+ * @param ip
+ */
 int udp_IPv6_port_scan(int *udp_ports, int num_ports, char *dest_address, char *source_address, char *selected_interface, bpf_u_int32 ip);
+
+/**
+ * Grab filtered UDP packet
+ * @param args Passed arguments
+ * @param pkthdr Packet header
+ * @param packet Packet payload
+ */
 void grab_udpIPv6_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet);
 
 #endif

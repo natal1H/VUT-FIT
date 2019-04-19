@@ -1,5 +1,16 @@
 #include "udpIPv6.h"
 
+/***************************************************************************************
+ *    Disclaimer: Creating UDP packets was inspired by tutorial:
+ *
+ *    Title: C Language Examples of IPv4 and IPv6 Raw Sockets for Linux
+ *    Availability: http://www.pdbuchan.com/rawsock/rawsock.html
+ *                  www.pdbuchan.com/rawsock/udp6_ll.c
+ ***************************************************************************************/
+
+/*
+ * Perform UDP port scan (IPv6)
+ */
 int udp_IPv6_port_scan(int *udp_ports, int num_ports, char *dest_address, char *source_address, char *selected_interface, bpf_u_int32 ip) {
     int i, status, datalen, frame_length, sd, bytes;
     char *interface, *target, *src_ip, *dst_ip;
@@ -13,14 +24,14 @@ int udp_IPv6_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
     void *tmp;
 
     // Allocate memory for various arrays.
-    src_mac = allocate_ustrmem2 (6);
-    dst_mac = allocate_ustrmem2 (6);
-    data = allocate_ustrmem2 (IP_MAXPACKET);
-    ether_frame = allocate_ustrmem2 (IP_MAXPACKET);
-    interface = allocate_strmem2 (40);
-    target = allocate_strmem2 (INET6_ADDRSTRLEN);
-    src_ip = allocate_strmem2 (INET6_ADDRSTRLEN);
-    dst_ip = allocate_strmem2 (INET6_ADDRSTRLEN);
+    src_mac = allocate_ustrmem(6);
+    dst_mac = allocate_ustrmem(6);
+    data = allocate_ustrmem(IP_MAXPACKET);
+    ether_frame = allocate_ustrmem(IP_MAXPACKET);
+    interface = allocate_strmem(40);
+    target = allocate_strmem(INET6_ADDRSTRLEN);
+    src_ip = allocate_strmem(INET6_ADDRSTRLEN);
+    dst_ip = allocate_strmem(INET6_ADDRSTRLEN);
 
     // Interface to send packet through.
     strcpy (interface, selected_interface);
@@ -131,7 +142,6 @@ int udp_IPv6_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
     memcpy (ether_frame + 6, src_mac, 6 * sizeof (uint8_t));
 
     // Next is ethernet type code (ETH_P_IPV6 for IPv6).
-    // http://www.iana.org/assignments/ethernet-numbers
     ether_frame[12] = ETH_P_IPV6 / 256;
     ether_frame[13] = ETH_P_IPV6 % 256;
 
@@ -139,7 +149,6 @@ int udp_IPv6_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
 
     // IPv6 header
     memcpy (ether_frame + ETH_HDRLEN, &iphdr, IP6_HDRLEN * sizeof (uint8_t));
-
 
     // Submit request for a raw socket descriptor.
     if ((sd = socket (PF_PACKET, SOCK_RAW, htons (ETH_P_ALL))) < 0) {
@@ -161,23 +170,13 @@ int udp_IPv6_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
     for (int curr_port = 0; curr_port < num_ports; curr_port++) {
         int dest_port = udp_ports[curr_port];
 
-        printf("Port %d\n", dest_port);
-
         // UDP header
-        // Source port number (16 bits): pick a number
-        udphdr.source = htons (42);
-        // Destination port number (16 bits): pick a number
-        udphdr.dest = htons (dest_port);
-        // Length of UDP datagram (16 bits): UDP header + UDP data
-        udphdr.len = htons (UDP_HDRLEN + datalen);
-        // UDP checksum (16 bits)
-        udphdr.check = udp6_checksum2 (iphdr, udphdr, data, datalen);
-
-        // UDP header
-        memcpy (ether_frame + ETH_HDRLEN + IP6_HDRLEN, &udphdr, UDP_HDRLEN * sizeof (uint8_t));
-
-        // UDP data
-        memcpy (ether_frame + ETH_HDRLEN + IP6_HDRLEN + UDP_HDRLEN, data, datalen * sizeof (uint8_t));
+        udphdr.source = htons (42); // Source port number (16 bits): pick a number
+        udphdr.dest = htons (dest_port); // Destination port number (16 bits): pick a number
+        udphdr.len = htons (UDP_HDRLEN + datalen); // Length of UDP datagram (16 bits): UDP header + UDP data
+        udphdr.check = udp6_checksum(iphdr, udphdr, data, datalen); // UDP checksum (16 bits)
+        memcpy (ether_frame + ETH_HDRLEN + IP6_HDRLEN, &udphdr, UDP_HDRLEN * sizeof (uint8_t)); // Copy UDP header
+        memcpy (ether_frame + ETH_HDRLEN + IP6_HDRLEN + UDP_HDRLEN, data, datalen * sizeof (uint8_t)); // Copy UDP data
 
         // Send ethernet frame to socket.
         if ((bytes = sendto (sd, ether_frame, frame_length, 0, (struct sockaddr *) &device, sizeof (device))) <= 0) {
@@ -188,7 +187,7 @@ int udp_IPv6_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
         // Grab packet
         int *port_ptr = &dest_port;
         alarm(PCAP_TIMEOUT);
-        signal(SIGALRM, alarm_handler);
+        signal(SIGALRM, alarm_handler_IPv6);
 
         int ret = pcap_loop(handle, 1, grab_udpIPv6_packet, (u_char *) port_ptr);
         if (ret == -1) {
@@ -204,60 +203,30 @@ int udp_IPv6_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
     close (sd);
 
     // Free allocated memory.
-    free (src_mac);
-    free (dst_mac);
-    free (data);
-    free (ether_frame);
-    free (interface);
-    free (target);
-    free (src_ip);
-    free (dst_ip);
+    free(src_mac);
+    free(dst_mac);
+    free(data);
+    free(ether_frame);
+    free(interface);
+    free(target);
+    free(src_ip);
+    free(dst_ip);
 
-    return (EXIT_SUCCESS);
+    return 0;
 }
 
+/*
+ * Grab filtered UDP packet
+ */
 void grab_udpIPv6_packet(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
     int *checked_port = (int *) args;
     printf("%d/udp\t closed\n", *checked_port);
 }
 
-// Computing the internet checksum (RFC 1071).
-// Note that the internet checksum does not preclude collisions.
-uint16_t
-checksum2 (uint16_t *addr, int len)
-{
-    int count = len;
-    register uint32_t sum = 0;
-    uint16_t answer = 0;
-
-    // Sum up 2-byte values until none or only one byte left.
-    while (count > 1) {
-        sum += *(addr++);
-        count -= 2;
-    }
-
-    // Add left-over byte, if any.
-    if (count > 0) {
-        sum += *(uint8_t *) addr;
-    }
-
-    // Fold 32-bit sum into 16 bits; we lose information by doing this,
-    // increasing the chances of a collision.
-    // sum = (lower 16 bits) + (upper 16 bits shifted right 16 bits)
-    while (sum >> 16) {
-        sum = (sum & 0xffff) + (sum >> 16);
-    }
-
-    // Checksum is one's compliment of sum.
-    answer = ~sum;
-
-    return (answer);
-}
-
-// Build IPv6 UDP pseudo-header and call checksum function (Section 8.1 of RFC 2460).
-uint16_t
-udp6_checksum2 (struct ip6_hdr iphdr, struct udphdr udphdr, uint8_t *payload, int payloadlen)
-{
+/*
+ * Build IPv6 UDP pseudo-header and call checksum function (Section 8.1 of RFC 2460).
+ */
+uint16_t udp6_checksum(struct ip6_hdr iphdr, struct udphdr udphdr, uint8_t *payload, int payloadlen) {
     char buf[IP_MAXPACKET];
     char *ptr;
     int chksumlen = 0;
@@ -324,47 +293,5 @@ udp6_checksum2 (struct ip6_hdr iphdr, struct udphdr udphdr, uint8_t *payload, in
         chksumlen++;
     }
 
-    return checksum2 ((uint16_t *) buf, chksumlen);
-}
-
-// Allocate memory for an array of chars.
-char *
-allocate_strmem2 (int len)
-{
-    void *tmp;
-
-    if (len <= 0) {
-        fprintf (stderr, "ERROR: Cannot allocate memory because len = %i in allocate_strmem().\n", len);
-        exit (EXIT_FAILURE);
-    }
-
-    tmp = (char *) malloc (len * sizeof (char));
-    if (tmp != NULL) {
-        memset (tmp, 0, len * sizeof (char));
-        return (tmp);
-    } else {
-        fprintf (stderr, "ERROR: Cannot allocate memory for array allocate_strmem().\n");
-        exit (EXIT_FAILURE);
-    }
-}
-
-// Allocate memory for an array of unsigned chars.
-uint8_t *
-allocate_ustrmem2 (int len)
-{
-    void *tmp;
-
-    if (len <= 0) {
-        fprintf (stderr, "ERROR: Cannot allocate memory because len = %i in allocate_ustrmem().\n", len);
-        exit (EXIT_FAILURE);
-    }
-
-    tmp = (uint8_t *) malloc (len * sizeof (uint8_t));
-    if (tmp != NULL) {
-        memset (tmp, 0, len * sizeof (uint8_t));
-        return (tmp);
-    } else {
-        fprintf (stderr, "ERROR: Cannot allocate memory for array allocate_ustrmem().\n");
-        exit (EXIT_FAILURE);
-    }
+    return checksum ((uint16_t *) buf, chksumlen);
 }

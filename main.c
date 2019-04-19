@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    printf("Source IP: %s\n", source_address); // TODO - remove
+    //printf("Source IP: %s\n", source_address); // TODO - remove
 
     if (domain_entered)
         printf("Interesting ports on %s (%s):\n", params.domain_or_ip, destination_address);
