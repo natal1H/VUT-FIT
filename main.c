@@ -1,5 +1,9 @@
 #include "main.h"
 
+/*
+ * Finding first non-loopback interface done according to this:
+ * https://www.tcpdump.org/manpages/pcap_findalldevs.3pcap.html
+ */
 int main(int argc, char **argv) {
     Params_t params;
     init_params(&params);
@@ -107,14 +111,28 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // TODO - if localhost and not -i -> choose lo
     char *interface;
     char error_buffer[PCAP_ERRBUF_SIZE];
     if (params.interface != NULL) {
         interface = params.interface;
     }
     else {
-        interface = pcap_lookupdev(error_buffer);
+        pcap_if_t *interfaces, *temp;
+        if (pcap_findalldevs(&interfaces, error_buffer) == -1) {
+            printf("\nerror in pcap findall devs");
+            return -1;
+        }
+
+        for (temp = interfaces; temp; temp = temp->next) {
+            if (!(temp->flags & PCAP_IF_LOOPBACK)) {
+                interface = (char *) malloc(sizeof(char) * strlen(temp->name));
+                strcpy(interface, temp->name);
+
+                break;
+            }
+        }
+
+        pcap_freealldevs(interfaces);
     }
 
     // Get the source IP
