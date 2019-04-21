@@ -159,11 +159,11 @@ int udp_IPv6_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
     char filter_expr[] = "icmp[0] = 3";
     struct bpf_program filter;
     if (pcap_compile(handle, &filter, filter_expr, 0, ip) == -1) {
-        printf("Bad filter - %s\n", pcap_geterr(handle));
+        fprintf(stderr, "Bad filter - %s\n", pcap_geterr(handle));
         return 1;
     }
     if (pcap_setfilter(handle, &filter) == -1) {
-        printf("Error setting filter - %s\n", pcap_geterr(handle));
+        fprintf(stderr, "Error setting filter - %s\n", pcap_geterr(handle));
         return 1;
     }
 

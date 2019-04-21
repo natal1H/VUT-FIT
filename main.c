@@ -155,8 +155,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    //printf("Source IP: %s\n", source_address); // TODO - remove
-
     if (domain_entered)
         printf("Interesting ports on %s (%s):\n", params.domain_or_ip, destination_address);
     else
@@ -284,6 +282,11 @@ int *check_port_range(char *ports_str, int *ports_len) {
     }
     else {
         // Format X-Y (from X to Y including)
+        if (strchr(ports_str, ',') != NULL) {
+            fprintf(stderr, "Error! Wrong port range format.\n");
+            return NULL;
+        }
+
         char *first_part = (char *) malloc(sizeof(char) * (res - ports_str));
         memcpy(first_part, ports_str, res - ports_str);
 
@@ -305,6 +308,15 @@ int *check_port_range(char *ports_str, int *ports_len) {
         *ports_len = expected_ports;
         for (int i = 0, j = begin_port; j <= end_port; i++, j++) {
             ports_arr[i] = j;
+        }
+    }
+
+    // Check if all port in <1, 65 535>
+    for (int i = 0; i < *ports_len; i++) {
+        if (ports_arr[i] < 1 || ports_arr[i] > 65535) {
+            fprintf(stderr, "Error! Port %d out of range.\n", ports_arr[i]);
+            free(ports_arr);
+            return NULL;
         }
     }
 
@@ -362,7 +374,6 @@ char *lookup_host (const char *host, int *ver) {
                 break;
         }
         inet_ntop (res->ai_family, ptr, addrstr, 100);
-        //printf("Dest IP: %s\n", addrstr);
         strcpy(dest_address, addrstr);
 
         if (res->ai_family != PF_INET6) {// If it has both, use first IPv4
@@ -372,15 +383,6 @@ char *lookup_host (const char *host, int *ver) {
         else {
             *ver = 6;
         }
-
-        /*
-        if (res->ai_family != PF_INET) {// If it has both, use first IPv6
-            *ver = 6;
-            break;
-        }
-        else
-            *ver = 4;
-        */
 
         res = res->ai_next;
     }

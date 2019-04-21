@@ -89,6 +89,8 @@ int udp_IPv4_port_scan(int *udp_ports, int num_ports, char *dest_address, char *
         }
     }
 
+    close(s);
+
     return 0;
 }
 
