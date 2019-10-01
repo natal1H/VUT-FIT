@@ -78,7 +78,39 @@ bool is_integer(char *str) {
     return true;
 }
 
+/**
+ *
+ * @param n
+ * @param args
+ * @return
+ */
 char *get_command(int n, char **args) {
+    // First count total length of command
+    int length = 0;
+    for (int i = 5; i < n; i++) {
+        for (int j = 0; j < strlen(args[i]); j++) {
+            length++;
+        }
+        // + count the spaces
+        length++;
+    }
+    length--;
+    printf("Command total length: %d\n", length);
 
-    return NULL;
+    char *command = (char *) malloc(sizeof(char) * length);
+    if (command == NULL) {
+        fprintf(stderr, "Error while allocating space for command.\n");
+        return NULL;
+    }
+
+    int index = 0;
+    for (int i = 5; i < n; i++) {
+        for (int j = 0; j < strlen(args[i]); j++) {
+            command[index++] = args[i][j];
+        }
+        // + add the space
+        command[index++] = ' ';
+    }
+    command[index] = '\0';
+    return command;
 }
