@@ -1,10 +1,10 @@
 all: isaserver isaclient
 
 isaserver:
-	gcc isaserver.c -o isaserver
+	gcc -Wall -Werror isaserver.c -o isaserver
 
 isaclient:
-	gcc isaclient.c -o isaclient
+	gcc -Wall -Werror isaclient.c -o isaclient
 
 clean:
 	rm -f isaserver isaclient

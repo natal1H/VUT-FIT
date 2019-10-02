@@ -11,12 +11,12 @@
 
 typedef struct {
     char *content;
-    struct Entry_t *next;
-} Entry_t;
+    struct Item_t *next;
+} Item_t;
 
 typedef struct {
     char *name;
-    Entry_t *first;
+    Item_t *first;
 } Board_t;
 
 int parse_arguments(int n, char **args, int *port);
