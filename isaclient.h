@@ -9,14 +9,39 @@
 #define MAX_PORT 65535
 #define MIN_PORT 0
 
+typedef enum {
+    BOARDS = 0,
+    BOARD_ADD = 1,
+    BOARD_DELETE = 2,
+    BOARDS_LIST = 3,
+    ITEM_ADD = 4,
+    ITEM_DELETE = 5,
+    ITEM_UPDATE = 6,
+    UNKNOWN = -1
+} Command_type;
+
+typedef struct {
+    char *host;
+    int port;
+} Address_t;
+
+typedef struct {
+    Command_type type;
+    char *name;
+    char *id;
+    char *content;
+} Command_t;
+
 int parse_arguments(int n, char **args, int *port);
 bool is_integer(char *str);
 char *get_command(int n, char **args);
-int determine_API_command(char *command);
-char *get_API_command_arg_name(int type, char *command, int *err);
-char *get_API_command_arg_id(int type, char *command, int *err);
-char *get_API_command_arg_content(int type, char *command, int *err);
+Command_type determine_API_command(char *command);
+char *get_API_command_arg_name(Command_type type, char *command, int *err);
+char *get_API_command_arg_id(Command_type type, char *command, int *err);
+char *get_API_command_arg_content(Command_type type, char *command, int *err);
 int count_space(char *str);
 int get_index(char *str, char c);
+void cleanup(Command_t *command);
+int send_http_request(Address_t *destination, Command_t *command);
 
 #endif

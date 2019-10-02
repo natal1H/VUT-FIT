@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     printf("Port: %d\n", port);
     printf("Command: %s\n", command);
 
-    int command_type = determine_API_command(command);
+    Command_type command_type = determine_API_command(command);
     printf("Command type: %d\n", command_type);
 
     if (command_type == -1) {
@@ -53,6 +53,12 @@ int main(int argc, char** argv) {
 
     free(command);
 
+    Address_t destination = {.host = host, .port = port};
+    Command_t api_call = {.type = command_type, .name = name, .id = id, .content = content};
+
+    send_http_request(&destination, &api_call);
+
+    cleanup(&api_call);
     return 0;
 }
 
@@ -161,41 +167,41 @@ int determine_API_command(char *command) {
     if (strlen(command) == strlen("boards") && strcmp("boards", command) == 0) {
         // boards - GET /boards
         printf("GET /boards\n");
-        return 0;
+        return BOARDS;
     }
     else if (strlen(command) > strlen("board add") && strncmp("board add", command, strlen("board add")) == 0) {
         // board add <name> - POST /boards/<name>
         printf("POST /boards/<name>\n");
-        return 1;
+        return BOARD_ADD;
     }
     else if (strlen(command) > strlen("board delete") && strncmp("board delete", command, strlen("board delete")) == 0) {
         // board delete <name> - DELETE /boards/<name>
         printf("DELETE /board/<name>\n");
-        return 2;
+        return BOARD_DELETE;
     }
     else if (strlen(command) > strlen("boards list") && strncmp("boards list", command, strlen("boards list")) == 0) {
         // boards list <name> - GET /board/<name>
         printf("GET /board/<name>\n");
-        return 3;
+        return BOARDS_LIST;
     }
     else if (strlen(command) > strlen("item add") && strncmp("item add", command, strlen("item add")) == 0) {
         // item add <name> <content> - POST /board/<name>
         printf("POST /board/<name>\n");
-        return 4;
+        return ITEM_ADD;
     }
     else if (strlen(command) > strlen("item delete") && strncmp("item delete", command, strlen("item delete")) == 0) {
         // item delete <name> <id> - DELETE /board/<name>/<id>
         printf("DELETE /board/<name>/<id>\n");
-        return 5;
+        return ITEM_DELETE;
     }
     else if (strlen(command) > strlen("item update") && strncmp("item update", command, strlen("item update")) == 0) {
         // item update <name> <id> <content> - PUT /board/<name>/<id>
         printf("PUT /board/<name>/<id>\n");
-        return 6;
+        return ITEM_UPDATE;
     }
     else {
         fprintf(stderr, "Error! Unknown API command.\n");
-        return -1;
+        return UNKNOWN;
     }
 }
 
@@ -208,11 +214,11 @@ int determine_API_command(char *command) {
  */
 char *get_API_command_arg_name(int type, char *command, int *err) {
     *err = 0;
-    if (type == 0) {
+    if (type == BOARDS) {
         // boards
         return NULL;
     }
-    else if (type == 1) {
+    else if (type == BOARD_ADD) {
         // board add <name>
         char *name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("board add ")));
         if (name == NULL) {
@@ -235,7 +241,7 @@ char *get_API_command_arg_name(int type, char *command, int *err) {
             return name;
         }
     }
-    else if (type == 2) {
+    else if (type == BOARD_DELETE) {
         // board delete <name>
         char *name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("board delete ")));
         if (name == NULL) {
@@ -258,7 +264,7 @@ char *get_API_command_arg_name(int type, char *command, int *err) {
             return name;
         }
     }
-    else if (type == 3) {
+    else if (type == BOARDS_LIST) {
         // boards list <name>
         char *name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("boards list ")));
         if (name == NULL) {
@@ -281,7 +287,7 @@ char *get_API_command_arg_name(int type, char *command, int *err) {
             return name;
         }
     }
-    else if (type == 4) {
+    else if (type == ITEM_ADD) {
         // item add <name> <content>
         // determine length of name (find index of first space after "item add "
         int name_length = get_index(command + strlen("item add "), ' ');
@@ -301,7 +307,7 @@ char *get_API_command_arg_name(int type, char *command, int *err) {
 
         return name;
     }
-    else if (type == 5) {
+    else if (type == ITEM_DELETE) {
         // item delete <name> <id>
         // determine length of name (find index of first space after "item delete "
         int name_length = get_index(command + strlen("item delete "), ' ');
@@ -321,7 +327,7 @@ char *get_API_command_arg_name(int type, char *command, int *err) {
 
         return name;
     }
-    else if (type == 6) {
+    else if (type == ITEM_UPDATE) {
         // item update <name> <id>
         // determine length of name (find index of first space after "item update "
         int name_length = get_index(command + strlen("item update "), ' ');
@@ -354,11 +360,11 @@ char *get_API_command_arg_name(int type, char *command, int *err) {
  */
 char *get_API_command_arg_id(int type, char *command, int *err) {
     *err = 0;
-    if (type != 5 && type != 6) {
+    if (type != ITEM_DELETE && type != ITEM_UPDATE) {
         // all except "item delete <name> <id>" and "item update <name> <id> <content>"
         return NULL;
     }
-    else if (type == 5) {
+    else if (type == ITEM_DELETE) {
         // item delete <name> <id>
 
         int name_length = get_index(command + strlen("item delete "), ' ');
@@ -381,7 +387,7 @@ char *get_API_command_arg_id(int type, char *command, int *err) {
 
         return id;
     }
-    else if (type == 6) {
+    else if (type == ITEM_UPDATE) {
         // item update <name> <id> <content>
 
         int name_length = get_index(command + strlen("item update "), ' ');
@@ -418,11 +424,11 @@ char *get_API_command_arg_id(int type, char *command, int *err) {
  */
 char *get_API_command_arg_content(int type, char *command, int *err) {
     *err = 0;
-    if (type != 4 && type != 6) {
+    if (type != ITEM_ADD && type != ITEM_UPDATE) {
         // all except "item add <name> <content>" and "item update <name> <id> <content>"
         return NULL;
     }
-    else if (type == 4) {
+    else if (type == ITEM_ADD) {
         // item add <name> <content>
 
         int name_length = get_index(command + strlen("item add "), ' ');
@@ -437,7 +443,7 @@ char *get_API_command_arg_content(int type, char *command, int *err) {
 
         return content;
     }
-    else if (type == 6) {
+    else if (type == ITEM_UPDATE) {
         // item update <name> <id> <content>
 
         int name_length = get_index(command + strlen("item update "), ' ');
@@ -481,4 +487,26 @@ int get_index(char *str, char c) {
     int index = 0;
     while (*tmp++ != c && index < strlen(str)) index++;
     return (index == strlen(str) ? -1 : index);
+}
+
+/**
+ *
+ */
+void cleanup(Command_t *command) {
+    // Clean up command
+    free(command->name);
+    free(command->id);
+    free(command->content);
+}
+
+/**
+ *
+ * @param destination
+ * @param command
+ * @return
+ */
+int send_http_request(Address_t *destination, Command_t *command) {
+    printf("Preparing to send HTTP request.\n");
+
+    return 0;
 }
