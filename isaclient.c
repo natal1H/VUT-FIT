@@ -25,8 +25,31 @@ int main(int argc, char** argv) {
     }
 
     char *name = NULL, *id = NULL, *content = NULL;
-    ret = get_API_command_args(command_type, command, name, id, content);
 
+    name = get_API_command_arg_name(command_type, command, &ret);
+    if (ret != 0) {
+        fprintf(stderr, "Error in command structure.\n");
+        free(command);
+        return 1;
+    }
+
+    id = get_API_command_arg_id(command_type, command, &ret);
+    if (ret != 0) {
+        fprintf(stderr, "Error in command structure.\n");
+        free(command);
+        return 1;
+    }
+
+    content = get_API_command_arg_content(command_type, command, &ret);
+    if (ret != 0) {
+        fprintf(stderr, "Error in command structure.\n");
+        free(command);
+        return 1;
+    }
+
+    printf("<name>: %s\n", name);
+    printf("<id>: %s\n", id);
+    printf("<content>: %s\n", content);
 
     free(command);
 
@@ -178,79 +201,260 @@ int determine_API_command(char *command) {
 
 /**
  *
- * @param type type of API command
- * @param command full API command
- * @param name
- * @param id
- * @param content
- * @return 0 - success, 1 - failure
+ * @param type
+ * @param command
+ * @param err
+ * @return
  */
-int get_API_command_args(int type, char *command, char *name, char *id, char *content) {
+char *get_API_command_arg_name(int type, char *command, int *err) {
+    *err = 0;
     if (type == 0) {
-        return 0;
+        // boards
+        return NULL;
     }
     else if (type == 1) {
-        char *tmp_name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("board add ")));
-        if (tmp_name == NULL) {
+        // board add <name>
+        char *name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("board add ")));
+        if (name == NULL) {
             fprintf(stderr, "Error while allocating space for name.\n");
-            return -1;
+            *err = 1;
+            return NULL;
         }
-        strcpy(tmp_name, command + strlen("board add "));
+        strcpy(name, command + strlen("board add "));
 
         // Count number of space to make sure name is valid
-        printf("Name: %s\n", tmp_name);
-        int spaces = count_space(tmp_name);
+        int spaces = count_space(name);
 
         if (spaces > 0) {
             fprintf(stderr, "Error! Name should not contain spaces.\n");
-            return 1;
+            *err = 1;
+            free(name);
+            return NULL;
         }
         else {
-            return 0;
+            return name;
         }
     }
     else if (type == 2) {
-        char *tmp_name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("board delete ")));
-        if (tmp_name == NULL) {
+        // board delete <name>
+        char *name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("board delete ")));
+        if (name == NULL) {
             fprintf(stderr, "Error while allocating space for name.\n");
-            return -1;
+            *err = 1;
+            return NULL;
         }
-        strcpy(tmp_name, command + strlen("board delete "));
+        strcpy(name, command + strlen("board delete "));
 
         // Count number of space to make sure name is valid
-        printf("Name: %s\n", tmp_name);
-        int spaces = count_space(tmp_name);
+        int spaces = count_space(name);
 
         if (spaces > 0) {
             fprintf(stderr, "Error! Name should not contain spaces.\n");
-            return 1;
+            *err = 1;
+            free(name);
+            return NULL;
         }
         else {
-            return 0;
+            return name;
         }
     }
     else if (type == 3) {
-        char *tmp_name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("boards list ")));
-        if (tmp_name == NULL) {
+        // boards list <name>
+        char *name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("boards list ")));
+        if (name == NULL) {
             fprintf(stderr, "Error while allocating space for name.\n");
-            return -1;
+            *err = 1;
+            return NULL;
         }
-        strcpy(tmp_name, command + strlen("boards list "));
+        strcpy(name, command + strlen("boards list "));
 
         // Count number of space to make sure name is valid
-        printf("Name: %s\n", tmp_name);
-        int spaces = count_space(tmp_name);
+        int spaces = count_space(name);
 
         if (spaces > 0) {
             fprintf(stderr, "Error! Name should not contain spaces.\n");
-            return 1;
+            *err = 1;
+            free(name);
+            return NULL;
         }
         else {
-            return 0;
+            return name;
         }
     }
+    else if (type == 4) {
+        // item add <name> <content>
+        // determine length of name (find index of first space after "item add "
+        int name_length = get_index(command + strlen("item add "), ' ');
+        if (name_length == -1) {
+            fprintf(stderr, "Error! No content after <name>\n");
+            *err = 1;
+            return NULL;
+        }
 
-    return 0;
+        char *name = (char *) malloc(sizeof(char) * name_length);
+        if (name == NULL) {
+            fprintf(stderr, "Error while allocating space for name.\n");
+            *err = 1;
+            return NULL;
+        }
+        strncpy(name, command + strlen("item add "), name_length);
+
+        return name;
+    }
+    else if (type == 5) {
+        // item delete <name> <id>
+        // determine length of name (find index of first space after "item delete "
+        int name_length = get_index(command + strlen("item delete "), ' ');
+        if (name_length == -1) {
+            fprintf(stderr, "Error! No content after <name>\n");
+            *err = 1;
+            return NULL;
+        }
+
+        char *name = (char *) malloc(sizeof(char) * name_length);
+        if (name == NULL) {
+            fprintf(stderr, "Error while allocating space for name.\n");
+            *err = 1;
+            return NULL;
+        }
+        strncpy(name, command + strlen("item delete "), name_length);
+
+        return name;
+    }
+    else if (type == 6) {
+        // item update <name> <id>
+        // determine length of name (find index of first space after "item update "
+        int name_length = get_index(command + strlen("item update "), ' ');
+        if (name_length == -1) {
+            fprintf(stderr, "Error! No content after <name>\n");
+            *err = 1;
+            return NULL;
+        }
+
+        char *name = (char *) malloc(sizeof(char) * name_length);
+        if (name == NULL) {
+            fprintf(stderr, "Error while allocating space for name.\n");
+            *err = 1;
+            return NULL;
+        }
+        strncpy(name, command + strlen("item update "), name_length);
+
+        return name;
+    }
+
+    return NULL;
+}
+
+/**
+ *
+ * @param type
+ * @param command
+ * @param err
+ * @return
+ */
+char *get_API_command_arg_id(int type, char *command, int *err) {
+    *err = 0;
+    if (type != 5 && type != 6) {
+        // all except "item delete <name> <id>" and "item update <name> <id> <content>"
+        return NULL;
+    }
+    else if (type == 5) {
+        // item delete <name> <id>
+
+        int name_length = get_index(command + strlen("item delete "), ' ');
+        char *id = (char *) malloc(sizeof(char) * (strlen(command) - strlen("item delete ") - name_length - 1));
+        if (id == NULL) {
+            fprintf(stderr, "Error while allocating space of id.\n");
+            *err = 1;
+            return NULL;
+        }
+
+        strcpy(id, command + strlen("item delete ") + name_length + 1);
+
+        // Count spaces in id (should be 0) and check if it represents an integer
+        if (count_space(id) > 0 || !is_integer(id)) {
+            fprintf(stderr, "Error in command structure.\n");
+            *err = 1;
+            free(id);
+            return NULL;
+        }
+
+        return id;
+    }
+    else if (type == 6) {
+        // item update <name> <id> <content>
+
+        int name_length = get_index(command + strlen("item update "), ' ');
+        int id_length = get_index(command + strlen("item update ") + name_length + 1, ' ');
+        char *id = (char *) malloc(sizeof(char) * id_length);
+        if (id == NULL) {
+            fprintf(stderr, "Error while allocating space of id.\n");
+            *err = 1;
+            return NULL;
+        }
+
+        strncpy(id, command + strlen("item update ") + name_length + 1, id_length);
+
+        // Check if it represents an integer
+        if (!is_integer(id)) {
+            fprintf(stderr, "Error in command structure.\n");
+            *err = 1;
+            free(id);
+            return NULL;
+        }
+
+        return id;
+    }
+
+    return NULL;
+}
+
+/**
+ *
+ * @param type
+ * @param command
+ * @param err
+ * @return
+ */
+char *get_API_command_arg_content(int type, char *command, int *err) {
+    *err = 0;
+    if (type != 4 && type != 6) {
+        // all except "item add <name> <content>" and "item update <name> <id> <content>"
+        return NULL;
+    }
+    else if (type == 4) {
+        // item add <name> <content>
+
+        int name_length = get_index(command + strlen("item add "), ' ');
+        char *content = (char *) malloc(sizeof(char) * (strlen(command) - strlen("item add ") - name_length - 1));
+        if (content == NULL) {
+            fprintf(stderr, "Error while allocating space of content.\n");
+            *err = 1;
+            return NULL;
+        }
+
+        strcpy(content, command + strlen("item add ") + name_length + 1);
+
+        return content;
+    }
+    else if (type == 6) {
+        // item update <name> <id> <content>
+
+        int name_length = get_index(command + strlen("item update "), ' ');
+        int id_length = get_index(command + strlen("item update ") + name_length + 1, ' ');
+        char *content = (char *) malloc(sizeof(char) * (strlen(command) - strlen("item update ") - 1 - name_length - 1 - id_length - 1));
+        if (content == NULL) {
+            fprintf(stderr, "Error while allocating space of content.\n");
+            *err = 1;
+            return NULL;
+        }
+
+        strcpy(content, command + strlen("item update ") + name_length + 1 + id_length + 1);
+
+        return content;
+    }
+
+    return NULL;
 }
 
 /**
@@ -264,4 +468,17 @@ int count_space(char *str) {
         if (str[i] == ' ') count++;
 
     return count;
+}
+
+/**
+ *
+ * @param str
+ * @param c
+ * @return
+ */
+int get_index(char *str, char c) {
+    char *tmp = str;
+    int index = 0;
+    while (*tmp++ != c && index < strlen(str)) index++;
+    return (index == strlen(str) ? -1 : index);
 }

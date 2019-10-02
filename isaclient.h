@@ -13,7 +13,10 @@ int parse_arguments(int n, char **args, int *port);
 bool is_integer(char *str);
 char *get_command(int n, char **args);
 int determine_API_command(char *command);
-int get_API_command_args(int type, char *command, char *name, char *id, char *content);
+char *get_API_command_arg_name(int type, char *command, int *err);
+char *get_API_command_arg_id(int type, char *command, int *err);
+char *get_API_command_arg_content(int type, char *command, int *err);
 int count_space(char *str);
+int get_index(char *str, char c);
 
 #endif

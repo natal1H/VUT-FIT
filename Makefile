@@ -1,5 +1,7 @@
 all: isaserver isaclient
 
+.PHONY: isaserver isaclient clean
+
 isaserver:
 	gcc -Wall -Werror isaserver.c -o isaserver
 
