@@ -1,12 +1,14 @@
+FLAGS = -Werror -Wall -pedantic
+
 all: isaserver isaclient
 
 .PHONY: isaserver isaclient clean
 
 isaserver:
-	gcc -Wall -Werror isaserver.c -o isaserver
+	gcc $(FLAGS) isaserver.c -o isaserver
 
 isaclient:
-	gcc -Wall -Werror isaclient.c -o isaclient
+	gcc $(FLAGS) isaclient.c -o isaclient
 
 clean:
 	rm -f isaserver isaclient

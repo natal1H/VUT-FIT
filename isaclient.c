@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
     Address_t destination = {.host = host, .port = port};
     Command_t api_call = {.type = command_type, .name = name, .id = id, .content = content};
 
-    send_http_request(&destination, &api_call);
+    send_and_get_http_response(&destination, &api_call);
 
     cleanup(&api_call);
     return 0;
@@ -179,7 +179,7 @@ int determine_API_command(char *command) {
         printf("DELETE /board/<name>\n");
         return BOARD_DELETE;
     }
-    else if (strlen(command) > strlen("boards list") && strncmp("boards list", command, strlen("boards list")) == 0) {
+    else if (strlen(command) > strlen("board list") && strncmp("boards list", command, strlen("board list")) == 0) {
         // boards list <name> - GET /board/<name>
         printf("GET /board/<name>\n");
         return BOARDS_LIST;
@@ -266,13 +266,13 @@ char *get_API_command_arg_name(int type, char *command, int *err) {
     }
     else if (type == BOARDS_LIST) {
         // boards list <name>
-        char *name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("boards list ")));
+        char *name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("board list ")));
         if (name == NULL) {
             fprintf(stderr, "Error while allocating space for name.\n");
             *err = 1;
             return NULL;
         }
-        strcpy(name, command + strlen("boards list "));
+        strcpy(name, command + strlen("board list "));
 
         // Count number of space to make sure name is valid
         int spaces = count_space(name);
@@ -505,8 +505,162 @@ void cleanup(Command_t *command) {
  * @param command
  * @return
  */
-int send_http_request(Address_t *destination, Command_t *command) {
+int send_and_get_http_response(Address_t *destination, Command_t *command) {
     printf("Preparing to send HTTP request.\n");
 
+    // Prepare request line
+    char *request_line = get_request_line(command);
+    printf("Request line: %s\n", request_line);
+    if (request_line == NULL) {
+        fprintf(stderr, "Error while trying to construct request line.\n");
+        return 1;
+    }
+
+    char port_str[6];
+    sprintf(port_str, "%d", destination->port);
+
+    int clientfd = establish_connection(get_host_info(destination->host, port_str));
+    if (clientfd == -1) {
+        fprintf(stderr, "Error, failed to connect to host.\n");
+        return 1;
+    }
+
+    char buf[BUF_SIZE];
+
+    send(clientfd, request_line, strlen(request_line), 0);
+    printf("Done sending, waiting for response...\n");
+
+    while (recv(clientfd, buf, BUF_SIZE, 0) > 0) {
+        fputs(buf, stdout);
+        memset(buf, 0, BUF_SIZE);
+    }
+
+    close(clientfd);
     return 0;
+}
+
+/**
+ *
+ * @param command
+ * @return
+ */
+char *get_request_line(Command_t *command) {
+    char *request_line = NULL;
+    switch (command->type) {
+        case BOARDS:
+            // Request line: GET /boards HTTP/1.1
+            request_line = (char *) malloc(sizeof(char) * strlen("GET /boards HTTP/1.1\r\n"));
+            if (request_line == NULL) {
+                return NULL;
+            }
+            strcpy(request_line, "GET /boards HTTP/1.1\r\n");
+            break;
+        case BOARD_ADD:
+            // Request line: POST /boards/<name> HTTP/1.1
+            request_line = (char *) malloc(sizeof(char) * (strlen("POST /boards/") + strlen(command->name) + strlen(" HTTP/1.1\r\n")));
+            if (request_line == NULL) {
+                return NULL;
+            }
+            strcpy(request_line, "POST /boards/");
+            strcat(request_line, command->name);
+            strcat(request_line, " HTTP/1.1\r\n");
+            break;
+        case BOARD_DELETE:
+            // Request line: DELETE /boards/<name> HTTP/1.1
+            request_line = (char *) malloc(sizeof(char) * (strlen("DELETE /boards/") + strlen(command->name) + strlen(" HTTP/1.1\r\n")));
+            if (request_line == NULL) {
+                return NULL;
+            }
+            strcpy(request_line, "DELETE /boards/");
+            strcat(request_line, command->name);
+            strcat(request_line, " HTTP/1.1\r\n");
+            break;
+        case BOARDS_LIST:
+            // Request line: GET /board/<name> HTTP/1.1
+            request_line = (char *) malloc(sizeof(char) * (strlen("GET /board/") + strlen(command->name) + strlen(" HTTP/1.1\r\n")));
+            if (request_line == NULL) {
+                return NULL;
+            }
+            strcpy(request_line, "GET /board/");
+            strcat(request_line, command->name);
+            strcat(request_line, " HTTP/1.1\r\n");
+            break;
+        case ITEM_ADD:
+            // Request line: POST /board/<name> HTTP/1.1
+            request_line = (char *) malloc(sizeof(char) * (strlen("POST /board/") + strlen(command->name) + strlen(" HTTP/1.1\r\n")));
+            if (request_line == NULL) {
+                return NULL;
+            }
+            strcpy(request_line, "POST /board/");
+            strcat(request_line, command->name);
+            strcat(request_line, " HTTP/1.1\r\n");
+            break;
+        case ITEM_DELETE:
+            // Request line: PUT /board/<name>/<id> HTTP/1.1
+            request_line = (char *) malloc(sizeof(char) * (strlen("PUT /board/") + strlen(command->name) + 1 + strlen(command->id) + strlen(" HTTP/1.1\r\n")));
+            if (request_line == NULL) {
+                return NULL;
+            }
+            strcpy(request_line, "PUT /board/");
+            strcat(request_line, command->name);
+            strcat(request_line, "/");
+            strcat(request_line, command->id);
+            strcat(request_line, " HTTP/1.1\r\n");
+            break;
+        case ITEM_UPDATE:
+            // Request line: DELETE /board/<name>/<id> HTTP/1.1
+            request_line = (char *) malloc(sizeof(char) * (strlen("DELETE /board/") + strlen(command->name) + 1 + strlen(command->id) + strlen(" HTTP/1.1\r\n")));
+            if (request_line == NULL) {
+                return NULL;
+            }
+            strcpy(request_line, "DELETE /board/");
+            strcat(request_line, command->name);
+            strcat(request_line, "/");
+            strcat(request_line, command->id);
+            strcat(request_line, " HTTP/1.1\r\n");
+            break;
+        case UNKNOWN:
+            return NULL;
+    }
+
+    return request_line;
+}
+
+struct addrinfo *get_host_info(char *host, char *port) {
+    int r;
+    struct addrinfo hints, *getaddrinfo_res;
+
+    // Setup hints
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    if ((r = getaddrinfo(host, port, &hints, &getaddrinfo_res))) {
+        fprintf(stderr, "Error getting host info\n");
+        return NULL;
+    }
+
+    return getaddrinfo_res;
+}
+
+int establish_connection(struct addrinfo *info) {
+    if (info == NULL) return -1;
+
+    int clientfd;
+    for (;info != NULL; info = info->ai_next) {
+        if ((clientfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) < 0) {
+            fprintf(stderr, "Error establising connection\n");
+            continue;
+        }
+
+        if (connect(clientfd, info->ai_addr, info->ai_addrlen) < 0) {
+            close(clientfd);
+            fprintf(stderr, "Error connecting.\n");
+            continue;
+        }
+
+        freeaddrinfo(info);
+        return clientfd;
+    }
+
+    return -1;
 }

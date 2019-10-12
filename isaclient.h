@@ -5,9 +5,21 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/socket.h> // socket
+#include <netinet/in.h> // struct sockadrr_in, struct sockadrr
+#include <netinet/ip.h>
+#include <netdb.h> // struct hostent, gethostbyname
+#include <arpa/inet.h>
+#include <ifaddrs.h>
+#include <pcap.h>
+#include <netinet/tcp.h>
+
 
 #define MAX_PORT 65535
 #define MIN_PORT 0
+#define SRC_PORT 12345
+#define BUF_SIZE 1024
 
 typedef enum {
     BOARDS = 0,
@@ -42,6 +54,9 @@ char *get_API_command_arg_content(Command_type type, char *command, int *err);
 int count_space(char *str);
 int get_index(char *str, char c);
 void cleanup(Command_t *command);
-int send_http_request(Address_t *destination, Command_t *command);
+int send_and_get_http_response(Address_t *destination, Command_t *command);
+char *get_request_line(Command_t *command);
+struct addrinfo *get_host_info(char *host, char *port);
+int establish_connection(struct addrinfo *info);
 
 #endif
