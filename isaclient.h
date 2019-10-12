@@ -6,15 +6,10 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/socket.h> // socket
-#include <netinet/in.h> // struct sockadrr_in, struct sockadrr
-#include <netinet/ip.h>
-#include <netdb.h> // struct hostent, gethostbyname
-#include <arpa/inet.h>
-#include <ifaddrs.h>
-#include <pcap.h>
-#include <netinet/tcp.h>
 
+// Network
+#include <sys/socket.h>
+#include <netdb.h>
 
 #define MAX_PORT 65535
 #define MIN_PORT 0

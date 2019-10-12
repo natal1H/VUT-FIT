@@ -13,6 +13,34 @@ int main(int argc, char **argv) {
 
     printf("Port: %d\n", port);
 
+    // Bind a listener
+    int server = bind_listener(get_addr_info(port));
+    if (server < 0) {
+        fprintf(stderr, "Error! Failed to bind to port.\n");
+        return -1;
+    }
+
+    if (listen(server, 10) < 0) {
+        fprintf(stderr, "Error while trying to listen.\n");
+        return -1;
+    }
+
+    // Accept incomming requests
+    int handler;
+    socklen_t size;
+    struct sockaddr_storage client;
+    while (1) {
+        size = sizeof(client);
+        handler = accept(server, (struct sockaddr *)&client, &size);
+        if (handler < 0) {
+            fprintf(stderr, "Error! Failed to accept.\n");
+            continue;
+        }
+        resolve(handler);
+        close(handler);
+    }
+
+    close(server);
     return 0;
 }
 
@@ -70,4 +98,82 @@ bool is_integer(char *str) {
             return false;
 
     return true;
+}
+
+struct addrinfo *get_addr_info(int port) {
+    int r;
+    struct addrinfo hints, *getaddrinfo_res;
+
+    char port_str[6];
+    sprintf(port_str, "%d", port);
+
+    // Setup hints
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_flags = AI_PASSIVE;
+    hints.ai_socktype = SOCK_STREAM;
+    if ((r = getaddrinfo(NULL, port_str, &hints, &getaddrinfo_res))) {
+        fprintf(stderr, "Error getting address.\n");
+        return NULL;
+    }
+
+    return getaddrinfo_res;
+}
+
+int bind_listener(struct addrinfo *info) {
+    if (info == NULL) return -1;
+
+    int serverfd;
+    for (;info != NULL; info = info->ai_next) {
+        if ((serverfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) < 0) {
+            fprintf(stderr, "Error creating socket.\n");
+            continue;
+        }
+
+        int opt = 1;
+        if (setsockopt(serverfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int)) < 0) {
+            fprintf(stderr, "Error setting socket\n");
+            return -1;
+        }
+
+        if (bind(serverfd, info->ai_addr, info->ai_addrlen) < 0) {
+            close(serverfd);
+            fprintf(stderr, "Error binding socket.\n");
+            continue;
+        }
+
+        freeaddrinfo(info);
+        return serverfd;
+    }
+
+    freeaddrinfo(info);
+    return -1;
+}
+
+void resolve(int handler) {
+    //int size;
+    char buf[BUF_SIZE];
+    //char *method;
+    //char *filename;
+
+    recv(handler, buf, BUF_SIZE, 0);
+    //method = strtok(buf, " ");
+
+    header(handler, 200);
+
+
+}
+
+void header(int handler, int status) {
+    char header[BUF_SIZE] = {0};
+    if (status == 200) {
+        sprintf(header, "HTTP/1.1 200 OK\r\n\r\n");
+    }
+    else if (status == 403) {
+        sprintf(header, "HTTP/1.1 403 Forbidden\r\n\r\n");
+    }
+    else if (status == 404) {
+        sprintf(header, "HTTP/1.1 404 Not found\r\n\r\n");
+    }
+    send(handler, header, strlen(header), 0);
 }
