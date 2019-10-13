@@ -153,15 +153,21 @@ int bind_listener(struct addrinfo *info) {
 void resolve(int handler) {
     //int size;
     char buf[BUF_SIZE];
-    //char *method;
-    //char *filename;
+    char command[BUF_SIZE];
+    memset(command,0,BUF_SIZE);
 
     recv(handler, buf, BUF_SIZE, 0);
-    //method = strtok(buf, " ");
+    //printf("Request: %s\n", buf);
+
+    // Get only request header before \r\n
+    int request_header_end = strpos(buf, "\r\n");
+    strncpy(command, buf, request_header_end);
+
+    determine_command(command);
 
     header(handler, 200);
 
-
+    memset(buf,0,BUF_SIZE);
 }
 
 void header(int handler, int status) {
@@ -176,4 +182,70 @@ void header(int handler, int status) {
         sprintf(header, "HTTP/1.1 404 Not found\r\n\r\n");
     }
     send(handler, header, strlen(header), 0);
+}
+
+int get_index(char *str, char c) {
+    char *tmp = str;
+    int index = 0;
+    while (*tmp++ != c && index < strlen(str)) index++;
+    return (index == strlen(str) ? -1 : index);
+}
+
+int strpos(char *hay, char *needle) {
+    char haystack[strlen(hay)];
+    strncpy(haystack, hay, strlen(hay));
+    char *p = strstr(haystack, needle);
+    if (p)
+        return p - haystack;
+    return -1;
+}
+
+Command_type determine_command(char command[BUF_SIZE]) {
+    char *method;
+    printf("COMMAND: %s\n", command);
+
+    char tmp[BUF_SIZE];
+    strcpy(tmp, command);
+
+    method = strtok(tmp, " ");
+    printf("Method: %s\n", method);
+
+    if (strcmp(method, "GET") == 0) {
+        // GET method
+        printf("GET\n");
+        // Could be GET /boards or GET /board/<name>
+        if (strlen(command) == strlen("GET /boards HTTP/1.1") && strcmp(command, "GET /boards HTTP/1.1") == 0){
+            // GET /boards
+            printf("Type: GET /boards\n");
+            return BOARDS;
+        }
+        else {
+            // Could be GET /board/<name> or bad request -> get part after GET
+            printf("Else\n");
+        }
+
+        // Get part after method
+    }
+    else if (strcmp(method, "POST") == 0) {
+        // POST method
+        printf("POST\n");
+        // Could be POST /boards/<name> or POST /board/<name>
+    }
+    else if (strcmp(method, "DELETE") == 0) {
+        // DELETE method
+        printf("DELETE\n");
+        // Could be DELETE /boards/<name> or DELETE /board/<name>/<id>
+    }
+    else if (strcmp(method, "PUT") == 0) {
+        // POST method
+        printf("PUT\n");
+        // Should be only PUT /board/<name>/<id>
+    }
+    else {
+        // Unknown method
+        printf("Unknown\n");
+        return UNKNOWN;
+    }
+
+    return UNKNOWN;
 }
