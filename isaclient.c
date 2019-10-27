@@ -179,10 +179,10 @@ int determine_API_command(char *command) {
         printf("DELETE /board/<name>\n");
         return BOARD_DELETE;
     }
-    else if (strlen(command) > strlen("board list") && strncmp("boards list", command, strlen("board list")) == 0) {
+    else if (strlen(command) > strlen("board list") && strncmp("board list", command, strlen("board list")) == 0) {
         // boards list <name> - GET /board/<name>
         printf("GET /board/<name>\n");
-        return BOARDS_LIST;
+        return BOARD_LIST;
     }
     else if (strlen(command) > strlen("item add") && strncmp("item add", command, strlen("item add")) == 0) {
         // item add <name> <content> - POST /board/<name>
@@ -264,7 +264,7 @@ char *get_API_command_arg_name(int type, char *command, int *err) {
             return name;
         }
     }
-    else if (type == BOARDS_LIST) {
+    else if (type == BOARD_LIST) {
         // boards list <name>
         char *name = (char *) malloc(sizeof(char) * (strlen(command) - strlen("board list ")));
         if (name == NULL) {
@@ -575,7 +575,7 @@ char *get_request_line(Command_t *command) {
             strcat(request_line, command->name);
             strcat(request_line, " HTTP/1.1\r\n\r\n");
             break;
-        case BOARDS_LIST:
+        case BOARD_LIST:
             // Request line: GET /board/<name> HTTP/1.1
             request_line = (char *) malloc(sizeof(char) * (strlen("GET /board/") + strlen(command->name) + strlen(" HTTP/1.1\r\n\r\n")));
             if (request_line == NULL) {
@@ -596,24 +596,24 @@ char *get_request_line(Command_t *command) {
             strcat(request_line, " HTTP/1.1\r\n\r\n");
             break;
         case ITEM_DELETE:
-            // Request line: PUT /board/<name>/<id> HTTP/1.1
-            request_line = (char *) malloc(sizeof(char) * (strlen("PUT /board/") + strlen(command->name) + 1 + strlen(command->id) + strlen(" HTTP/1.1\r\n\r\n")));
+            // Request line: DELETE /board/<name>/<id> HTTP/1.1
+            request_line = (char *) malloc(sizeof(char) * (strlen("DELETE /board/") + strlen(command->name) + 1 + strlen(command->id) + strlen(" HTTP/1.1\r\n\r\n")));
             if (request_line == NULL) {
                 return NULL;
             }
-            strcpy(request_line, "PUT /board/");
+            strcpy(request_line, "DELETE /board/");
             strcat(request_line, command->name);
             strcat(request_line, "/");
             strcat(request_line, command->id);
             strcat(request_line, " HTTP/1.1\r\n\r\n");
             break;
         case ITEM_UPDATE:
-            // Request line: DELETE /board/<name>/<id> HTTP/1.1
-            request_line = (char *) malloc(sizeof(char) * (strlen("DELETE /board/") + strlen(command->name) + 1 + strlen(command->id) + strlen(" HTTP/1.1\r\n")));
+            // Request line: PUT /board/<name>/<id> HTTP/1.1
+            request_line = (char *) malloc(sizeof(char) * (strlen("PUT /board/") + strlen(command->name) + 1 + strlen(command->id) + strlen(" HTTP/1.1\r\n")));
             if (request_line == NULL) {
                 return NULL;
             }
-            strcpy(request_line, "DELETE /board/");
+            strcpy(request_line, "PUT /board/");
             strcat(request_line, command->name);
             strcat(request_line, "/");
             strcat(request_line, command->id);

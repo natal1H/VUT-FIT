@@ -13,6 +13,8 @@ int main(int argc, char **argv) {
 
     printf("Port: %d\n", port);
 
+    boards = init_boards();
+
     // Bind a listener
     int server = bind_listener(get_addr_info(port));
     if (server < 0) {
@@ -163,7 +165,16 @@ void resolve(int handler) {
     int request_header_end = strpos(buf, "\r\n");
     strncpy(command, buf, request_header_end);
 
-    determine_command(command);
+    Command_type type = determine_command(command);
+    int err_name = 0;
+    char *name = get_command_arg_name(type, command, &err_name);
+    printf("Name param: %s\n", name);
+    int err_id = 0;
+    printf("Pred id\n");
+    char *id = get_command_arg_id(type, command, &err_id);
+    printf("Po id\n");
+    printf("Id param: %s\n", id);
+    run_command(type, name, id, NULL);
 
     header(handler, 200);
 
@@ -219,33 +230,243 @@ Command_type determine_command(char command[BUF_SIZE]) {
             printf("Type: GET /boards\n");
             return BOARDS;
         }
-        else {
-            // Could be GET /board/<name> or bad request -> get part after GET
-            printf("Else\n");
-        }
+        else if (strncmp(command, "GET /board/", strlen("GET /board/")) == 0) {
+            // GET /board/<name>
+            printf("Type: GET /board/\n");
 
-        // Get part after method
+            return BOARD_LIST;
+        }
+        else {
+            fprintf(stderr, "Invalid GET request.\n");
+            return UNKNOWN;
+        }
     }
     else if (strcmp(method, "POST") == 0) {
         // POST method
         printf("POST\n");
         // Could be POST /boards/<name> or POST /board/<name>
+        if (strncmp(command, "POST /boards/", strlen("POST /boards/")) == 0) {
+            printf("Type: POST /boards/\n");
+
+            return BOARD_ADD;
+        }
+        else if (strncmp(command, "POST /board/", strlen("POST /board/")) == 0) {
+            printf("Type: POST /board/\n");
+
+            return ITEM_ADD;
+        }
+        else {
+            fprintf(stderr, "Invalid POST request.\n");
+            return UNKNOWN;
+        }
     }
     else if (strcmp(method, "DELETE") == 0) {
         // DELETE method
         printf("DELETE\n");
         // Could be DELETE /boards/<name> or DELETE /board/<name>/<id>
+        if (strncmp(command, "DELETE /boards/", strlen("DELETE /boards/")) == 0) {
+            printf("Type: DELETE /boards/\n");
+
+            return BOARD_DELETE;
+        }
+        else if (strncmp(command, "DELETE /board/", strlen("DELETE /board/")) == 0) {
+            printf("Type: DELETE /board/\n");
+
+            return ITEM_DELETE;
+        }
+        else {
+            fprintf(stderr, "Invalid DELETE request.\n");
+            return UNKNOWN;
+        }
     }
     else if (strcmp(method, "PUT") == 0) {
         // POST method
         printf("PUT\n");
         // Should be only PUT /board/<name>/<id>
+        if (strncmp(command, "PUT /board/", strlen("PUT /board/")) == 0) {
+            printf("Type: PUT /board/\n");
+
+            return ITEM_UPDATE;
+        }
+        else {
+            fprintf(stderr, "Invalid PUT request.\n");
+            return UNKNOWN;
+        }
     }
     else {
         // Unknown method
         printf("Unknown\n");
         return UNKNOWN;
     }
+}
 
-    return UNKNOWN;
+char *get_command_arg_name(Command_type type, char *command, int *err) {
+    *err = 0;
+    if (type == BOARDS) {
+        // GET /boards doesn't have <name> arg
+        return NULL;
+    }
+    else if (type == BOARD_ADD) {
+        int space_index = get_index(&command[strlen("POST /boards/")], ' ');
+        char *name = (char *) malloc(sizeof(char) * (space_index));
+        if (name == NULL) {
+            fprintf(stderr, "Error while trying to allocate space for name.\n");
+            *err = 1;
+        }
+        strncpy(name, &command[strlen("POST /boards/")], space_index);
+
+        return name;
+    }
+    else if (type == BOARD_DELETE) {
+        int space_index = get_index(&command[strlen("DELETE /boards/")], ' ');
+        char *name = (char *) malloc(sizeof(char) * (space_index));
+        if (name == NULL) {
+            fprintf(stderr, "Error while trying to allocate space for name.\n");
+            *err = 1;
+        }
+        strncpy(name, &command[strlen("DELETE /boards/")], space_index);
+
+        return name;
+    }
+    else if (type == BOARD_LIST) {
+        int space_index = get_index(&command[strlen("GET /board/")], ' ');
+        char *name = (char *) malloc(sizeof(char) * (space_index));
+        if (name == NULL) {
+            fprintf(stderr, "Error while trying to allocate space for name.\n");
+            *err = 1;
+        }
+        strncpy(name, &command[strlen("GET /board/")], space_index);
+
+        return name;
+    }
+    else if (type == ITEM_ADD) {
+        int space_index = get_index(&command[strlen("POST /board/")], ' ');
+        char *name = (char *) malloc(sizeof(char) * (space_index));
+        if (name == NULL) {
+            fprintf(stderr, "Error while trying to allocate space for name.\n");
+            *err = 1;
+        }
+        strncpy(name, &command[strlen("POST /board/")], space_index);
+
+        return name;
+    }
+    else if (type == ITEM_DELETE) {
+        int slash_index = get_index(&command[strlen("DELETE /board/")], '/');
+        char *name = (char *) malloc(sizeof(char) * (slash_index));
+        if (name == NULL) {
+            fprintf(stderr, "Error while trying to allocate space for name.\n");
+            *err = 1;
+        }
+        strncpy(name, &command[strlen("DELETE /board/")], slash_index);
+
+        return name;
+    }
+    else if (type == ITEM_UPDATE) {
+        int slash_index = get_index(&command[strlen("PUT /board/")], '/');
+        char *name = (char *) malloc(sizeof(char) * (slash_index));
+        if (name == NULL) {
+            fprintf(stderr, "Error while trying to allocate space for name.\n");
+            *err = 1;
+        }
+        strncpy(name, &command[strlen("PUT /board/")], slash_index);
+
+        return name;
+    }
+    else {
+        return NULL;
+    }
+}
+
+char *get_command_arg_id(Command_type type, char *command, int *err) {
+    *err = 0;
+    printf("V id\n");
+    if (type == ITEM_DELETE) {
+        int slash_index = get_index(&command[strlen("DELETE /board/")], '/');
+        int space_index = get_index(&command[strlen("DELETE /board/") + slash_index], ' ');
+        char *id = (char *) malloc(sizeof(char) * (space_index));
+        if (id == NULL) {
+            fprintf(stderr, "Error while trying to allocate id for name.\n");
+            *err = 1;
+        }
+        strncpy(id, &command[strlen("DELETE /board/") + slash_index + 1], space_index - 1);
+
+        return id;
+    }
+    else if (type == ITEM_UPDATE) {
+        int slash_index = get_index(&command[strlen("PUT /board/")], '/');
+        int space_index = get_index(&command[strlen("PUT /board/") + slash_index], ' ');
+        char *id = (char *) malloc(sizeof(char) * (space_index));
+        if (id == NULL) {
+            fprintf(stderr, "Error while trying to allocate id for name.\n");
+            *err = 1;
+        }
+        strncpy(id, &command[strlen("PUT /board/") + slash_index + 1], space_index - 1);
+
+        return id;
+    }
+    else {
+        return NULL;
+    }
+}
+
+int run_command(Command_type type, char *name, char *id, char *content) {
+    if (type == BOARDS) {
+
+    }
+    else if (type == BOARD_ADD) {
+        Board_t *board = create_board(name);
+        add_board(boards, board);
+        printf("YAY!\n");
+    }
+    else if (type == BOARD_DELETE) {
+
+    }
+    else if (type == BOARD_LIST) {
+
+    }
+    else if (type == ITEM_ADD) {
+
+    }
+    else if (type == ITEM_DELETE) {
+
+    }
+    else if (type == ITEM_UPDATE) {
+
+    }
+
+    return 0;
+}
+
+Boards_t *init_boards() {
+    Boards_t *b = (Boards_t *) malloc(sizeof(Boards_t));
+    b->first = NULL;
+    return b;
+}
+
+int add_board(Boards_t *boards, Board_t *board) {
+    if (boards->first == NULL) {
+        // Set board to be first
+        boards->first = board;
+    }
+    else {
+        // Find last board
+        Board_t *tmp = boards->first;
+        while (tmp->next != NULL) {
+            tmp = tmp->next;
+        }
+        // tmp is the last board
+        tmp->next = board;
+    }
+
+    return 0;
+}
+
+Board_t *create_board(char *name) {
+    Board_t *board = (Board_t *) malloc(sizeof(Board_t));
+    board->name = (char *) malloc(sizeof(char) * strlen(name));
+    strcpy(board->name, name);
+    board->first = NULL;
+    board->next = NULL;
+
+    return board;
 }

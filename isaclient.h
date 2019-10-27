@@ -20,7 +20,7 @@ typedef enum {
     BOARDS = 0,
     BOARD_ADD = 1,
     BOARD_DELETE = 2,
-    BOARDS_LIST = 3,
+    BOARD_LIST = 3,
     ITEM_ADD = 4,
     ITEM_DELETE = 5,
     ITEM_UPDATE = 6,
