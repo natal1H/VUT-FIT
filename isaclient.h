@@ -14,7 +14,8 @@
 #define MAX_PORT 65535
 #define MIN_PORT 0
 #define SRC_PORT 12345
-#define BUF_SIZE 1024
+#define BUF_SIZE 4096
+
 
 typedef enum {
     BOARDS = 0,
@@ -51,6 +52,9 @@ int get_index(char *str, char c);
 void cleanup(Command_t *command);
 int send_and_get_http_response(Address_t *destination, Command_t *command);
 char *get_request_line(Command_t *command);
+char *get_host_header(Address_t *destination);
+char *get_content_header(Command_t *command);
+char *get_message_body(Command_t *command);
 struct addrinfo *get_host_info(char *host, char *port);
 int establish_connection(struct addrinfo *info);
 

@@ -154,6 +154,7 @@ char *get_command(int n, char **args) {
         command[index++] = ' ';
     }
     command[--index] = '\0';
+
     return command;
 }
 
@@ -440,7 +441,6 @@ char *get_API_command_arg_content(int type, char *command, int *err) {
         }
 
         strcpy(content, command + strlen("item add ") + name_length + 1);
-
         return content;
     }
     else if (type == ITEM_UPDATE) {
@@ -456,7 +456,6 @@ char *get_API_command_arg_content(int type, char *command, int *err) {
         }
 
         strcpy(content, command + strlen("item update ") + name_length + 1 + id_length + 1);
-
         return content;
     }
 
@@ -510,24 +509,42 @@ int send_and_get_http_response(Address_t *destination, Command_t *command) {
 
     // Prepare request line
     char *request_line = get_request_line(command);
-    printf("Request line: %s\n", request_line);
     if (request_line == NULL) {
         fprintf(stderr, "Error while trying to construct request line.\n");
         return 1;
     }
 
+    // Prepare headers - host header
+    char *host_header =  get_host_header(destination);
+
+    char *content_header = get_content_header(command);
+
+    char *message_body = get_message_body(command);
+
     char port_str[6];
     sprintf(port_str, "%d", destination->port);
 
+    char *request = (char *) malloc(sizeof(char) * (strlen(request_line) + strlen(host_header) + (content_header == NULL ? 0 : strlen(content_header))
+            + strlen("\r\n") + (message_body == NULL ? 0 : strlen(message_body))));
+    if (request == NULL) {
+        return 1;
+    }
+    strcpy(request, request_line);
+    strcat(request, host_header);
+    if (content_header != NULL)
+        strcat(request, content_header);
+    strcat(request, "\r\n");
+    if (message_body != NULL)
+        strcat(request, message_body);
+
+    printf("Request: %s\n", request);
     int clientfd = establish_connection(get_host_info(destination->host, port_str));
     if (clientfd == -1) {
         fprintf(stderr, "Error, failed to connect to host.\n");
         return 1;
     }
-
     char buf[BUF_SIZE];
-
-    send(clientfd, request_line, strlen(request_line), 0);
+    send(clientfd, request, strlen(request), 0);
     printf("Done sending, waiting for response...\n");
 
     while (recv(clientfd, buf, BUF_SIZE, 0) > 0) {
@@ -549,55 +566,55 @@ char *get_request_line(Command_t *command) {
     switch (command->type) {
         case BOARDS:
             // Request line: GET /boards HTTP/1.1
-            request_line = (char *) malloc(sizeof(char) * strlen("GET /boards HTTP/1.1\r\n\rn"));
+            request_line = (char *) malloc(sizeof(char) * strlen("GET /boards HTTP/1.1\r\n"));
             if (request_line == NULL) {
                 return NULL;
             }
-            strcpy(request_line, "GET /boards HTTP/1.1\r\n\r\n");
+            strcpy(request_line, "GET /boards HTTP/1.1\r\n");
             break;
         case BOARD_ADD:
             // Request line: POST /boards/<name> HTTP/1.1
-            request_line = (char *) malloc(sizeof(char) * (strlen("POST /boards/") + strlen(command->name) + strlen(" HTTP/1.1\r\n\r\n")));
+            request_line = (char *) malloc(sizeof(char) * (strlen("POST /boards/") + strlen(command->name) + strlen(" HTTP/1.1\r\n")));
             if (request_line == NULL) {
                 return NULL;
             }
             strcpy(request_line, "POST /boards/");
             strcat(request_line, command->name);
-            strcat(request_line, " HTTP/1.1\r\n\r\n");
+            strcat(request_line, " HTTP/1.1\r\n");
             break;
         case BOARD_DELETE:
             // Request line: DELETE /boards/<name> HTTP/1.1
-            request_line = (char *) malloc(sizeof(char) * (strlen("DELETE /boards/") + strlen(command->name) + strlen(" HTTP/1.1\r\n\r\n")));
+            request_line = (char *) malloc(sizeof(char) * (strlen("DELETE /boards/") + strlen(command->name) + strlen(" HTTP/1.1\r\n")));
             if (request_line == NULL) {
                 return NULL;
             }
             strcpy(request_line, "DELETE /boards/");
             strcat(request_line, command->name);
-            strcat(request_line, " HTTP/1.1\r\n\r\n");
+            strcat(request_line, " HTTP/1.1\r\n");
             break;
         case BOARD_LIST:
             // Request line: GET /board/<name> HTTP/1.1
-            request_line = (char *) malloc(sizeof(char) * (strlen("GET /board/") + strlen(command->name) + strlen(" HTTP/1.1\r\n\r\n")));
+            request_line = (char *) malloc(sizeof(char) * (strlen("GET /board/") + strlen(command->name) + strlen(" HTTP/1.1\r\n")));
             if (request_line == NULL) {
                 return NULL;
             }
             strcpy(request_line, "GET /board/");
             strcat(request_line, command->name);
-            strcat(request_line, " HTTP/1.1\r\n\r\n");
+            strcat(request_line, " HTTP/1.1\r\n");
             break;
         case ITEM_ADD:
             // Request line: POST /board/<name> HTTP/1.1
-            request_line = (char *) malloc(sizeof(char) * (strlen("POST /board/") + strlen(command->name) + strlen(" HTTP/1.1\r\n\r\n")));
+            request_line = (char *) malloc(sizeof(char) * (strlen("POST /board/") + strlen(command->name) + strlen(" HTTP/1.1\r\n")));
             if (request_line == NULL) {
                 return NULL;
             }
             strcpy(request_line, "POST /board/");
             strcat(request_line, command->name);
-            strcat(request_line, " HTTP/1.1\r\n\r\n");
+            strcat(request_line, " HTTP/1.1\r\n");
             break;
         case ITEM_DELETE:
             // Request line: DELETE /board/<name>/<id> HTTP/1.1
-            request_line = (char *) malloc(sizeof(char) * (strlen("DELETE /board/") + strlen(command->name) + 1 + strlen(command->id) + strlen(" HTTP/1.1\r\n\r\n")));
+            request_line = (char *) malloc(sizeof(char) * (strlen("DELETE /board/") + strlen(command->name) + 1 + strlen(command->id) + strlen(" HTTP/1.1\r\n")));
             if (request_line == NULL) {
                 return NULL;
             }
@@ -605,7 +622,7 @@ char *get_request_line(Command_t *command) {
             strcat(request_line, command->name);
             strcat(request_line, "/");
             strcat(request_line, command->id);
-            strcat(request_line, " HTTP/1.1\r\n\r\n");
+            strcat(request_line, " HTTP/1.1\r\n");
             break;
         case ITEM_UPDATE:
             // Request line: PUT /board/<name>/<id> HTTP/1.1
@@ -617,7 +634,7 @@ char *get_request_line(Command_t *command) {
             strcat(request_line, command->name);
             strcat(request_line, "/");
             strcat(request_line, command->id);
-            strcat(request_line, " HTTP/1.1\r\n\r\n");
+            strcat(request_line, " HTTP/1.1\r\n");
             break;
         case UNKNOWN:
             return NULL;
@@ -625,6 +642,109 @@ char *get_request_line(Command_t *command) {
 
     return request_line;
 }
+
+char *get_host_header(Address_t *destination) {
+    char port_str[6];
+    sprintf(port_str, "%d", destination->port);
+
+    char *host_header = (char *) malloc(sizeof(char) * (strlen("Host: ") + strlen(destination->host) + 1 + strlen(port_str) + strlen("\r\n")));
+    if (host_header == NULL) {
+        return NULL;
+    }
+
+    strcpy(host_header, "Host: ");
+    strcat(host_header, destination->host);
+    strcat(host_header, ":");
+    strcat(host_header, port_str);
+    strcat(host_header, "\r\n");
+
+    return host_header;
+}
+
+char *get_content_header(Command_t *command) {
+    if (command->type != ITEM_ADD && command->type != ITEM_UPDATE) {
+        // No content for these commands
+        return NULL;
+    }
+
+    // Count lenght of content
+    int length = 0;
+    int i = 0;
+    while (i < strlen(command->content)) {
+        if (command->content[i] == '\\') {
+            if (i+1 < strlen(command->content) && command->content[i+1] == 'n') {
+                // New line - skip, do not count
+                i += 2;
+            }
+        }
+        else {
+            length++;
+            i++;
+        }
+    }
+
+    char length_str[5];
+    sprintf(length_str, "%d", length);
+
+    char *content_header = (char *) malloc(sizeof(char) * (strlen("Content-Type: text/plain\r\nContent-Length: ") + strlen(length_str) + strlen("\r\n")));
+    if (content_header == NULL) {
+        return NULL;
+    }
+    strcpy(content_header, "Content-Type: text/plain\r\nContent-Length: ");
+    strcat(content_header, length_str);
+    strcat(content_header, "\r\n");
+
+    return content_header;
+}
+
+char *get_message_body(Command_t *command) {
+    if (command->type != ITEM_ADD && command->type != ITEM_UPDATE) {
+        // No content for these commands
+        return NULL;
+    }
+
+    // Count length of content
+    int length = 0;
+    int new_lines = 0;
+    int i = 0;
+    while (i < strlen(command->content)) {
+        if (command->content[i] == '\\') {
+            if (i+1 < strlen(command->content) && command->content[i+1] == 'n') {
+                // New line - skip, do not count
+                new_lines++;
+                i += 2;
+            }
+        }
+        else {
+            length++;
+            i++;
+        }
+    }
+
+    char *message_body = (char *) malloc(sizeof(char) * (length + new_lines));
+    if (message_body == NULL) {
+        return NULL;
+    }
+
+    i = 0;
+    int index = 0;
+    while (i < strlen(command->content)) {
+        if (command->content[i] == '\\') {
+            if (i+1 < strlen(command->content) && command->content[i+1] == 'n') {
+                // New line - skip, do not count
+                message_body[index++] = '\n';
+                i += 2;
+            }
+        }
+        else {
+            message_body[index++] = command->content[i];
+            i++;
+        }
+    }
+
+    return message_body;
+}
+
 
 struct addrinfo *get_host_info(char *host, char *port) {
     int r;

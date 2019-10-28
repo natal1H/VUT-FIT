@@ -13,7 +13,7 @@
 
 #define MAX_PORT 65535
 #define MIN_PORT 0
-#define BUF_SIZE 1024
+#define BUF_SIZE 4096
 
 typedef struct Item_t Item_t;
 
@@ -62,6 +62,8 @@ int run_command(Command_type type, char *name, char *id, char *content);
 Boards_t *init_boards();
 Board_t *create_board(char *name);
 int add_board(Boards_t *boards, Board_t *board);
-
+int delete_board(Boards_t *boards, char *name);
+void print_boards(Boards_t *boards);
+char *list_board(Boards_t *boards, char *name);
 
 #endif

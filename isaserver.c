@@ -155,24 +155,30 @@ int bind_listener(struct addrinfo *info) {
 void resolve(int handler) {
     //int size;
     char buf[BUF_SIZE];
-    char command[BUF_SIZE];
-    memset(command,0,BUF_SIZE);
+    char head[BUF_SIZE];
+    char body[BUF_SIZE];
+
+    memset(head,0,BUF_SIZE);
 
     recv(handler, buf, BUF_SIZE, 0);
-    //printf("Request: %s\n", buf);
+    printf("Request: %s\n", buf);
 
     // Get only request header before \r\n
     int request_header_end = strpos(buf, "\r\n");
-    strncpy(command, buf, request_header_end);
+    int content_start = strpos(buf, "\r\n\r\n");
+    strncpy(head, buf, request_header_end);
+    int index = 0;
+    for (int i = content_start + 4; i < strlen(buf); i++)
+        body[index++] = buf[i];
+    body[index] = '\0';
+    printf("Obsah: %s\n", body);
 
-    Command_type type = determine_command(command);
+    Command_type type = determine_command(head);
     int err_name = 0;
-    char *name = get_command_arg_name(type, command, &err_name);
+    char *name = get_command_arg_name(type, head, &err_name);
     printf("Name param: %s\n", name);
     int err_id = 0;
-    printf("Pred id\n");
-    char *id = get_command_arg_id(type, command, &err_id);
-    printf("Po id\n");
+    char *id = get_command_arg_id(type, head, &err_id);
     printf("Id param: %s\n", id);
     run_command(type, name, id, NULL);
 
@@ -411,7 +417,7 @@ char *get_command_arg_id(Command_type type, char *command, int *err) {
 
 int run_command(Command_type type, char *name, char *id, char *content) {
     if (type == BOARDS) {
-
+        print_boards(boards);
     }
     else if (type == BOARD_ADD) {
         Board_t *board = create_board(name);
@@ -419,7 +425,7 @@ int run_command(Command_type type, char *name, char *id, char *content) {
         printf("YAY!\n");
     }
     else if (type == BOARD_DELETE) {
-
+        delete_board(boards, name);
     }
     else if (type == BOARD_LIST) {
 
@@ -452,7 +458,15 @@ int add_board(Boards_t *boards, Board_t *board) {
         // Find last board
         Board_t *tmp = boards->first;
         while (tmp->next != NULL) {
+            if (strcmp(tmp->name, board->name) == 0) {
+                fprintf(stderr, "Board with name %s already exists.\n", board->name);
+                return 1;
+            }
             tmp = tmp->next;
+        }
+        if (strcmp(tmp->name, board->name) == 0) {
+            fprintf(stderr, "Board with name %s already exists.\n", board->name);
+            return 1;
         }
         // tmp is the last board
         tmp->next = board;
@@ -469,4 +483,85 @@ Board_t *create_board(char *name) {
     board->next = NULL;
 
     return board;
+}
+
+void print_boards(Boards_t *boards) {
+    if (boards->first == NULL)
+        return ;
+
+    Board_t *tmp = boards->first;
+    while (tmp != NULL) {
+        printf("%s\n", tmp->name);
+
+        tmp = tmp->next;
+    }
+}
+
+int delete_board(Boards_t *boards, char *name) {
+    if (boards->first == NULL) {
+        fprintf(stderr, "No boards\n");
+        return 1;
+    }
+
+    Board_t *tmp = boards->first;
+    Board_t *prev;
+    bool found = false;
+    while (tmp != NULL) {
+        if (strcmp(tmp->name, name) == 0) {
+            found = true;
+            break;
+        }
+        prev = tmp;
+        tmp = tmp->next;
+    }
+
+    if (!found) {
+        fprintf(stderr, "No board with name %s\n", name);
+        return 2;
+    }
+
+    if (tmp == boards->first) {
+        boards->first = tmp->next;
+    }
+    else {
+        prev->next = tmp->next;
+    }
+    // Free the board
+    free(tmp->name);
+    free(tmp);
+
+    return 0;
+}
+
+char *list_board(Boards_t *boards, char *name) {
+    if (boards->first == NULL) {
+        return NULL;
+    }
+
+    Board_t *tmp;
+    bool found = false;
+    while (tmp != NULL) {
+        if (strcmp(tmp->name, name) == 0) {
+            found = true;
+            break;
+        }
+        tmp = tmp->next;
+    }
+
+    if (!found) {
+        fprintf(stderr, "No board with name %s\n", name);
+        return NULL;
+    }
+
+    int length = 0;
+    int items = 0;
+    Item_t *tmp_item = tmp->first;
+    while (tmp_item != NULL) {
+        length += strlen(tmp_item->content);
+        items += 1;
+
+        tmp_item = tmp_item->next;
+    }
+
+    return NULL;
 }
