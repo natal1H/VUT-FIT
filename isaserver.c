@@ -40,6 +40,7 @@ int main(int argc, char **argv) {
         }
         resolve(handler);
         close(handler);
+        printf("==============================\n");
     }
 
     close(server);
@@ -180,7 +181,7 @@ void resolve(int handler) {
     int err_id = 0;
     char *id = get_command_arg_id(type, head, &err_id);
     printf("Id param: %s\n", id);
-    run_command(type, name, id, NULL);
+    run_command(type, name, id, body);
 
     header(handler, 200);
 
@@ -385,7 +386,6 @@ char *get_command_arg_name(Command_type type, char *command, int *err) {
 
 char *get_command_arg_id(Command_type type, char *command, int *err) {
     *err = 0;
-    printf("V id\n");
     if (type == ITEM_DELETE) {
         int slash_index = get_index(&command[strlen("DELETE /board/")], '/');
         int space_index = get_index(&command[strlen("DELETE /board/") + slash_index], ' ');
@@ -416,6 +416,9 @@ char *get_command_arg_id(Command_type type, char *command, int *err) {
 }
 
 int run_command(Command_type type, char *name, char *id, char *content) {
+
+    printf("run command content: %s\n", content);
+
     if (type == BOARDS) {
         print_boards(boards);
     }
@@ -428,16 +431,20 @@ int run_command(Command_type type, char *name, char *id, char *content) {
         delete_board(boards, name);
     }
     else if (type == BOARD_LIST) {
-
+        char *items = list_board(boards, name);
+        printf("ITEMS:\n%s\n", items);
     }
     else if (type == ITEM_ADD) {
-
+        item_add(boards, name, content);
+        printf("Item added.\n");
     }
     else if (type == ITEM_DELETE) {
-
+        item_delete(boards, name, id);
+        printf("Item deleted.\n");
     }
     else if (type == ITEM_UPDATE) {
-
+        item_update(boards, name, id, content);
+        printf("Item updated\n");
     }
 
     return 0;
@@ -520,7 +527,10 @@ int delete_board(Boards_t *boards, char *name) {
         return 2;
     }
 
-    if (tmp == boards->first) {
+    if (tmp == boards->first && tmp->next == NULL) {
+        boards->first = NULL;
+    }
+    else if (tmp == boards->first) {
         boards->first = tmp->next;
     }
     else {
@@ -538,9 +548,10 @@ char *list_board(Boards_t *boards, char *name) {
         return NULL;
     }
 
-    Board_t *tmp;
+    Board_t *tmp = boards->first;
     bool found = false;
     while (tmp != NULL) {
+        printf("BOARD NAME... %s\n", tmp->name);
         if (strcmp(tmp->name, name) == 0) {
             found = true;
             break;
@@ -553,15 +564,206 @@ char *list_board(Boards_t *boards, char *name) {
         return NULL;
     }
 
-    int length = 0;
-    int items = 0;
+    char *items = (char *) malloc(sizeof(char) * BUF_SIZE); // TODO temp
+
+    int items_num = 0;
+    char id[MAX_ITEMS];
     Item_t *tmp_item = tmp->first;
+    printf("===========\n");
     while (tmp_item != NULL) {
-        length += strlen(tmp_item->content);
-        items += 1;
+        printf("%s\n", tmp_item->content);
+        sprintf(id, "%d. ", ++items_num);
+        strcat(items, id);
+        strcat(items, tmp_item->content);
+        strcat(items, "\n");
 
         tmp_item = tmp_item->next;
     }
+    printf("===========\n");
 
-    return NULL;
+    return items;
+}
+
+int item_add(Boards_t *boards, char *name, char *content) {
+    if (boards->first == NULL) {
+        return -1;
+    }
+
+    printf("-- p 1\n");
+
+    Board_t *tmp = boards->first;
+    bool found = false;
+    while (tmp != NULL) {
+        if (strcmp(tmp->name, name) == 0) {
+            found = true;
+            break;
+        }
+        tmp = tmp->next;
+    }
+
+    printf("-- p 2\n");
+
+    if (!found) {
+        fprintf(stderr, "No board with name %s\n", name);
+        return -1;
+    }
+
+    if (tmp->first == NULL) {
+        //printf("-- p 3a\n");
+        // Empty board
+        tmp->first = (Item_t *) malloc(sizeof(Item_t));
+        //printf("...%s\n", tmp->first == NULL ? "NULL" : "NOT NULL");
+        //printf("-- p 3ab, %s\n", content);
+        tmp->first->content = (char *) malloc(sizeof(char) * strlen(content));
+        //printf("-- p 3ac\n");
+        strcpy(tmp->first->content, content);
+        //printf("-- p 4a\n");
+    }
+    else {
+        //printf("-- p 3b\n");
+        // Board not empty
+        Item_t *tmp_item = tmp->first;
+        while (tmp_item->next != NULL) {
+            tmp_item = tmp_item->next;
+        }
+        //printf("Last item. %s\n", tmp)
+
+        Item_t *new_item = (Item_t *) malloc(sizeof(Item_t));
+        new_item->content = (char *) malloc(sizeof(char) * strlen(content));
+        strcpy(new_item->content, content);
+        tmp_item->next = new_item;
+        new_item->next = NULL;
+        //printf("-- p 4b\n");
+    }
+
+    return 0;
+}
+
+int item_delete(Boards_t *boards, char *name, char *id) {
+    int id_num = atoi(id);
+
+    if (boards->first == NULL) {
+        fprintf(stderr, "No boards\n");
+        return 1;
+    }
+
+    Board_t *tmp = boards->first;
+    bool found = false;
+    while (tmp != NULL) {
+        if (strcmp(tmp->name, name) == 0) {
+            found = true;
+            break;
+        }
+        tmp = tmp->next;
+    }
+
+    if (!found) {
+        fprintf(stderr, "No board with name %s\n", name);
+        return 2;
+    }
+
+    if (tmp->first == NULL) {
+        // Empty board
+        fprintf(stderr, "Empty board\n");
+        return 2;
+    }
+
+    if (id_num == 1) {
+        // Delete first
+        Item_t *del = tmp->first;
+        tmp->first = del->next;
+
+        free(del->content);
+        free(del);
+    }
+    else {
+        bool found_item = false;
+        int items_num = 0;
+        Item_t *tmp_item = tmp->first;
+        Item_t *prev;
+
+        while (tmp_item != NULL) {
+            items_num++;
+
+            if (items_num == id_num) {
+                // This one will be deleted
+                found_item = true;
+                prev->next = tmp_item->next;
+                free(tmp_item->content);
+                free(tmp_item);
+                break;
+            }
+
+            prev = tmp_item;
+            tmp_item = tmp_item->next;
+        }
+
+        if (!found_item) {
+            // Not valid id
+            return 3;
+        }
+    }
+    return 0;
+}
+
+int item_update(Boards_t *boards, char *name, char *id, char *content) {
+    int id_num = atoi(id);
+
+    if (boards->first == NULL) {
+        fprintf(stderr, "No boards\n");
+        return 1;
+    }
+
+    Board_t *tmp = boards->first;
+    bool found = false;
+    while (tmp != NULL) {
+        if (strcmp(tmp->name, name) == 0) {
+            found = true;
+            break;
+        }
+        tmp = tmp->next;
+    }
+
+    if (!found) {
+        fprintf(stderr, "No board with name %s\n", name);
+        return 2;
+    }
+
+    if (tmp->first == NULL) {
+        // Empty board
+        fprintf(stderr, "Empty board\n");
+        return 2;
+    }
+
+    if (id_num == 1) {
+        // Update first
+        free(tmp->first->content);
+        tmp->first->content = (char *) malloc(sizeof(char) * strlen(content));
+        strcpy(tmp->first->content, content);
+    }
+    else {
+        bool found_item = false;
+        int items_num = 0;
+        Item_t *tmp_item = tmp->first;
+
+        while (tmp_item != NULL) {
+            items_num++;
+
+            if (items_num == id_num) {
+                // This one will be updated
+                free(tmp_item->content);
+                tmp_item->content = (char *) malloc(sizeof(char) * strlen(content));
+                strcpy(tmp_item->content, content);
+                break;
+            }
+
+            tmp_item = tmp_item->next;
+        }
+
+        if (!found_item) {
+            // Not valid id
+            return 3;
+        }
+    }
+    return 0;
 }
