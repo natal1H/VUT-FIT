@@ -57,5 +57,6 @@ char *get_content_header(Command_t *command);
 char *get_message_body(Command_t *command);
 struct addrinfo *get_host_info(char *host, char *port);
 int establish_connection(struct addrinfo *info);
+int strpos(char *hay, char *needle);
 
 #endif

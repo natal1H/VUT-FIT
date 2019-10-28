@@ -547,10 +547,19 @@ int send_and_get_http_response(Address_t *destination, Command_t *command) {
     send(clientfd, request, strlen(request), 0);
     printf("Done sending, waiting for response...\n");
 
+    char response[BUF_SIZE];
     while (recv(clientfd, buf, BUF_SIZE, 0) > 0) {
-        fputs(buf, stdout);
+        //fputs(buf, stdout);
+        strcat(response, buf);
         memset(buf, 0, BUF_SIZE);
     }
+
+    printf("RESPONSE:\n%s", response);
+
+    int response_content_start = strpos(response, "\r\n\r\n");
+    char response_content[BUF_SIZE];
+    strcpy(response_content, response + response_content_start + 4);
+    printf("==============\n%s", response_content);
 
     close(clientfd);
     return 0;
@@ -745,7 +754,6 @@ char *get_message_body(Command_t *command) {
     return message_body;
 }
 
-
 struct addrinfo *get_host_info(char *host, char *port) {
     int r;
     struct addrinfo hints, *getaddrinfo_res;
@@ -782,5 +790,14 @@ int establish_connection(struct addrinfo *info) {
         return clientfd;
     }
 
+    return -1;
+}
+
+int strpos(char *hay, char *needle) {
+    char haystack[strlen(hay)];
+    strncpy(haystack, hay, strlen(hay));
+    char *p = strstr(haystack, needle);
+    if (p)
+        return p - haystack;
     return -1;
 }

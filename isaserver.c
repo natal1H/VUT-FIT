@@ -172,7 +172,7 @@ void resolve(int handler) {
     for (int i = content_start + 4; i < strlen(buf); i++)
         body[index++] = buf[i];
     body[index] = '\0';
-    printf("Obsah: %s\n", body);
+    printf("Content: %s\n", body);
 
     Command_type type = determine_command(head);
     int err_name = 0;
@@ -181,24 +181,42 @@ void resolve(int handler) {
     int err_id = 0;
     char *id = get_command_arg_id(type, head, &err_id);
     printf("Id param: %s\n", id);
-    run_command(type, name, id, body);
+    int run_err = 0;
+    char *content_to_send = run_command(type, name, id, body, &run_err);
 
-    header(handler, 200);
+    header(handler, 200, content_to_send);
 
     memset(buf,0,BUF_SIZE);
 }
 
-void header(int handler, int status) {
+void header(int handler, int status, char *content) {
     char header[BUF_SIZE] = {0};
     if (status == 200) {
-        sprintf(header, "HTTP/1.1 200 OK\r\n\r\n");
+        sprintf(header, "HTTP/1.1 200 OK\r\n");
+    }
+    if (status == 201) {
+        sprintf(header, "HTTP/1.1 201 OK\r\n");
     }
     else if (status == 403) {
-        sprintf(header, "HTTP/1.1 403 Forbidden\r\n\r\n");
+        sprintf(header, "HTTP/1.1 403 Forbidden\r\n");
     }
     else if (status == 404) {
-        sprintf(header, "HTTP/1.1 404 Not found\r\n\r\n");
+        sprintf(header, "HTTP/1.1 404 Not found\r\n");
     }
+
+    if (content != NULL) {
+        int content_len = strlen(content);
+        char len_str[5];
+        sprintf(len_str, "%d", content_len);
+        strcat(header, "Content-Type: text/plain\r\nContent-Length: ");
+        strcat(header, len_str);
+        strcat(header, "\r\n\r\n");
+        strcat(header, content);
+    }
+    else {
+        strcat(header, "\r\n");
+    }
+
     send(handler, header, strlen(header), 0);
 }
 
@@ -415,12 +433,12 @@ char *get_command_arg_id(Command_type type, char *command, int *err) {
     }
 }
 
-int run_command(Command_type type, char *name, char *id, char *content) {
+char *run_command(Command_type type, char *name, char *id, char *content, int *err) {
 
-    printf("run command content: %s\n", content);
+    char *content_to_send = NULL;
 
     if (type == BOARDS) {
-        print_boards(boards);
+        content_to_send = list_boards(boards);
     }
     else if (type == BOARD_ADD) {
         Board_t *board = create_board(name);
@@ -431,8 +449,8 @@ int run_command(Command_type type, char *name, char *id, char *content) {
         delete_board(boards, name);
     }
     else if (type == BOARD_LIST) {
-        char *items = list_board(boards, name);
-        printf("ITEMS:\n%s\n", items);
+        content_to_send = list_board(boards, name);
+        printf("ITEMS:\n%s\n", content_to_send);
     }
     else if (type == ITEM_ADD) {
         item_add(boards, name, content);
@@ -447,7 +465,7 @@ int run_command(Command_type type, char *name, char *id, char *content) {
         printf("Item updated\n");
     }
 
-    return 0;
+    return content_to_send;
 }
 
 Boards_t *init_boards() {
@@ -492,16 +510,22 @@ Board_t *create_board(char *name) {
     return board;
 }
 
-void print_boards(Boards_t *boards) {
+char *list_boards(Boards_t *boards) {
     if (boards->first == NULL)
-        return ;
+        return NULL;
+
+    char *content_to_send = (char *) malloc(sizeof(char) * BUF_SIZE); // TODO temp
 
     Board_t *tmp = boards->first;
     while (tmp != NULL) {
         printf("%s\n", tmp->name);
+        strcat(content_to_send, tmp->name);
+        strcat(content_to_send, "\n");
 
         tmp = tmp->next;
     }
+
+    return content_to_send;
 }
 
 int delete_board(Boards_t *boards, char *name) {
