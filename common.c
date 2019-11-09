@@ -52,3 +52,20 @@ int strpos(char *hay, char *needle) {
         return p - haystack;
     return -1;
 }
+
+/**
+ * Function to check if argument <name> is valid, meaning it only contains 0-9, a-z or A-Z
+ *
+ * @param name String containing board name
+ * @return True if name is valid, false otherwise
+ */
+bool check_name_validity(char *name) {
+    char c;
+    for (int i = 0; i < strlen(name); i++) {
+        c = name[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) {
+            return false;
+        }
+    }
+    return true; // Name is valid
+}

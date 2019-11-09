@@ -40,5 +40,6 @@ typedef enum {
 bool is_integer(char *str);
 int get_index(char *str, char c);
 int strpos(char *hay, char *needle);
+bool check_name_validity(char *name);
 
 #endif

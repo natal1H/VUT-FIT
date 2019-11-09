@@ -14,13 +14,11 @@ int main(int argc, char **argv) {
     int port = -1;
 
     int ret = parse_arguments(argc, argv, &port);
-    printf("Ret: %d\n", ret);
     if (ret != 0) {
         // -h argument or incorrect usage - quit program
         return (ret == 1 ? 0 : 1);
     }
 
-    printf("Port: %d\n", port);
 
     boards = init_boards();
 
@@ -40,6 +38,8 @@ int main(int argc, char **argv) {
     int handler;
     socklen_t size;
     struct sockaddr_storage client;
+
+    // Server can be closed only using Ctrl + C
     while (1) {
         size = sizeof(client);
         handler = accept(server, (struct sockaddr *)&client, &size);
@@ -49,7 +49,6 @@ int main(int argc, char **argv) {
         }
         resolve(handler);
         close(handler);
-        printf("==============================\n");
     }
 
     close(server);
@@ -176,7 +175,6 @@ void resolve(int handler) {
     memset(head,0,BUF_SIZE);
 
     recv(handler, buf, BUF_SIZE, 0);
-    printf("Request: %s\n", buf);
 
     // Get only request header before \r\n
     int request_header_end = strpos(buf, "\r\n");
@@ -186,21 +184,30 @@ void resolve(int handler) {
     for (int i = content_start + 4; i < strlen(buf); i++)
         body[index++] = buf[i];
     body[index] = '\0';
-    printf("Content: %s\n", body);
 
     Command_type type = determine_command(head);
     int err_name = 0;
     char *name = get_command_arg_name(type, head, &err_name);
-    printf("Name param: %s\n", name);
-    int err_id = 0;
-    char *id = get_command_arg_id(type, head, &err_id);
-    printf("Id param: %s\n", id);
-    int run_err = 0;
-    char *content_to_send = run_command(type, name, id, body, &run_err);
+    if (name != NULL && !check_name_validity(name)) {
+        fprintf(stderr, "Error! Invalid board name %s.\n", name);
+        header(handler, 404, NULL);
+    }
+    else {
+        int err_id = 0;
+        char *id = get_command_arg_id(type, head, &err_id);
+        int run_err = 0;
+        char *content_to_send = run_command(type, name, id, body, &run_err);
 
-    header(handler, 200, content_to_send);
+        if (run_err != 0) {
+            // Error while trying to run command
+            header(handler, run_err, NULL);
+        }
+        else {
+            header(handler, (type == BOARD_ADD || type == ITEM_ADD) ? 201 : 200, content_to_send);
+        }
+    }
 
-    memset(buf,0,BUF_SIZE);
+    memset(buf,0,BUF_SIZE); // Zero out buffer
 }
 
 /**
@@ -249,27 +256,21 @@ void header(int handler, int status, char *content) {
  */
 Command_type determine_command(char command[BUF_SIZE]) {
     char *method;
-    printf("COMMAND: %s\n", command);
 
     char tmp[BUF_SIZE];
     strcpy(tmp, command);
 
     method = strtok(tmp, " ");
-    printf("Method: %s\n", method);
 
     if (strcmp(method, "GET") == 0) {
         // GET method
-        printf("GET\n");
         // Could be GET /boards or GET /board/<name>
         if (strlen(command) == strlen("GET /boards HTTP/1.1") && strcmp(command, "GET /boards HTTP/1.1") == 0){
             // GET /boards
-            printf("Type: GET /boards\n");
             return BOARDS;
         }
         else if (strncmp(command, "GET /board/", strlen("GET /board/")) == 0) {
             // GET /board/<name>
-            printf("Type: GET /board/\n");
-
             return BOARD_LIST;
         }
         else {
@@ -279,16 +280,11 @@ Command_type determine_command(char command[BUF_SIZE]) {
     }
     else if (strcmp(method, "POST") == 0) {
         // POST method
-        printf("POST\n");
         // Could be POST /boards/<name> or POST /board/<name>
         if (strncmp(command, "POST /boards/", strlen("POST /boards/")) == 0) {
-            printf("Type: POST /boards/\n");
-
             return BOARD_ADD;
         }
         else if (strncmp(command, "POST /board/", strlen("POST /board/")) == 0) {
-            printf("Type: POST /board/\n");
-
             return ITEM_ADD;
         }
         else {
@@ -298,16 +294,11 @@ Command_type determine_command(char command[BUF_SIZE]) {
     }
     else if (strcmp(method, "DELETE") == 0) {
         // DELETE method
-        printf("DELETE\n");
         // Could be DELETE /boards/<name> or DELETE /board/<name>/<id>
         if (strncmp(command, "DELETE /boards/", strlen("DELETE /boards/")) == 0) {
-            printf("Type: DELETE /boards/\n");
-
             return BOARD_DELETE;
         }
         else if (strncmp(command, "DELETE /board/", strlen("DELETE /board/")) == 0) {
-            printf("Type: DELETE /board/\n");
-
             return ITEM_DELETE;
         }
         else {
@@ -317,11 +308,8 @@ Command_type determine_command(char command[BUF_SIZE]) {
     }
     else if (strcmp(method, "PUT") == 0) {
         // POST method
-        printf("PUT\n");
         // Should be only PUT /board/<name>/<id>
         if (strncmp(command, "PUT /board/", strlen("PUT /board/")) == 0) {
-            printf("Type: PUT /board/\n");
-
             return ITEM_UPDATE;
         }
         else {
@@ -331,7 +319,6 @@ Command_type determine_command(char command[BUF_SIZE]) {
     }
     else {
         // Unknown method
-        printf("Unknown\n");
         return UNKNOWN;
     }
 }
@@ -479,27 +466,35 @@ char *run_command(Command_type type, char *name, char *id, char *content, int *e
     }
     else if (type == BOARD_ADD) {
         Board_t *board = create_board(name);
-        add_board(boards, board);
-        printf("YAY!\n");
+        if (add_board(boards, board) != 0) {
+            *err = 409; // Response will return 4094 because board with that name already exist
+        }
     }
     else if (type == BOARD_DELETE) {
-        delete_board(boards, name);
+        if (delete_board(boards, name) != 0) {
+            *err = 404; // Response will return 404 because board with that name doesn't exist
+        }
     }
     else if (type == BOARD_LIST) {
         content_to_send = list_board(boards, name);
-        printf("ITEMS:\n%s\n", content_to_send);
+        if (content_to_send == NULL) {
+            *err = 404;
+        }
     }
     else if (type == ITEM_ADD) {
-        item_add(boards, name, content);
-        printf("Item added.\n");
+        if (item_add(boards, name, content) != 0) {
+            *err = 404; // Response will return 404 because board with that name doesn't exist
+        }
     }
     else if (type == ITEM_DELETE) {
-        item_delete(boards, name, id);
-        printf("Item deleted.\n");
+        if (item_delete(boards, name, id) != 0) {
+            *err = 404; // Response will return 404 because board with that name/ item with that id doesn't exist
+        }
     }
     else if (type == ITEM_UPDATE) {
-        item_update(boards, name, id, content);
-        printf("Item updated\n");
+        if (item_update(boards, name, id, content) != 0) {
+            *err = 404; // Response will return 404 because board with that name/ item with that id doesn't exist
+        }
     }
 
     return content_to_send;
@@ -579,7 +574,6 @@ char *list_boards(Boards_t *boards) {
 
     Board_t *tmp = boards->first;
     while (tmp != NULL) {
-        printf("%s\n", tmp->name);
         strcat(content_to_send, tmp->name);
         strcat(content_to_send, "\n");
 
@@ -650,7 +644,6 @@ char *list_board(Boards_t *boards, char *name) {
     Board_t *tmp = boards->first;
     bool found = false;
     while (tmp != NULL) {
-        printf("BOARD NAME... %s\n", tmp->name);
         if (strcmp(tmp->name, name) == 0) {
             found = true;
             break;
@@ -668,7 +661,6 @@ char *list_board(Boards_t *boards, char *name) {
     int items_num = 0;
     char id[MAX_ITEMS];
     Item_t *tmp_item = tmp->first;
-    printf("===========\n");
     while (tmp_item != NULL) {
         printf("%s\n", tmp_item->content);
         sprintf(id, "%d. ", ++items_num);
@@ -678,7 +670,6 @@ char *list_board(Boards_t *boards, char *name) {
 
         tmp_item = tmp_item->next;
     }
-    printf("===========\n");
 
     return items;
 }
@@ -693,10 +684,9 @@ char *list_board(Boards_t *boards, char *name) {
  */
 int item_add(Boards_t *boards, char *name, char *content) {
     if (boards->first == NULL) {
+        fprintf(stderr, "No boards\n");
         return -1;
     }
-
-    printf("-- p 1\n");
 
     Board_t *tmp = boards->first;
     bool found = false;
@@ -708,39 +698,29 @@ int item_add(Boards_t *boards, char *name, char *content) {
         tmp = tmp->next;
     }
 
-    printf("-- p 2\n");
-
     if (!found) {
         fprintf(stderr, "No board with name %s\n", name);
         return -1;
     }
 
     if (tmp->first == NULL) {
-        //printf("-- p 3a\n");
         // Empty board
         tmp->first = (Item_t *) malloc(sizeof(Item_t));
-        //printf("...%s\n", tmp->first == NULL ? "NULL" : "NOT NULL");
-        //printf("-- p 3ab, %s\n", content);
         tmp->first->content = (char *) malloc(sizeof(char) * strlen(content));
-        //printf("-- p 3ac\n");
         strcpy(tmp->first->content, content);
-        //printf("-- p 4a\n");
     }
     else {
-        //printf("-- p 3b\n");
         // Board not empty
         Item_t *tmp_item = tmp->first;
         while (tmp_item->next != NULL) {
             tmp_item = tmp_item->next;
         }
-        //printf("Last item. %s\n", tmp)
 
         Item_t *new_item = (Item_t *) malloc(sizeof(Item_t));
         new_item->content = (char *) malloc(sizeof(char) * strlen(content));
         strcpy(new_item->content, content);
         tmp_item->next = new_item;
         new_item->next = NULL;
-        //printf("-- p 4b\n");
     }
 
     return 0;

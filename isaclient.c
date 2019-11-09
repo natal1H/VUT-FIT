@@ -22,22 +22,23 @@ int main(int argc, char** argv) {
 
     host = argv[2];
     command = get_command(argc, argv);
-    printf("Host: %s\n", host);
-    printf("Port: %d\n", port);
-    printf("Command: %s\n", command);
-
     Command_type command_type = determine_API_command(command);
-    printf("Command type: %d\n", command_type);
 
     if (command_type == -1) {
         return 1;
     }
 
     char *name = NULL, *id = NULL, *content = NULL;
-
     name = get_API_command_arg_name(command_type, command, &ret);
     if (ret != 0) {
         fprintf(stderr, "Error in command structure.\n");
+        free(command);
+        return 1;
+    }
+
+    // Check if name only contains numbers and letters
+    if (name != NULL && !check_name_validity(name)) {
+        fprintf(stderr, "Error! Board name %s is invalid.\n", name);
         free(command);
         return 1;
     }
@@ -56,15 +57,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    printf("<name>: %s\n", name);
-    printf("<id>: %s\n", id);
-    printf("<content>: %s\n", content);
-
     free(command);
 
     Address_t destination = {.host = host, .port = port};
     Command_t api_call = {.type = command_type, .name = name, .id = id, .content = content};
-
     send_and_get_http_response(&destination, &api_call);
 
     cleanup(&api_call);
@@ -134,7 +130,6 @@ char *get_command(int n, char **args) {
         length++;
     }
     length--;
-    printf("Command total length: %d\n", length);
 
     char *command = (char *) malloc(sizeof(char) * length);
     if (command == NULL) {
@@ -165,37 +160,30 @@ int determine_API_command(char *command) {
 
     if (strlen(command) == strlen("boards") && strcmp("boards", command) == 0) {
         // boards - GET /boards
-        printf("GET /boards\n");
         return BOARDS;
     }
     else if (strlen(command) > strlen("board add") && strncmp("board add", command, strlen("board add")) == 0) {
         // board add <name> - POST /boards/<name>
-        printf("POST /boards/<name>\n");
         return BOARD_ADD;
     }
     else if (strlen(command) > strlen("board delete") && strncmp("board delete", command, strlen("board delete")) == 0) {
         // board delete <name> - DELETE /boards/<name>
-        printf("DELETE /board/<name>\n");
         return BOARD_DELETE;
     }
     else if (strlen(command) > strlen("board list") && strncmp("board list", command, strlen("board list")) == 0) {
         // boards list <name> - GET /board/<name>
-        printf("GET /board/<name>\n");
         return BOARD_LIST;
     }
     else if (strlen(command) > strlen("item add") && strncmp("item add", command, strlen("item add")) == 0) {
         // item add <name> <content> - POST /board/<name>
-        printf("POST /board/<name>\n");
         return ITEM_ADD;
     }
     else if (strlen(command) > strlen("item delete") && strncmp("item delete", command, strlen("item delete")) == 0) {
         // item delete <name> <id> - DELETE /board/<name>/<id>
-        printf("DELETE /board/<name>/<id>\n");
         return ITEM_DELETE;
     }
     else if (strlen(command) > strlen("item update") && strncmp("item update", command, strlen("item update")) == 0) {
         // item update <name> <id> <content> - PUT /board/<name>/<id>
-        printf("PUT /board/<name>/<id>\n");
         return ITEM_UPDATE;
     }
     else {
@@ -388,7 +376,7 @@ char *get_API_command_arg_id(int type, char *command, int *err) {
 
         return id;
     }
-    else if (type == ITEM_UPDATE) {
+    else {
         // item update <name> <id> <content>
 
         int name_length = get_index(command + strlen("item update "), ' ');
@@ -444,7 +432,7 @@ char *get_API_command_arg_content(int type, char *command, int *err) {
         strcpy(content, command + strlen("item add ") + name_length + 1);
         return content;
     }
-    else if (type == ITEM_UPDATE) {
+    else {
         // item update <name> <id> <content>
 
         int name_length = get_index(command + strlen("item update "), ' ');
@@ -495,8 +483,6 @@ void cleanup(Command_t *command) {
  * @return Success or failure
  */
 int send_and_get_http_response(Address_t *destination, Command_t *command) {
-    printf("Preparing to send HTTP request.\n");
-
     // Prepare request line
     char *request_line = get_request_line(command);
     if (request_line == NULL) {
@@ -504,12 +490,10 @@ int send_and_get_http_response(Address_t *destination, Command_t *command) {
         return 1;
     }
 
-    // Prepare headers - host header
-    char *host_header =  get_host_header(destination);
-
-    char *content_header = get_content_header(command);
-
-    char *message_body = get_message_body(command);
+    // Prepare headers
+    char *host_header =  get_host_header(destination); // Host header
+    char *content_header = get_content_header(command); // Content header - if there is content to send
+    char *message_body = get_message_body(command); // Message body - if there is content to send
 
     char port_str[6];
     sprintf(port_str, "%d", destination->port);
@@ -527,7 +511,6 @@ int send_and_get_http_response(Address_t *destination, Command_t *command) {
     if (message_body != NULL)
         strcat(request, message_body);
 
-    printf("Request: %s\n", request);
     int clientfd = establish_connection(get_host_info(destination->host, port_str));
     if (clientfd == -1) {
         fprintf(stderr, "Error, failed to connect to host.\n");
@@ -535,11 +518,9 @@ int send_and_get_http_response(Address_t *destination, Command_t *command) {
     }
     char buf[BUF_SIZE];
     send(clientfd, request, strlen(request), 0);
-    printf("Done sending, waiting for response...\n");
 
     char response[BUF_SIZE];
     while (recv(clientfd, buf, BUF_SIZE, 0) > 0) {
-        //fputs(buf, stdout);
         strcat(response, buf);
         memset(buf, 0, BUF_SIZE);
     }
@@ -679,7 +660,7 @@ char *get_content_header(Command_t *command) {
         return NULL;
     }
 
-    // Count lenght of content
+    // Count length of content
     int length = 0;
     int i = 0;
     while (i < strlen(command->content)) {
@@ -798,7 +779,7 @@ int establish_connection(struct addrinfo *info) {
     int clientfd;
     for (;info != NULL; info = info->ai_next) {
         if ((clientfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) < 0) {
-            fprintf(stderr, "Error establising connection\n");
+            fprintf(stderr, "Error establishing connection\n");
             continue;
         }
 
