@@ -48,6 +48,7 @@ int main(int argc, char **argv) {
 }
 
 /**
+ * Function to parse command line arguments
  *
  * @param n Number of arguments
  * @param args Arguments
@@ -91,18 +92,11 @@ int parse_arguments(int n, char **args, int *port) {
 }
 
 /**
+ * Function to get address info when provided port number
  *
- * @param str
- * @return True if represents integer, false if not
+ * @param port Port number
+ * @return Address structure
  */
-bool is_integer(char *str) {
-    for (int i = 0; i < strlen(str); i++)
-        if (str[i] < '0' || str[i] > '9')
-            return false;
-
-    return true;
-}
-
 struct addrinfo *get_addr_info(int port) {
     int r;
     struct addrinfo hints, *getaddrinfo_res;
@@ -123,6 +117,12 @@ struct addrinfo *get_addr_info(int port) {
     return getaddrinfo_res;
 }
 
+/**
+ * Function to bind socket to listen at port
+ *
+ * @param info Address structure
+ * @return Bound socket or -1 on failure
+ */
 int bind_listener(struct addrinfo *info) {
     if (info == NULL) return -1;
 
@@ -153,6 +153,11 @@ int bind_listener(struct addrinfo *info) {
     return -1;
 }
 
+/**
+ * Function to resolve received packet
+ *
+ * @param handler Socket handler
+ */
 void resolve(int handler) {
     //int size;
     char buf[BUF_SIZE];
@@ -189,6 +194,13 @@ void resolve(int handler) {
     memset(buf,0,BUF_SIZE);
 }
 
+/**
+ * Function to create header for response packet and send it
+ *
+ * @param handler Socket handler
+ * @param status Response status to send
+ * @param content Content to send in response
+ */
 void header(int handler, int status, char *content) {
     char header[BUF_SIZE] = {0};
     if (status == 200) {
@@ -220,22 +232,12 @@ void header(int handler, int status, char *content) {
     send(handler, header, strlen(header), 0);
 }
 
-int get_index(char *str, char c) {
-    char *tmp = str;
-    int index = 0;
-    while (*tmp++ != c && index < strlen(str)) index++;
-    return (index == strlen(str) ? -1 : index);
-}
-
-int strpos(char *hay, char *needle) {
-    char haystack[strlen(hay)];
-    strncpy(haystack, hay, strlen(hay));
-    char *p = strstr(haystack, needle);
-    if (p)
-        return p - haystack;
-    return -1;
-}
-
+/**
+ * Function to determine type of command received
+ *
+ * @param command String containing received command
+ * @return Type of command
+ */
 Command_type determine_command(char command[BUF_SIZE]) {
     char *method;
     printf("COMMAND: %s\n", command);
@@ -325,6 +327,14 @@ Command_type determine_command(char command[BUF_SIZE]) {
     }
 }
 
+/**
+ * Function to get <name> argument from whole command
+ *
+ * @param type Type of command
+ * @param command String containing whole commnad
+ * @param err Pointer to integer where to store error status
+ * @return String representing <name> argument
+ */
 char *get_command_arg_name(Command_type type, char *command, int *err) {
     *err = 0;
     if (type == BOARDS) {
@@ -402,6 +412,14 @@ char *get_command_arg_name(Command_type type, char *command, int *err) {
     }
 }
 
+/**
+ * Function to get <id> argument from whole command
+ *
+ * @param type Type of command
+ * @param command String containing whole commnad
+ * @param err Pointer to integer where to store error status
+ * @return String representing <id> argument
+ */
 char *get_command_arg_id(Command_type type, char *command, int *err) {
     *err = 0;
     if (type == ITEM_DELETE) {
@@ -433,6 +451,16 @@ char *get_command_arg_id(Command_type type, char *command, int *err) {
     }
 }
 
+/**
+ * Determine what to do based on type of command received
+ *
+ * @param type Type of command
+ * @param name Name argument
+ * @param id Id argument
+ * @param content Content argument
+ * @param err Pointer to integer where to store error status
+ * @return String representing content to send back to client
+ */
 char *run_command(Command_type type, char *name, char *id, char *content, int *err) {
 
     char *content_to_send = NULL;
@@ -468,12 +496,24 @@ char *run_command(Command_type type, char *name, char *id, char *content, int *e
     return content_to_send;
 }
 
+/**
+ * Initialize Boards structure
+ *
+ * @return Pointer to initialized structure
+ */
 Boards_t *init_boards() {
     Boards_t *b = (Boards_t *) malloc(sizeof(Boards_t));
     b->first = NULL;
     return b;
 }
 
+/**
+ * Add new board to boards
+ *
+ * @param boards Pointer to boards
+ * @param board Pointer to new board to add
+ * @return Success or failure
+ */
 int add_board(Boards_t *boards, Board_t *board) {
     if (boards->first == NULL) {
         // Set board to be first
@@ -500,6 +540,12 @@ int add_board(Boards_t *boards, Board_t *board) {
     return 0;
 }
 
+/**
+ * Function to create new board
+ *
+ * @param name Name of the board
+ * @return Pointer to new board
+ */
 Board_t *create_board(char *name) {
     Board_t *board = (Board_t *) malloc(sizeof(Board_t));
     board->name = (char *) malloc(sizeof(char) * strlen(name));
@@ -510,6 +556,12 @@ Board_t *create_board(char *name) {
     return board;
 }
 
+/**
+ * Function to get list of names of all boards
+ *
+ * @param boards Pointer to structure containing all boards
+ * @return String of names of boards
+ */
 char *list_boards(Boards_t *boards) {
     if (boards->first == NULL)
         return NULL;
@@ -528,6 +580,13 @@ char *list_boards(Boards_t *boards) {
     return content_to_send;
 }
 
+/**
+ * Function to delete board from boards
+ *
+ * @param boards Pointer to structure containing all boards
+ * @param name Name of board to delete
+ * @return Success or failure
+ */
 int delete_board(Boards_t *boards, char *name) {
     if (boards->first == NULL) {
         fprintf(stderr, "No boards\n");
@@ -567,6 +626,13 @@ int delete_board(Boards_t *boards, char *name) {
     return 0;
 }
 
+/**
+ * Function to list all items in a board
+ *
+ * @param boards Pointer to structure containing all boards
+ * @param name Name of board where list all items
+ * @return String of all items in a board
+ */
 char *list_board(Boards_t *boards, char *name) {
     if (boards->first == NULL) {
         return NULL;
@@ -608,6 +674,14 @@ char *list_board(Boards_t *boards, char *name) {
     return items;
 }
 
+/**
+ * Function to add item to a board
+ *
+ * @param boards Pointer to structure containing all boards
+ * @param name Name of the board where to add item
+ * @param content Content of new item
+ * @return Success or failure
+ */
 int item_add(Boards_t *boards, char *name, char *content) {
     if (boards->first == NULL) {
         return -1;
@@ -663,6 +737,14 @@ int item_add(Boards_t *boards, char *name, char *content) {
     return 0;
 }
 
+/**
+ * Function to delete item from a board
+ *
+ * @param boards Pointer to structure containing all boards
+ * @param name Name of the board where to delete item
+ * @param id Id of item to delete
+ * @return Success or failure
+ */
 int item_delete(Boards_t *boards, char *name, char *id) {
     int id_num = atoi(id);
 
@@ -730,6 +812,15 @@ int item_delete(Boards_t *boards, char *name, char *id) {
     return 0;
 }
 
+/**
+ * Function to update item content in a board
+ *
+ * @param boards Pointer to structure containing all boards
+ * @param name Name of the board where to update item
+ * @param id Id of item to update
+ * @param content New content
+ * @return Success or failure
+ */
 int item_update(Boards_t *boards, char *name, char *id, char *content) {
     int id_num = atoi(id);
 

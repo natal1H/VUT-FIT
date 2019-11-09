@@ -5,10 +5,10 @@ all: isaserver isaclient
 .PHONY: isaserver isaclient clean
 
 isaserver:
-	gcc $(FLAGS) isaserver.c -o isaserver
+	gcc $(FLAGS) isaserver.c common.c -o isaserver
 
 isaclient:
-	gcc $(FLAGS) isaclient.c -o isaclient
+	gcc $(FLAGS) isaclient.c common.c -o isaclient
 
 clean:
 	rm -f isaserver isaclient

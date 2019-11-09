@@ -62,15 +62,14 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-/**
- *
- * @param n
- * @param args
- * @param port
- * @param host
- * @param command
- * @return
- */
+ /**
+  * Function to parse command line arguments
+  *
+  * @param n Number of command line arguments
+  * @param args Array containing the command line arguments
+  * @param port Pointer to integer where to store port number
+  * @return 0 - normal usage, 1 - help argument, -1 - bad usage
+  */
 int parse_arguments(int n, char **args, int *port) {
     if (n == 2 && strcmp(args[1], "-h") == 0) {
         // -h argument: display usage
@@ -107,24 +106,13 @@ int parse_arguments(int n, char **args, int *port) {
     }
 }
 
-/**
- *
- * @param str
- * @return True if represents integer, false if not
- */
-bool is_integer(char *str) {
-    for (int i = 0; i < strlen(str); i++)
-        if (str[i] < '0' || str[i] > '9')
-            return false;
-
-    return true;
-}
 
 /**
+ * Function to get the API command as string
  *
- * @param n
- * @param args
- * @return
+ * @param n Number of command arguments
+ * @param args Array containing command line arguments
+ * @return String containing the API command or NULL if error occurred
  */
 char *get_command(int n, char **args) {
     // First count total length of command
@@ -159,9 +147,10 @@ char *get_command(int n, char **args) {
 }
 
 /**
+ * Function to determine the type of API command
  *
- * @param command
- * @return 0 - board, 1 - board add, 2 - board delete, 3 - boards list, 4 - item add, 5 - item delete, 6 - item update, -1 - else
+ * @param command String containing the whole command
+ * @return Type as defined in Command_type enum
  */
 int determine_API_command(char *command) {
 
@@ -207,11 +196,12 @@ int determine_API_command(char *command) {
 }
 
 /**
+ * Function to get <name> argument from API command
  *
- * @param type
- * @param command
- * @param err
- * @return
+ * @param type Type of API command
+ * @param command String containing the whole command
+ * @param err Pointer to integer storing error code
+ * @return Name argument
  */
 char *get_API_command_arg_name(int type, char *command, int *err) {
     *err = 0;
@@ -353,11 +343,12 @@ char *get_API_command_arg_name(int type, char *command, int *err) {
 }
 
 /**
+ * Function to get <id> argument from API command
  *
- * @param type
- * @param command
- * @param err
- * @return
+ * @param type Type of API command
+ * @param command String containing the whole command
+ * @param err Pointer to integer storing error code
+ * @return ID argument
  */
 char *get_API_command_arg_id(int type, char *command, int *err) {
     *err = 0;
@@ -417,11 +408,12 @@ char *get_API_command_arg_id(int type, char *command, int *err) {
 }
 
 /**
+ * Function to get <content> argument from API command
  *
- * @param type
- * @param command
- * @param err
- * @return
+ * @param type Type of API command
+ * @param command String containing the whole command
+ * @param err Pointer to integer storing error code
+ * @return Content argument
  */
 char *get_API_command_arg_content(int type, char *command, int *err) {
     *err = 0;
@@ -463,9 +455,10 @@ char *get_API_command_arg_content(int type, char *command, int *err) {
 }
 
 /**
+ * Function to count number of spaces in string
  *
- * @param str
- * @return
+ * @param str Input string
+ * @return Number of spaces inside the string
  */
 int count_space(char *str) {
     int count = 0;
@@ -476,20 +469,7 @@ int count_space(char *str) {
 }
 
 /**
- *
- * @param str
- * @param c
- * @return
- */
-int get_index(char *str, char c) {
-    char *tmp = str;
-    int index = 0;
-    while (*tmp++ != c && index < strlen(str)) index++;
-    return (index == strlen(str) ? -1 : index);
-}
-
-/**
- *
+ * Clean up function
  */
 void cleanup(Command_t *command) {
     // Clean up command
@@ -499,10 +479,11 @@ void cleanup(Command_t *command) {
 }
 
 /**
+ * Function to send HTTP request and recieve response
  *
- * @param destination
- * @param command
- * @return
+ * @param destination Where to send HTTP request (host and port)
+ * @param command Command structure containing all command arguments and type
+ * @return Success or failure
  */
 int send_and_get_http_response(Address_t *destination, Command_t *command) {
     printf("Preparing to send HTTP request.\n");
@@ -566,9 +547,10 @@ int send_and_get_http_response(Address_t *destination, Command_t *command) {
 }
 
 /**
+ * Function to get request line of HTTP request
  *
- * @param command
- * @return
+ * @param command Command structure containing all command arguments and type
+ * @return String representing the request line
  */
 char *get_request_line(Command_t *command) {
     char *request_line = NULL;
@@ -652,6 +634,12 @@ char *get_request_line(Command_t *command) {
     return request_line;
 }
 
+/**
+ * Function to get the header specifying the host
+ *
+ * @param destination Where to send HTTP request (host and port)
+ * @return String representing the host header
+ */
 char *get_host_header(Address_t *destination) {
     char port_str[6];
     sprintf(port_str, "%d", destination->port);
@@ -670,6 +658,12 @@ char *get_host_header(Address_t *destination) {
     return host_header;
 }
 
+/**
+ * Function to get the header specifying the content sent
+ *
+ * @param command Command structure containing all command arguments and type
+ * @return String representing the content header
+ */
 char *get_content_header(Command_t *command) {
     if (command->type != ITEM_ADD && command->type != ITEM_UPDATE) {
         // No content for these commands
@@ -706,6 +700,12 @@ char *get_content_header(Command_t *command) {
     return content_header;
 }
 
+/**
+ * Function to get string representing the message body in HTTP request
+ *
+ * @param command Command structure containing all command arguments and type
+ * @return String representing the message body
+ */
 char *get_message_body(Command_t *command) {
     if (command->type != ITEM_ADD && command->type != ITEM_UPDATE) {
         // No content for these commands
@@ -754,6 +754,13 @@ char *get_message_body(Command_t *command) {
     return message_body;
 }
 
+/**
+ * Function to get host info
+ *
+ * @param host Host address
+ * @param port Port number (string form)
+ * @return Structure representing host address
+ */
 struct addrinfo *get_host_info(char *host, char *port) {
     int r;
     struct addrinfo hints, *getaddrinfo_res;
@@ -770,6 +777,12 @@ struct addrinfo *get_host_info(char *host, char *port) {
     return getaddrinfo_res;
 }
 
+/**
+ * Function to establish connection
+ *
+ * @param info Host info
+ * @return Success or failure
+ */
 int establish_connection(struct addrinfo *info) {
     if (info == NULL) return -1;
 
@@ -790,14 +803,5 @@ int establish_connection(struct addrinfo *info) {
         return clientfd;
     }
 
-    return -1;
-}
-
-int strpos(char *hay, char *needle) {
-    char haystack[strlen(hay)];
-    strncpy(haystack, hay, strlen(hay));
-    char *p = strstr(haystack, needle);
-    if (p)
-        return p - haystack;
     return -1;
 }
