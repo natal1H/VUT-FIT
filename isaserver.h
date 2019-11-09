@@ -1,3 +1,12 @@
+/**
+ * @file isaserver.h
+ * @author Natalia Holkova (xholko02), FIT
+ * @date 18.11.2019
+ * @brief Implements server for receiving HTTP requests and sending back responses
+ *
+ * Project for ISA, task variant - HTTP dashboard
+ */
+
 #ifndef ISASERVER_H
 #define ISASERVER_H
 

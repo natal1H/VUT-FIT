@@ -1,3 +1,13 @@
+/**
+ * @file common.c
+ * @author Natalia Holkova (xholko02), FIT
+ * @date 18.11.2019
+ * @brief Implements function that both client and server use
+ *
+ * Project for ISA, task variant - HTTP dashboard
+ */
+
+
 #ifndef COMMON_H
 #define COMMON_H
 

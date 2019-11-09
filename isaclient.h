@@ -1,3 +1,12 @@
+/**
+ * @file isaclient.h
+ * @author Natalia Holkova (xholko02), FIT
+ * @date 18.11.2019
+ * @brief Implements client for sending HTTP requests
+ *
+ * Project for ISA, task variant - HTTP dashboard
+ */
+
 #ifndef ISACLIENT_H
 #define ISACLIENT_H
 
