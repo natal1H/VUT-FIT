@@ -63,7 +63,6 @@ int main(int argc, char** argv) {
     Command_t api_call = {.type = command_type, .name = name, .id = id, .content = content};
     send_and_get_http_response(&destination, &api_call);
 
-    cleanup(&api_call);
     return 0;
 }
 
@@ -465,15 +464,6 @@ int count_space(char *str) {
     return count;
 }
 
-/**
- * Clean up function
- */
-void cleanup(Command_t *command) {
-    // Clean up command
-    free(command->name);
-    free(command->id);
-    free(command->content);
-}
 
 /**
  * Function to send HTTP request and recieve response
@@ -786,21 +776,18 @@ struct addrinfo *get_host_info(char *host, char *port) {
  int establish_connection(struct addrinfo *info) {
     if (info == NULL) return -1;
 
-    int clientfd;
-    for (;info != NULL; info = info->ai_next) {
-        if ((clientfd = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) < 0) {
-            fprintf(stderr, "Error establishing connection\n");
+    int client;
+    for (; info != NULL; info = info->ai_next) {
+        if ((client = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) < 0)
             continue;
-        }
 
-        if (connect(clientfd, info->ai_addr, info->ai_addrlen) < 0) {
-            close(clientfd);
-            fprintf(stderr, "Error connecting.\n");
+        if (connect(client, info->ai_addr, info->ai_addrlen) < 0) {
+            close(client);
             continue;
         }
 
         freeaddrinfo(info);
-        return clientfd;
+        return client;
     }
 
     return -1;

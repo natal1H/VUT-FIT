@@ -33,7 +33,6 @@ char *get_API_command_arg_name(Command_type type, char *command, int *err);
 char *get_API_command_arg_id(Command_type type, char *command, int *err);
 char *get_API_command_arg_content(Command_type type, char *command, int *err);
 int count_space(char *str);
-void cleanup(Command_t *command);
 int send_and_get_http_response(Address_t *destination, Command_t *command);
 char *get_request_line(Command_t *command);
 char *get_host_header(Address_t *destination);
