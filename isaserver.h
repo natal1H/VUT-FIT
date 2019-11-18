@@ -53,5 +53,7 @@ char *list_board(Boards_t *boards, char *name);
 int item_add(Boards_t *boards, char *name, char *content);
 int item_delete(Boards_t *boards, char *name, char *id);
 int item_update(Boards_t *boards, char *name, char *id, char *content);
+int count_newlines(char *str);
+
 
 #endif

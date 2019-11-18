@@ -525,12 +525,14 @@ int send_and_get_http_response(Address_t *destination, Command_t *command) {
         memset(buf, 0, BUF_SIZE);
     }
 
-    //printf("RESPONSE:\n%s", response);
 
     int response_content_start = strpos(response, "\r\n\r\n");
     char response_content[BUF_SIZE];
+    char response_headers[BUF_SIZE];
     strcpy(response_content, response + response_content_start + 4);
-    //printf("==============\n%s", response_content);
+    strncpy(response_headers, response, response_content_start);
+    fprintf(stderr, "%s\n", response_headers);
+    fprintf(stdout, "%s", response_content);
 
     close(clientfd);
     return 0;

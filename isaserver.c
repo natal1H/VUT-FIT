@@ -247,8 +247,9 @@ void header(int handler, int status, char *content) {
 
     if (content != NULL) {
         int content_len = strlen(content);
+        int newlines = count_newlines(content);
         char len_str[5];
-        sprintf(len_str, "%d", content_len);
+        sprintf(len_str, "%d", content_len - newlines);
         strcat(header, "Content-Type: text/plain\r\nContent-Length: ");
         strcat(header, len_str);
         strcat(header, "\r\n\r\n");
@@ -583,7 +584,7 @@ char *list_boards(Boards_t *boards) {
     if (boards->first == NULL)
         return NULL;
 
-    char *content_to_send = (char *) malloc(sizeof(char) * BUF_SIZE); // TODO temp
+    char *content_to_send = (char *) malloc(sizeof(char) * BUF_SIZE);
 
     Board_t *tmp = boards->first;
     while (tmp != NULL) {
@@ -669,7 +670,7 @@ char *list_board(Boards_t *boards, char *name) {
         return NULL;
     }
 
-    char *items = (char *) malloc(sizeof(char) * BUF_SIZE); // TODO temp
+    char *items = (char *) malloc(sizeof(char) * BUF_SIZE);
 
     int items_num = 0;
     char id[MAX_ITEMS];
@@ -883,4 +884,18 @@ int item_update(Boards_t *boards, char *name, char *id, char *content) {
         }
     }
     return 0;
+}
+
+/**
+ * Counts number of new lines
+ *
+ * @param str String to search in
+ * @return Number of new lines
+ */
+int count_newlines(char *str) {
+    int count = 0;
+    for (int i = 0; i < strlen(str); i++)
+        if (str[i] == '\n') count++;
+
+    return count;
 }
