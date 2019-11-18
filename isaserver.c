@@ -125,6 +125,13 @@ struct addrinfo *get_addr_info(int port) {
     return getaddrinfo_res;
 }
 
+/***************************************************************************************
+*    Disclaimer: Binding listener inspired by:
+*
+*    Title: Code raw sockets in C on Linux
+*    Author: pradyuman https://github.com/pradyuman
+*    Availability: https://github.com/pradyuman/socket-c/blob/master/httpserver.c
+***************************************************************************************/
 /**
  * Function to bind socket to listen at port
  *
@@ -223,13 +230,19 @@ void header(int handler, int status, char *content) {
         sprintf(header, "HTTP/1.1 200 OK\r\n");
     }
     if (status == 201) {
-        sprintf(header, "HTTP/1.1 201 OK\r\n");
+        sprintf(header, "HTTP/1.1 201 Created\r\n");
+    }
+    else if (status == 400) {
+        sprintf(header, "HTTP/1.1 400 Bad Request\r\n");
     }
     else if (status == 403) {
         sprintf(header, "HTTP/1.1 403 Forbidden\r\n");
     }
     else if (status == 404) {
-        sprintf(header, "HTTP/1.1 404 Not found\r\n");
+        sprintf(header, "HTTP/1.1 404 Not Found\r\n");
+    }
+    else if (status == 409) {
+        sprintf(header, "HTTP/1.1 409 Conflict\r\n");
     }
 
     if (content != NULL) {

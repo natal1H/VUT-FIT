@@ -525,7 +525,7 @@ int send_and_get_http_response(Address_t *destination, Command_t *command) {
         memset(buf, 0, BUF_SIZE);
     }
 
-    printf("RESPONSE:\n%s", response);
+    //printf("RESPONSE:\n%s", response);
 
     int response_content_start = strpos(response, "\r\n\r\n");
     char response_content[BUF_SIZE];
@@ -767,13 +767,21 @@ struct addrinfo *get_host_info(char *host, char *port) {
     return getaddrinfo_res;
 }
 
+
+/***************************************************************************************
+*    Disclaimer: Establishing connection inspired by:
+*
+*    Title: Code raw sockets in C on Linux
+*    Author: pradyuman https://github.com/pradyuman
+*    Availability: https://github.com/pradyuman/socket-c/blob/master/httpclient.c
+***************************************************************************************/
 /**
  * Function to establish connection
  *
  * @param info Host info
  * @return Success or failure
  */
-int establish_connection(struct addrinfo *info) {
+ int establish_connection(struct addrinfo *info) {
     if (info == NULL) return -1;
 
     int clientfd;
