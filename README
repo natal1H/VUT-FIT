@@ -1,0 +1,51 @@
+# ISA - HTTP nástenka
+
+Autor: Natália Holková (xholko02)
+
+## Popis
+
+Aplikácia umožňujúca správu nástenky na serveri pomocou HTTP API.
+
+## Spustenie
+
+Preklad spoločne pomocou príkazov `make all` alebo `make`.
+Príklad sputenia serveru:
+```
+./isaserver -p <port-number>
+```
+Príklad spustenia klienta:
+```
+./isaclient -H <host> -p <port-number> <command>
+```
+Zoznam možných API príkazov:
+```
+boards
+board add <name>
+board delete <name>
+board list <name>
+item add <name> <content>
+item delete <name> <id>
+item update <name <id> <content>
+```
+
+## Obmedzenia
+
+Obmedzenie dĺžky obsahu príspevku nástenky.
+
+## Rozšírenia
+
+žiadne
+
+## Odovzdané súbory
+
+- zdrojové súbory
+  - isaclient.c
+  - isaclient.h
+  - isaserver.c
+  - isaserver.h
+  - common.c
+  - common.h
+- ostatné súbory
+  - Makefile
+  - README
+  - manual.pdf

@@ -530,7 +530,7 @@ int send_and_get_http_response(Address_t *destination, Command_t *command) {
     int response_content_start = strpos(response, "\r\n\r\n");
     char response_content[BUF_SIZE];
     strcpy(response_content, response + response_content_start + 4);
-    printf("==============\n%s", response_content);
+    //printf("==============\n%s", response_content);
 
     close(clientfd);
     return 0;
