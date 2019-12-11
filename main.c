@@ -62,29 +62,81 @@ void TimerInit(void) {
 
 	// Nastaviù hodnotu preteËenia do modulo registru TPMO
 	//FTM0_MOD = OVERFLOW;
-	FTM0_MOD = 0xFF;
+	//FTM0_MOD = 0xFF;
+	FTM0_MOD = 0x6EE;
 
 	// Nastaviù reûim generovania PWM na zvolenom kan·le (n) ËasovaËa
 	// v riadiacom registri FTMx_CnSC
 	// Edge-aligned PWM: High-true pulses (clear Output on match, set Output on reload),
     // preruöenie ani DMA requests nebud˙ vyuûÌvanÈ.
-	FTM0_C0SC = 0x28;
+	FTM0_C1SC = 0x28;
+
+
+	// Nastavenie st¯Ìdy (duty cycle)
+	FTM0_C1V = 0x377;
 
 	// Nastaviù konfigur·ciu ËasovaËa v jeho stavovem a ridicim registru (SC):
 	// (up counting mode pre Edge-aligned PWM, Clock Mode Selection (01),
-	// Prescale Factor Selection (Divide by 8), bez vyuûitia preruöenia Ëi DMA.
-	FTM0_SC = 0xB;
+	// Prescale Factor Selection (Divide by 128), bez vyuûitia preruöenia Ëi DMA.
+	FTM0_SC = 0xF;
 }
 
-int main(void)
-{
+int main(void) {
+	int increment = 1; // PrÌznak zvyöovania (1) Ëi zniûovania (0) hodnoty compare
+	unsigned int compare = 0; // Hodnota pre komparaËn˝ register (urËuj˙ci st¯Ìdu PWM)
+
+	int turned_on = 1;
+
     MCUInit();
     SysInit();
     PortsInit();
     TimerInit();
 
-    beep();
+    //beep();
+
+    while (1) {
+    //for (int i = 0; i < 10000; i++) {
+    	//if (increment)  {
+    		 // Zvyöuj st¯Ìdu (compare), pokiaæ nie je dosiahnutÈ zvolen·
+    		 // maxim·lna hodnota (postupne zvysovani jasu LED).
+    		 // Po negaci priznaku increment bude strida snizovana.
+    	 //    compare++;
+    	 //    increment = !(compare >= 0x377);
+    	 //}
+    	 //else  {
+    		 // Snizuj stridu (compare), dokud neni dosazeno nulove hodnoty
+    	     // (postupne snizovani jasu LED), nasledne bude strida opet zvysovana.
+    	     //compare--;
+    	     //increment = (compare == 0x00);
+    	 //}
+    	if (compare == 0) {
+            PTA->PDOR = GPIO_PDOR_PDO(0x0010);
+    	}
+    	else if (compare == 0x377) {
+            PTA->PDOR = GPIO_PDOR_PDO(0x0000);
+    	}
+
+    	compare++;
+
+    	if (compare >= 0x6EE) {
+    		compare = 0;
+    	}
+
+
+    	 // 5. Priradte aktualni hodnotu compare do komparacniho registru zvoleneho kanalu
+    	 //    casovace TPM0 (napr. kanal c. 2 pro manipulaci s cervenou slozkou RGB LED).
+    	 //TPM0_C0V = 127;
+    	 //TPM0_C0V = compare;
+    	 //TPM0_C1V = OVERFLOW - compare;
+
+    	 // 6. LEDku nechte urcity cas svitit dle aktualni hodnoty stridy. Ve skutecnosti
+    	 //    LED velmi rychle blika, pricemz vhodnou frekvenci signalu PWM (danou hodnotou
+    	 //    modulo registru casovace) zajistime, ze blikani neni pro lidske oko patrne
+    	 //    a LEDka se tak jevi, ze sviti intenzitou odpovidajici aktualni stride PWM.
+    	 //    ZDE VYUZIJTE PRIPRAVENOU FUNKCI delay, EXPERIMENTALNE NASTAVTE HODNOTU
+    	 //    CEKANI TAK, ABY BYLY PLYNULE ZMENY JASU LED DOBRE PATRNE.
+    	 //delay(10000);
+    }
 
     while (1);
-
 }
