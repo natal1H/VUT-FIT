@@ -1,4 +1,4 @@
-//       An example for demonstrating basic principles of FITkit3 usage.
+Ôªø//       An example for demonstrating basic principles of FITkit3 usage.
 //
 // It includes GPIO - inputs from button press/release, outputs for LED control,
 // timer in output compare mode for generating periodic events (via interrupt
@@ -10,133 +10,144 @@
 ////////////////////////////////////////////////////////////////////////////
 /* Header file with all the essential definitions for a given type of MCU */
 #include "MK60D10.h"
+#include <stdio.h>
 
 /* Macros for bit-level registers manipulation */
 #define GPIO_PIN_MASK 0x1Fu
 #define GPIO_PIN(x) (((1)<<(x & GPIO_PIN_MASK)))
 #define SPK 0x10          // Speaker is on PTA4
-#define OVERFLOW 0xFF // Doporucena hodnota preteceni casovace
+
+#define BUS_CLOCK_FREQ 50000000 // 50MHz
+
+enum Tones {
+	C4 = 261,
+	D4 = 293,
+	E4 = 329,
+	F4 = 349,
+	G4 = 392,
+	A4 = 440,
+	B4 = 493,
+	C5 = 523
+};
 
 /* A delay function */
 void delay(long long bound) {
 
-  long long i;
-  for(i=0;i<bound;i++);
+	long long i;
+	for (i = 0; i < bound; i++);
 }
 
 void beep(void) {
-    for (unsigned int q=0; q<500; q++) {
-        PTA->PDOR = GPIO_PDOR_PDO(0x0010);
-        delay(500);
-        PTA->PDOR = GPIO_PDOR_PDO(0x0000);
-        delay(500);
-    }
+	for (unsigned int q = 0; q < 500; q++) {
+		PTA->PDOR = GPIO_PDOR_PDO(0x0010);
+		delay(500);
+		PTA->PDOR = GPIO_PDOR_PDO(0x0000);
+		delay(500);
+	}
 }
 
 /* Initialize the MCU - basic clock settings, turning the watchdog off */
-void MCUInit(void)  {
-    MCG_C4 |= ( MCG_C4_DMX32_MASK | MCG_C4_DRST_DRS(0x01) );
-    SIM_CLKDIV1 |= SIM_CLKDIV1_OUTDIV1(0x00);
-    WDOG_STCTRLH &= ~WDOG_STCTRLH_WDOGEN_MASK;
+void MCUInit(void) {
+	MCG_C4 |= (MCG_C4_DMX32_MASK | MCG_C4_DRST_DRS(0x01));
+	SIM_CLKDIV1 |= SIM_CLKDIV1_OUTDIV1(0x00);
+	WDOG_STCTRLH &= ~WDOG_STCTRLH_WDOGEN_MASK;
 }
 
 /* Povoleni hodin do modulu, ktere budou pouzivany */
 void SysInit(void) {
-	// Defaultne je FTM clocked by internal vus clock
+	// Defaultne je FTM clocked by internal bus clock
 	SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK; // povoleni hodin do portu B (pro RGB LED)
 	SIM->SCGC6 |= SIM_SCGC6_FTM0_MASK; // povoleni hodin do casovace FTM0
 }
 
 void PortsInit(void)
 {
-    /* Turn on all port clocks */
-    SIM->SCGC5 = SIM_SCGC5_PORTA_MASK;
+	/* Turn on all port clocks */
+	SIM->SCGC5 = SIM_SCGC5_PORTA_MASK;
 
-    PORTA->PCR[4] = PORT_PCR_MUX(0x01);  // Speaker
-    PTA->PDDR = GPIO_PDDR_PDD(SPK);     // Speaker as output
+	PORTA->PCR[4] = PORT_PCR_MUX(0x03);  // Speaker
+	PTA->PDDR = GPIO_PDDR_PDD(SPK);     // Speaker as output
 }
 
-void TimerInit(void) {
-	// Vynulovaù register ËÌtaËa
+int getMOD(int freq, int prescale) {
+	int tmp = BUS_CLOCK_FREQ / prescale;
+	return (tmp - freq) / freq;
+}
+
+int getCxV(int MOD) {
+	return (MOD + 1) / 2;
+}
+
+void FTM0_IRQHandler(void) {
+
+}
+
+void TimerInit(int freq) {
+	int prescale = 8;
+
+	// Vynulova¬ù register citaca
 	FTM0_CNT = 0x0;
 
-	// Nastaviù hodnotu preteËenia do modulo registru TPMO
-	//FTM0_MOD = OVERFLOW;
-	//FTM0_MOD = 0xFF;
-	FTM0_MOD = 0x6EE;
+	// Nastavi¬ù hodnotu prete√®enia do modulo registru FTMO
+	FTM0_MOD = getMOD(freq, prescale);
 
-	// Nastaviù reûim generovania PWM na zvolenom kan·le (n) ËasovaËa
+	// Nastavi¬ù re≈æim generovania PWM na zvolenom kanale (n) casovaca
 	// v riadiacom registri FTMx_CnSC
 	// Edge-aligned PWM: High-true pulses (clear Output on match, set Output on reload),
-    // preruöenie ani DMA requests nebud˙ vyuûÌvanÈ.
+	// prerusenie ani DMA requests nebudu vyuzivane.
 	FTM0_C1SC = 0x28;
 
 
-	// Nastavenie st¯Ìdy (duty cycle)
-	FTM0_C1V = 0x377;
+	// Nastavenie stridy (duty cycle)
+	FTM0_C1V = getCxV(FTM0_MOD);
 
-	// Nastaviù konfigur·ciu ËasovaËa v jeho stavovem a ridicim registru (SC):
+	// Nastavi¬ù konfiguraciu casovaca v jeho stavovem a riadiacom registri (SC):
 	// (up counting mode pre Edge-aligned PWM, Clock Mode Selection (01),
-	// Prescale Factor Selection (Divide by 128), bez vyuûitia preruöenia Ëi DMA.
-	FTM0_SC = 0xF;
+	// Prescale Factor Selection (Divide by 8), bez vyuzitia prerusenia ci DMA.
+	FTM0_SC = 0b1011;
+}
+
+void TImerTurnOff(void) {
+	// Vynulova¬ù register citaca
+	FTM0_CNT = 0x0;
+
+	// Disable FTM counter
+	FTM0_SC = 0x0;
+}
+
+int getTOF() {
+	return (FTM0_SC & 0x80) ? 1 : 0;
+}
+
+/**
+ * tone freq in Hz
+ * duration in ms
+ */
+void playNote(int tone, int duratiom) {
+	int count = 0;
+	int count_end = ((tone * duratiom) / 1000) * 2500;
+
+	TimerInit(tone);
+
+	while (count < count_end) {
+		if (getTOF() == 1) { // TOF - Timer Overflow Flag
+			count++;
+		}
+	}
+
+	TImerTurnOff();
 }
 
 int main(void) {
-	int increment = 1; // PrÌznak zvyöovania (1) Ëi zniûovania (0) hodnoty compare
-	unsigned int compare = 0; // Hodnota pre komparaËn˝ register (urËuj˙ci st¯Ìdu PWM)
+	int count = 0;
 
-	int turned_on = 1;
+	MCUInit();
+	SysInit();
+	PortsInit();
 
-    MCUInit();
-    SysInit();
-    PortsInit();
-    TimerInit();
-
-    //beep();
-
-    while (1) {
-    //for (int i = 0; i < 10000; i++) {
-    	//if (increment)  {
-    		 // Zvyöuj st¯Ìdu (compare), pokiaæ nie je dosiahnutÈ zvolen·
-    		 // maxim·lna hodnota (postupne zvysovani jasu LED).
-    		 // Po negaci priznaku increment bude strida snizovana.
-    	 //    compare++;
-    	 //    increment = !(compare >= 0x377);
-    	 //}
-    	 //else  {
-    		 // Snizuj stridu (compare), dokud neni dosazeno nulove hodnoty
-    	     // (postupne snizovani jasu LED), nasledne bude strida opet zvysovana.
-    	     //compare--;
-    	     //increment = (compare == 0x00);
-    	 //}
-    	if (compare == 0) {
-            PTA->PDOR = GPIO_PDOR_PDO(0x0010);
-    	}
-    	else if (compare == 0x377) {
-            PTA->PDOR = GPIO_PDOR_PDO(0x0000);
-    	}
-
-    	compare++;
-
-    	if (compare >= 0x6EE) {
-    		compare = 0;
-    	}
-
-
-    	 // 5. Priradte aktualni hodnotu compare do komparacniho registru zvoleneho kanalu
-    	 //    casovace TPM0 (napr. kanal c. 2 pro manipulaci s cervenou slozkou RGB LED).
-    	 //TPM0_C0V = 127;
-    	 //TPM0_C0V = compare;
-    	 //TPM0_C1V = OVERFLOW - compare;
-
-    	 // 6. LEDku nechte urcity cas svitit dle aktualni hodnoty stridy. Ve skutecnosti
-    	 //    LED velmi rychle blika, pricemz vhodnou frekvenci signalu PWM (danou hodnotou
-    	 //    modulo registru casovace) zajistime, ze blikani neni pro lidske oko patrne
-    	 //    a LEDka se tak jevi, ze sviti intenzitou odpovidajici aktualni stride PWM.
-    	 //    ZDE VYUZIJTE PRIPRAVENOU FUNKCI delay, EXPERIMENTALNE NASTAVTE HODNOTU
-    	 //    CEKANI TAK, ABY BYLY PLYNULE ZMENY JASU LED DOBRE PATRNE.
-    	 //delay(10000);
-    }
-
-    while (1);
+	while (1) {
+		playNote(C5, 2000);
+		delay(100000);
+		playNote(A4, 2000);
+	}
 }
