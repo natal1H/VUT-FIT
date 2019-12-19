@@ -99,11 +99,13 @@ void SendStr(char *s) {
 
 int getMOD(int freq, int prescale) {
 	int tmp = BUS_CLOCK_FREQ / prescale;
-	return (tmp - freq) / freq;
+	//return (tmp - freq) / freq;
+	return tmp / freq;
 }
 
 int getCxV(int MOD) {
-	return (MOD + 1) / 2;
+	//return (MOD + 1) / 2;
+	return MOD / 2;
 }
 
 void TimerInit(int freq) {
@@ -112,23 +114,36 @@ void TimerInit(int freq) {
 	// Vynulova register citaca
 	FTM0_CNT = 0x0;
 
+	//FTM0_CNTIN = 0x0;
+
 	// Nastavi hodnotu preteèenia do modulo registru FTMO
 	FTM0_MOD = getMOD(freq, prescale);
+	//FTM0_MOD = 13636;
+
+	char mod_str[20];
+	sprintf(mod_str, "\r%d\n", getMOD(freq, prescale));
+	SendStr(mod_str);
 
 	// Nastavi režim generovania PWM na zvolenom kanale (n) casovaca
 	// v riadiacom registri FTMx_CnSC
 	// Edge-aligned PWM: High-true pulses (clear Output on match, set Output on reload),
 	// prerusenie ani DMA requests nebudu vyuzivane.
-	FTM0_C1SC = 0x28;
-
+	//FTM0_C1SC = 0x28;
+	FTM0_C1SC = 0x27;
 
 	// Nastavenie stridy (duty cycle)
 	FTM0_C1V = getCxV(FTM0_MOD);
+	//FTM0_C1V = FTM0_MOD / 2;
+
+	//char cv_str[20];
+	//sprintf(cv_str, "\r%d\n", getCxV(FTM0_MOD));
+	//SendStr(cv_str);
 
 	// Nastavi konfiguraciu casovaca v jeho stavovem a riadiacom registri (SC):
 	// (up counting mode pre Edge-aligned PWM, Clock Mode Selection (01),
 	// Prescale Factor Selection (Divide by 8), bez vyuzitia prerusenia ci DMA.
-	FTM0_SC = 0b1011;
+	//FTM0_SC = 0b1011;//0b1011;
+	FTM0_SC = 0xB;
 }
 
 void TImerTurnOff(void) {
@@ -246,16 +261,27 @@ int determineAction(void) {
 	return 0;
 }
 
+void Timer0Init(void) {
+	FTM0_CNT = 0;
+	FTM0_MOD = 22900;
+	FTM0_C1SC = 0x27;
+	FTM0_SC = 0xB;
+	FTM0_C1V = FTM0_MOD / 2;
+}
+
 int main(void) {
 	int count = 0;
 
 	MCUInit();
 	PortsInit();
+	//Timer0Init();
 	UART5Init();
 
 	//determineAction();
 
-	playSong1();
+	//playSong1();
+
+	TimerInit(A4);
 
 	while (1) {
 		//playNote(C5, 2000);
