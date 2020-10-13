@@ -1,25 +1,23 @@
-﻿//       An example for demonstrating basic principles of FITkit3 usage.
-//
-// It includes GPIO - inputs from button press/release, outputs for LED control,
-// timer in output compare mode for generating periodic events (via interrupt
-// service routine) and speaker handling (via alternating log. 0/1 through
-// GPIO output on a reasonable frequency). Using this as a basis for IMP projects
-// as well as for testing basic FITkit3 operation is strongly recommended.
-//
-//            (c) 2019 Michal Bidlo, BUT FIT, bidlom@fit.vutbr.cz
-////////////////////////////////////////////////////////////////////////////
-/* Header file with all the essential definitions for a given type of MCU */
+/**
+ * ARM-FITkit3: Jednoduchy elektronicky klavir
+ *
+ * Autor: Natalia Holkova
+ * Login: xholko02
+ * Datum: 22.12.2019
+ *
+ * 90% original
+ * - delay(), MCUInit() z FITkit3 dema - autor: Michal Bidlo
+ */
+
 #include "MK60D10.h"
 #include <stdio.h>
 
-/* Macros for bit-level registers manipulation */
 #define SPK 0x10          // Speaker is on PTA4
 #define TIME_SCALE 2500
 #define TIME_DELAY_SCALE 2500
 #define BUS_CLOCK_FREQ 50000000 // 50MHz
 #define PRESCALE 8
-
-int curCnV;
+#define FIXED_DURATION 250
 
 enum Tones {
 	C4 = 261,
@@ -32,57 +30,83 @@ enum Tones {
 	C5 = 523
 };
 
-/* A delay function */
+/**
+ * Funkcia na delay
+ *
+ * @param bound Dlzka delay
+ */
 void delay(long long bound) {
 
 	long long i;
 	for (i = 0; i < bound; i++);
 }
 
-/* Initialize the MCU - basic clock settings, turning the watchdog off */
+/**
+ * Inicializacia MCU - zakladne nastavenie hodin, vypnutie watchdog
+ */
 void MCUInit(void) {
 	MCG_C4 |= (MCG_C4_DMX32_MASK | MCG_C4_DRST_DRS(0x01));
 	SIM_CLKDIV1 |= SIM_CLKDIV1_OUTDIV1(0x00);
 	WDOG_STCTRLH &= ~WDOG_STCTRLH_WDOGEN_MASK;
 }
 
+/**
+ * Inicializacia portov, povolenie hodin
+ */
 void PortsInit(void) {
-	/* Turn on all port clocks */
+	/* Zapnutie vsetkych hodin na porty */
 	SIM->SCGC5 |= (SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTE_MASK);
-	SIM->SCGC6 |= SIM_SCGC6_FTM0_MASK; // povoleni hodin do casovace FTM0
-	SIM->SCGC1 |= SIM_SCGC1_UART5_MASK;
+	SIM->SCGC6 |= SIM_SCGC6_FTM0_MASK; // povolenie hodin do casovaca FTM0
+	SIM->SCGC1 |= SIM_SCGC1_UART5_MASK; // povolenie hodiny do UART5
 
 	PORTE->PCR[8] = (0 | PORT_PCR_MUX(0x03));
 	PORTE->PCR[9] = (0 | PORT_PCR_MUX(0x03));
 
-	PORTA->PCR[4] = PORT_PCR_MUX(0x03);  // Speaker
-	PTA->PDDR = GPIO_PDDR_PDD(SPK);     // Speaker as output
+	PORTA->PCR[4] = PORT_PCR_MUX(0x03);  // Bzuciak
+	PTA->PDDR = GPIO_PDDR_PDD(SPK);     // Bzuciak na vystup
 }
 
+/**
+ * Inicializacia UART5
+ */
 void UART5Init() {
 	UART5->C2 &= ~(UART_C2_TE_MASK | UART_C2_RE_MASK);
 	UART5->BDH = 0x00;
 	UART5->BDL = 0x1A; // Baud rate 115 200 Bd, 1 stop bit
-	UART5->C4 = 0x0F; // Oversampling ratio 16, match address mode disabled
+	UART5->C4 = 0x0F; // Oversampling ratio 16, match address mode vypnute
 	UART5->C1 = 0x00; // 8 data bitu, bez parity
 	UART5->C3 = 0x00;
 	UART5->MA1 = 0x00; // no match address (mode disabled in C4)
 	UART5->MA2 = 0x00; // no match address (mode disabled in C4)
-	UART5->S2 |= 0xC0; // ?
+	UART5->S2 |= 0xC0;
 	UART5->C2 |= (UART_C2_TE_MASK | UART_C2_RE_MASK);
 }
 
+/**
+ * Funkcia na poslanie znaku
+ *
+ * @param ch Znak na poslanie
+ */
 void SendCh(char ch) {
 	while (!(UART5->S1 & UART_S1_TDRE_MASK) && !(UART5->S1 & UART_S1_TC_MASK));
 	UART5->D = ch;
 }
 
-
+/**
+ * Funkcia na prijatie znaku
+ *
+ * @return prijaty znak
+ */
 char ReceiveCh(void) {
 	while (!(UART5->S1 & UART_S1_RDRF_MASK));
 	return UART5->D;
 }
 
+/**
+ * Funkcia na poslanie retazca
+ *
+ * @param s Znak na poslanie
+ */
 void SendStr(char *s) {
 	int i = 0;
 	while (s[i] != 0) {
@@ -90,46 +114,58 @@ void SendStr(char *s) {
 	}
 }
 
+/**
+ * Funkcia na ziskanie hodnoty MOD pre FTM casovac
+ *
+ * @param Vstupna frekvencia do FTM casovaca
+ * @return hodnota MOD
+ */
 int getMOD(int freq) {
 	int tmp = BUS_CLOCK_FREQ / PRESCALE;
 	return (tmp - freq) / freq;
 }
 
-int getCxV(int MOD) {
+/**
+ * Funkcia na vypocet hodnoty pre FTMx_CnV (50% duty cycle)
+ *
+ * @param MOD hodnota v FTMx_CnV
+ * @return hodnota pre FTMx_CnV
+ */
+int getCnV(int MOD) {
 	return (MOD + 1) / 2;
 }
 
-int getCnVChangeStep(int freq, int count_end) {
-	int CnV = getCxV(getMOD(freq));
-	int half_time = count_end / 2;
-
-	return half_time / CnV;
-}
-
+/**
+ * Inicializacia FTM casovaca
+ *
+ * @param freq Frekvencia tonu na vygenerovanie
+ */
 void TimerInit(int freq) {
 	// Vynulova register citaca
 	FTM0_CNT = 0x0;
 
-	// Nastavi hodnotu preteèenia do modulo registru FTMO
+	// Nastavi hodnotu pretecenia do modulo registru FTMO
 	FTM0_MOD = getMOD(freq);
 
-	// Nastavi režim generovania PWM na zvolenom kanale (n) casovaca
+	// Nastavi rezim generovania PWM na zvolenom kanale (n) casovaca
 	// v riadiacom registri FTMx_CnSC
 	// Edge-aligned PWM: High-true pulses (clear Output on match, set Output on reload),
 	// prerusenie ani DMA requests nebudu vyuzivane.
 	FTM0_C1SC = 0x28;
 
 	// Nastavenie stridy (duty cycle)
-	FTM0_C1V = getCxV(FTM0_MOD);
+	FTM0_C1V = getCnV(FTM0_MOD);
 
 	// Nastavi konfiguraciu casovaca v jeho stavovem a riadiacom registri (SC):
 	// (up counting mode pre Edge-aligned PWM, Clock Mode Selection (01),
 	// Prescale Factor Selection (Divide by 8), bez vyuzitia prerusenia ci DMA.
-	//FTM0_SC = 0b1011;//0b1011;
 	FTM0_SC = 0xB;
 }
 
-void TImerTurnOff(void) {
+/**
+ * Vypnutie casovaca
+ */
+void TimerTurnOff(void) {
 	// Vynulova register citaca
 	FTM0_CNT = 0x0;
 
@@ -137,13 +173,20 @@ void TImerTurnOff(void) {
 	FTM0_SC = 0x0;
 }
 
+/**
+ * Ziskanie TOF flagu z FTM0
+ *
+ * @return True ak nastaveny TOF
+ */
 int getTOF() {
 	return (FTM0_SC & 0x80) ? 1 : 0;
 }
 
 /**
- * tone freq in Hz
- * duration in ms
+ * Zahranie tonu o danej frekvencii a trvani (nie je presne)
+ *
+ * @param tone frekvencia v Hz
+ * @param duration dlzka trvania v ms (nie je presne)
  */
 void playNote(int tone, int duratiom) {
 	int count = 0;
@@ -164,17 +207,21 @@ void playNote(int tone, int duratiom) {
 		}
 	}
 
-	TImerTurnOff();
+	TimerTurnOff();
 	delay(100000);
 }
 
-unsigned char prompt[14] = "\rUART_Tx_Rdy\n";
-
+/**
+ * Zobrazenie header v terminale
+ */
 void displayHeader(void) {
 	SendStr("\r- Simple electronic piano -\n");
 	SendStr("\r===========================\n");
 }
 
+/**
+ * Zobrazenie hlavneho menu v terminale
+ */
 void displayOptionsMain(void) {
 	SendStr("\rChoose action:\n");
 	SendStr("\r1. Play prepared song\n");
@@ -183,6 +230,9 @@ void displayOptionsMain(void) {
 	SendStr("\rYour answer (1/2/3): ");
 }
 
+/**
+ * Zahraj song 1
+ */
 void playSong1(void) {
 	playNote(E4, 500);
 	playNote(G4, 500);
@@ -207,6 +257,9 @@ void playSong1(void) {
 
 }
 
+/**
+ * Zahraj song 2
+ */
 void playSong2(void) {
 	playNote(C4, 500);
 	playNote(D4, 500);
@@ -231,14 +284,60 @@ void playSong2(void) {
 	delay(1000 * TIME_DELAY_SCALE);
 }
 
+/**
+ * Zahraj song 3
+ */
+void playSong3(void) {
+	playNote(E4, 500);
+	playNote(E4, 500);
+	playNote(F4, 500);
+	playNote(G4, 500);
+	playNote(G4, 500);
+	playNote(F4, 500);
+	playNote(E4, 500);
+	playNote(D4, 500);
+	playNote(C4, 500);
+	playNote(C4, 500);
+	playNote(D4, 500);
+	playNote(E4, 500);
+	playNote(E4, 1000);
+	playNote(D4, 1000);
+
+	delay(1000 * TIME_DELAY_SCALE);
+
+	playNote(E4, 500);
+	playNote(E4, 500);
+	playNote(F4, 500);
+	playNote(G4, 500);
+	playNote(G4, 500);
+	playNote(F4, 500);
+	playNote(E4, 500);
+	playNote(D4, 500);
+	playNote(C4, 500);
+	playNote(C4, 500);
+	playNote(D4, 500);
+	playNote(E4, 500);
+	playNote(D4, 1000);
+	playNote(C4, 1000);
+
+	delay(1000 * TIME_DELAY_SCALE);
+}
+
+/**
+ * Zobrazenie moznosti pre predpripravene songy
+ */
 void displaypreparedSongsOptions() {
 	SendStr("\rChoose song:\n");
 	SendStr("\r1. \"Smoke on the water\"\n");
 	SendStr("\r2. Range test\n");
-	SendStr("\r3. Back\n");
-	SendStr("\rYour answer (1/2/3): ");
+	SendStr("\r3. \"Ode to joy\"\n");
+	SendStr("\r4. Back\n");
+	SendStr("\rYour answer (1/2/3/4): ");
 }
 
+/**
+ * Zahranie predpripravenej pesnicky
+ */
 void actionPlayPreparedSong(void) {
 	displaypreparedSongsOptions();
 
@@ -257,6 +356,11 @@ void actionPlayPreparedSong(void) {
 			break;
 		}
 		else if (answer == '3') {
+			SendStr("\n\rYou chose to song 3.\n");
+			playSong3();
+			break;
+		}
+		else if (answer == '4') {
 			// "Back"
 			SendStr("\n\rBack...\n\r");
 			break;
@@ -276,23 +380,131 @@ void actionPlayPreparedSong(void) {
 	}
 }
 
+/**
+ * Zobraz moznosti prehravanie vlastnej pesnicky v terminale
+ */
 void displayOwnSongOptions(void) {
 	SendStr("\rInput style options:\n");
-	SendStr("\r1. As string (note, duration)\n");
+	SendStr("\r1. Keyboard press (start/stop)\n");
 	SendStr("\r2. Keyboard press (fixed duration)\n");
 	SendStr("\r3. Back\n");
 	SendStr("\rYour answer (1/2/3): ");
 }
 
-void actionPlayInputString(void) {
+/**
+ * Zahranie vlastnej pesnicky pomocou klaves 1-8
+ * Ton hra, pokial sa nestlaci " "/ nie je stlaceny iny ton alebo vypnutie pomocu "q"
+ */
+void actionPlayInputKeyboardStartStop(void) {
+	SendStr("\rKeyboard binding:\n");
+	SendStr("\r  - \"1\" - C4\n");
+	SendStr("\r  - \"2\" - D4\n");
+	SendStr("\r  - \"3\" - E4\n");
+	SendStr("\r  - \"4\" - F4\n");
+	SendStr("\r  - \"5\" - G4\n");
+	SendStr("\r  - \"6\" - A4\n");
+	SendStr("\r  - \"7\" - B4\n");
+	SendStr("\r  - \"8\" - C5\n");
+	SendStr("\r  - \" \" - stop sound\n");
+	SendStr("\r  - \"q\" - back\n");
+	SendStr("\r================\n");
 
+	char answer = ReceiveCh();
+
+	while (1) {
+		if (answer == '1') {
+			TimerTurnOff();
+			TimerInit(C4);
+		}
+		else if (answer == '2') {
+			TimerTurnOff();
+			TimerInit(D4);
+		}
+		else if (answer == '3') {
+			TimerTurnOff();
+			TimerInit(E4);
+		}
+		else if (answer == '4') {
+			TimerTurnOff();
+			TimerInit(F4);
+		}
+		else if (answer == '5') {
+			TimerTurnOff();
+			TimerInit(G4);
+		}
+		else if (answer == '6') {
+			TimerTurnOff();
+			TimerInit(A4);
+		}
+		else if (answer == '7') {
+			TimerTurnOff();
+			TimerInit(B4);
+		}
+		else if (answer == '8') {
+			TimerTurnOff();
+			TimerInit(C5);
+		}
+		else if (answer == ' ') {
+			TimerTurnOff();
+		}
+		else if (answer == 'q') {
+			// "Back"
+			TimerTurnOff();
+			SendStr("\n\rBack...\n\r");
+			break;
+		}
+		answer = ReceiveCh();
+	}
 }
 
+/**
+ * Zahranie vlastnej pesnicky pomocou klaves 1-8, ton ma fixed dlzku
+ */
 void actionPlayInputKeyboardFixed(void) {
+	SendStr("\rKeyboard binding:\n");
+	SendStr("\r  - \"1\" - C4\n");
+	SendStr("\r  - \"2\" - D4\n");
+	SendStr("\r  - \"3\" - E4\n");
+	SendStr("\r  - \"4\" - F4\n");
+	SendStr("\r  - \"5\" - G4\n");
+	SendStr("\r  - \"6\" - A4\n");
+	SendStr("\r  - \"7\" - B4\n");
+	SendStr("\r  - \"8\" - C5\n");
+	SendStr("\r  - \"q\" - back\n");
+	SendStr("\r================\n");
+
+	char answer = ReceiveCh();
+	while (1) {
+		if (answer == '1')
+			playNote(C4, FIXED_DURATION);
+		else if (answer == '2')
+			playNote(D4, FIXED_DURATION);
+		else if (answer == '3')
+			playNote(E4, FIXED_DURATION);
+		else if (answer == '4')
+			playNote(F4, FIXED_DURATION);
+		else if (answer == '5')
+			playNote(G4, FIXED_DURATION);
+		else if (answer == '6')
+			playNote(A4, FIXED_DURATION);
+		else if (answer == '7')
+			playNote(B4, FIXED_DURATION);
+		else if (answer == '8')
+			playNote(C5, FIXED_DURATION);
+		else if (answer == 'q') {
+			// "Back"
+			SendStr("\n\rBack...\n\r");
+			break;
+		}
+
+		answer = ReceiveCh();
+	}
 
 }
 
-
+/**
+ * Zahratie vlastnej pesnicky
+ */
 void actionPlayOwnSong(void) {
 	displayOwnSongOptions();
 
@@ -301,8 +513,8 @@ void actionPlayOwnSong(void) {
 
 	while (1) {
 		if (answer == '1') {
-			SendStr("\n\rYou chose input as string.\n");
-			actionPlayInputString();
+			SendStr("\n\rYou chose keyboard input (start/stop).\n");
+			actionPlayInputKeyboardStartStop();
 		}
 		else if (answer == '2') {
 			SendStr("\n\rYou chose keyboard input (fixed duration).\n");
@@ -327,6 +539,9 @@ void actionPlayOwnSong(void) {
 	}
 }
 
+/**
+ * Volba co urobit
+ */
 int determineAction(void) {
 	displayHeader();
 	displayOptionsMain();
@@ -368,23 +583,11 @@ int determineAction(void) {
 
 
 int main(void) {
-	int count = 0;
-
 	MCUInit();
 	PortsInit();
 	UART5Init();
 
 	determineAction();
 
-	//playSong1();
-
-	//TimerInit(A4);
-
-	while (1) {
-		//playNote(C5, 1000);
-
-		//delay(500 * TIME_SCALE);
-
-		//playNote(A4, 1000);
-	}
+	while (1);
 }
