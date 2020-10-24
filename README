@@ -1,0 +1,58 @@
+IPK - Project 2 - Scanner sieťových služieb
+===========================================
+
+O programe
+----------
+
+Autor: Natália Holková (xholko02)
+
+Jednoduchý sieťový TCP, UDP skener v jazyku C. Program oskenuje zadanú IP adresu a porty. 
+Na štandartný výstup vypíše, v akom stave a porty nachádzajú (otvorený, filtrovaný, zatvorený).
+
+
+Závislosti
+----------
+
+Program bol testovaný na distribúcii Ubuntu 18.04.2 LTS.
+Tento program využíva knižnicu libpcap. Pokiaľ nie je nainštalovaná na vašom zariadení,
+je potrebné si ju doinštalovať príkazom: sudo apt-get install libpcap-dev (Ubuntu) 
+
+
+Preklad
+-------
+
+Program preložíte príkazom "make" v adresári so zdrojovými súbormi a Makefile.
+
+
+Spustenie programu
+------------------
+
+Pre spustenie programu je treba mať root prístup. Tvar volania programu:
+
+./ipk-scan {-i <interface>} -pu <port-ranges> -pt <port-ranges> [<domain-name> | <IP-address>]
+
+kde:
+    - -pt, pu <port-ranges> - skenované TCP/UDP porty, 
+      povolený formát napr.: -pt 22/ -pu 1-42 / -pt 1,2,4
+    - <domain-name> | <IP-address> - doménové meno alebo IP adresa skenovaného stroja,
+      povinné vyplniť práve jeden údaj z nich
+    - -i <interface> - nepovinný argument predstavujúci identifikátor rozhrania,
+      v prípade neprítomnosti sa zvolí prvý interface s neloopbackovou IP adresou
+
+Pre výpis nápovedy programu zadajte:
+
+./ipk-scan --help
+
+
+Príklad chovania:
+-----------------
+
+./ipk-scan -pt 21,22,143 -pu 53,67 localhost
+
+Interesting ports on localhost (127.0.0.1):
+PORT     STATE 
+21/tcp	 closed
+22/tcp 	 open  
+143/tcp	 filtered
+53/udp	 closed
+67/udp	 open
