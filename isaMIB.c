@@ -8,14 +8,24 @@
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include "isaMIB.h"
 
+#define LOGIN_LEN 8
+#define TIME_STR_LEN 23
+#define OS_STR_LEN 255
+
+static char loginObject[LOGIN_LEN] = "xholko02";
+static char currentTimeObject[TIME_STR_LEN];
+static int numberObject = 42;
+static int numberObject_backup;
+static char operatingSystemObject[OS_STR_LEN];
+
 /** Initializes the isaMIB module */
 void
 init_isaMIB(void)
 {
-    const oid loginObject_oid[] = { 1,3,6,1,3,22,1,1,1 };
-    const oid currentTimeObject_oid[] = { 1,3,6,1,3,22,1,1,2 };
-    const oid numberObject_oid[] = { 1,3,6,1,3,22,1,1,3 };
-    const oid operatingSystemObject_oid[] = { 1,3,6,1,3,22,1,1,4 };
+    const oid loginObject_oid[] = { 1,3,6,1,3,22,1 };
+    const oid currentTimeObject_oid[] = { 1,3,6,1,3,22,2 };
+    const oid numberObject_oid[] = { 1,3,6,1,3,22,3 };
+    const oid operatingSystemObject_oid[] = { 1,3,6,1,3,22,4 };
 
   DEBUGMSGTL(("isaMIB", "Initializing\n"));
 
@@ -57,8 +67,8 @@ handle_loginObject(netsnmp_mib_handler *handler,
 
         case MODE_GET:
             snmp_set_var_typed_value(requests->requestvb, ASN_OCTET_STR,
-                                     /* XXX: a pointer to the scalar's data */,
-                                     /* XXX: the length of the data in bytes */);
+                                     &loginObject,/* XXX: a pointer to the scalar's data */
+                                     sizeof(char)*LOGIN_LEN);/* XXX: the length of the data in bytes */
             break;
 
 
@@ -86,8 +96,8 @@ handle_currentTimeObject(netsnmp_mib_handler *handler,
 
         case MODE_GET:
             snmp_set_var_typed_value(requests->requestvb, ASN_OCTET_STR,
-                                     /* XXX: a pointer to the scalar's data */,
-                                     /* XXX: the length of the data in bytes */);
+                                     &currentTimeObject,/* XXX: a pointer to the scalar's data */
+                                     sizeof(char)*TIME_STR_LEN);/* XXX: the length of the data in bytes */
             break;
 
 
@@ -116,8 +126,8 @@ handle_numberObject(netsnmp_mib_handler *handler,
 
         case MODE_GET:
             snmp_set_var_typed_value(requests->requestvb, ASN_INTEGER,
-                                     /* XXX: a pointer to the scalar's data */,
-                                     /* XXX: the length of the data in bytes */);
+                                     &numberObject, /* XXX: a pointer to the scalar's data */
+                                     sizeof(numberObject)); /* XXX: the length of the data in bytes */
             break;
 
         /*
@@ -136,9 +146,10 @@ handle_numberObject(netsnmp_mib_handler *handler,
 
         case MODE_SET_RESERVE2:
             /* XXX malloc "undo" storage buffer */
-            if (/* XXX if malloc, or whatever, failed: */) {
-                netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_RESOURCEUNAVAILABLE);
-            }
+            numberObject_backup = numberObject;
+            //if (/* XXX if malloc, or whatever, failed: */) {
+            //    netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_RESOURCEUNAVAILABLE);
+            //}
             break;
 
         case MODE_SET_FREE:
@@ -149,25 +160,27 @@ handle_numberObject(netsnmp_mib_handler *handler,
 
         case MODE_SET_ACTION:
             /* XXX: perform the value change here */
-            if (/* XXX: error? */) {
-                netsnmp_set_request_error(reqinfo, requests, /* some error */);
-            }
+            numberObject = *(requests->requestvb->val.integer);
+            //if (/* XXX: error? */) {
+            //    netsnmp_set_request_error(reqinfo, requests, /* some error */);
+            //}
             break;
 
         case MODE_SET_COMMIT:
             /* XXX: delete temporary storage */
-            if (/* XXX: error? */) {
+            //if (/* XXX: error? */) {
                 /* try _really_really_ hard to never get to this point */
-                netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_COMMITFAILED);
-            }
+            //    netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_COMMITFAILED);
+            //}
             break;
 
         case MODE_SET_UNDO:
             /* XXX: UNDO and return to previous value for the object */
-            if (/* XXX: error? */) {
+            numberObject = numberObject_backup;
+            //if (/* XXX: error? */) {
                 /* try _really_really_ hard to never get to this point */
-                netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_UNDOFAILED);
-            }
+            //    netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_UNDOFAILED);
+            //}
             break;
 
         default:
@@ -194,8 +207,8 @@ handle_operatingSystemObject(netsnmp_mib_handler *handler,
 
         case MODE_GET:
             snmp_set_var_typed_value(requests->requestvb, ASN_OCTET_STR,
-                                     /* XXX: a pointer to the scalar's data */,
-                                     /* XXX: the length of the data in bytes */);
+                                     &operatingSystemObject,/* XXX: a pointer to the scalar's data */
+                                     sizeof(char)*OS_STR_LEN);/* XXX: the length of the data in bytes */
             break;
 
 

@@ -5,9 +5,8 @@ ISA-MIB DEFINITIONS ::= BEGIN
 -- IMPORTS: Include definitions from other mibs here, which is always
 -- the first item in a MIB file.
 IMPORTS
-	OBJECT-TYPE, Integer32, experimental,
-	MODULE-IDENTITY                       FROM SNMPv2-SMI
-	-- MODULE-COMPLIANCE, OBJECT-GROUP       FROM SNMPv2-CONF
+    OBJECT-TYPE, Integer32, experimental,
+    MODULE-IDENTITY                       FROM SNMPv2-SMI
     DisplayString                         FROM SNMPv2-TC;
 
 --
@@ -16,29 +15,15 @@ IMPORTS
 isaMIB MODULE-IDENTITY
     LAST-UPDATED "200205290000Z"            -- 29 May 2002, midnight
     ORGANIZATION "net-snmp"
-    CONTACT-INFO "postal:   Wes Hardaker
-                            P.O. Box 382
-                            Davis CA  95617
-
-		  email:    net-snmp-coders@lists.sourceforge.net
+    CONTACT-INFO "login:    xholko02
+                  email:    xholko02@stud.fit.vutbr.cz
                  "
-    DESCRIPTION  "A simple mib for demonstration purposes.
+    DESCRIPTION  "A mib for ISA project
                  "
     REVISION      "200205290000Z"
     DESCRIPTION
             "???"
     ::= { experimental 22 }
-
--- Define typical mib nodes, like where the objects are going to lie.
--- we'll prefix everything in this mib with nst (net snmp tutorial)
-isaMIBObjects     OBJECT IDENTIFIER ::= { isaMIB 1 }
-isaMIBConformance OBJECT IDENTIFIER ::= { isaMIB 2 }
-
-
--- define 3 objects, which will all be implemented in different ways
--- within the tutorial.
-
-isaAgentModules   OBJECT IDENTIFIER ::= { isaMIBObjects 1 }
 
 
 loginObject OBJECT-TYPE
@@ -47,7 +32,7 @@ loginObject OBJECT-TYPE
     STATUS      current
     DESCRIPTION
 	"String that represents login"
-    ::= { isaAgentModules 1 }
+    ::= { isaMIB 1 }
 
 currentTimeObject OBJECT-TYPE
     SYNTAX      DisplayString (SIZE (0..255))
@@ -55,7 +40,7 @@ currentTimeObject OBJECT-TYPE
     STATUS      current
     DESCRIPTION
 	"String representing current time"
-    ::= { isaAgentModules 2 }
+    ::= { isaMIB 2 }
 
 numberObject OBJECT-TYPE
     SYNTAX      Integer32
@@ -63,7 +48,7 @@ numberObject OBJECT-TYPE
     STATUS      current
     DESCRIPTION
 	"Represents a read/write number"
-    ::= { isaAgentModules 3 }
+    ::= { isaMIB 3 }
 
 operatingSystemObject OBJECT-TYPE
     SYNTAX      DisplayString (SIZE (0..255))
@@ -71,7 +56,7 @@ operatingSystemObject OBJECT-TYPE
     STATUS      current
     DESCRIPTION
 	"String representing information about operating system"
-    ::= { isaAgentModules 4 }
+    ::= { isaMIB 4 }
 
 --
 -- The above definitions produce a section of the mib tree that looks
