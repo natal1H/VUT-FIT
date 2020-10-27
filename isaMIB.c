@@ -6,6 +6,8 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
+#include <time.h> 
+#include <sys/utsname.h>
 #include "isaMIB.h"
 
 #define LOGIN_LEN 8
@@ -92,6 +94,19 @@ handle_currentTimeObject(netsnmp_mib_handler *handler,
     /* a instance handler also only hands us one request at a time, so
        we don't need to loop over a list of requests; we'll only get one. */
     
+    time_t now = time(&now);
+    if (now == -1) {
+        // TODO - error
+    }
+
+    struct tm *ptm = gmtime(&now);
+    if (ptm == NULL) {
+        // TODO - error
+    }    
+
+    strncpy(currentTimeObject, asctime(ptm), sizeof(asctime(ptm))); 
+    currentTimeObject[strlen(asctime(ptm))] = '\0';
+
     switch(reqinfo->mode) {
 
         case MODE_GET:
@@ -203,6 +218,13 @@ handle_operatingSystemObject(netsnmp_mib_handler *handler,
     /* a instance handler also only hands us one request at a time, so
        we don't need to loop over a list of requests; we'll only get one. */
     
+    struct utsname name;
+    if (uname(&name)) {
+        // TODO - error if non-0 return
+    }  
+	//printf("Your computer's OS is %s@%s\n", name.sysname, name.release);
+    strncpy(operatingSystemObject, name.sysname, sizeof(name.sysname));
+
     switch(reqinfo->mode) {
 
         case MODE_GET:
