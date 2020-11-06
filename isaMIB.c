@@ -7,11 +7,12 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <time.h> 
+#include <string.h>
 #include <sys/utsname.h>
 #include "isaMIB.h"
 
 #define LOGIN_LEN 8
-#define TIME_STR_LEN 23
+#define TIME_STR_LEN 28
 #define OS_STR_LEN 255
 
 static char loginObject[LOGIN_LEN] = "xholko02";
@@ -94,18 +95,12 @@ handle_currentTimeObject(netsnmp_mib_handler *handler,
     /* a instance handler also only hands us one request at a time, so
        we don't need to loop over a list of requests; we'll only get one. */
     
-    time_t now = time(&now);
-    if (now == -1) {
-        // TODO - error
-    }
-
-    struct tm *ptm = gmtime(&now);
-    if (ptm == NULL) {
-        // TODO - error
-    }    
-
-    strncpy(currentTimeObject, asctime(ptm), sizeof(asctime(ptm))); 
-    currentTimeObject[strlen(asctime(ptm))] = '\0';
+    time_t t = time(NULL);
+    struct tm lt = {0};
+    localtime_r(&t, &lt);
+    size_t len = strftime(currentTimeObject, TIME_STR_LEN, "%Y-%m-%dT%H:%M:%S%z", &lt);
+    char minute[] = { currentTimeObject[len-2], currentTimeObject[len-1], '\0' };
+    sprintf(currentTimeObject + len - 2, ":%s", minute);
 
     switch(reqinfo->mode) {
 
