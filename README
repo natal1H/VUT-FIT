@@ -1,0 +1,37 @@
+# ISA - Rozšírenie SNMP agenta
+
+Autor: Natália Holková (xholko02)
+
+## Popis
+
+Implementovanie vlastného MIB modulu a dynamicky načítateľné rozšírenie SNMP agenta net-snmp.
+
+## Načítanie MIB
+
+1. súbor ISA-MIB.txt vložiť do zložky s ostatnými MIB
+2. make
+3. snmpd -f -L
+4. snmpset localhost UCD-DLMOD-MIB::dlmodStatus.1 i create
+5. snmpset localhost UCD-DLMOD-MIB::dlmodName.1 s "isaMIB" UCD-DLMOD-MIB::dlmodPath.1 s \\"/cesta/k/isaMIB.so"
+6. snmpset localhost UCD-DLMOD-MIB::dlmodStatus.1 i load
+
+## Použitie
+
+- snmpget localhost ISA-MIB::loginObject.0 - vráti login
+- snmpget localhost ISA-MIB::currentTimeObject.0 - vráti aktuálny čas
+- snmpget localhost ISA-MIB::numberObject.0 -  - vráti hodnotu číselnej premennej
+- snmpset localhost ISA-MIB::numberObject.0 = <číslo> - zmení hodnotu číselnej premennej
+- snmpget localhost ISA-MIB::operatingSystemObject.0 - vráti názov operačného systému
+- snmptranslate -M+. -ISA-MIB -Tp -IR isaMIB - zobrazí stromovú štruktúru našej MIB
+- snmptranslate -On ISA-MIB::loginObject - zobrazí číselné OID loginObject
+
+## Odovzdané súbory
+
+- zdrojové súbory
+  - ISA-MIB.txt
+  - isaMIB.c
+  - isaMIB.h
+- ostatné súbory
+  - Makefile
+  - README
+  - manual.pdf
