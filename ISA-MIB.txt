@@ -1,9 +1,5 @@
 ISA-MIB DEFINITIONS ::= BEGIN
 
--- A Comment!
-
--- IMPORTS: Include definitions from other mibs here, which is always
--- the first item in a MIB file.
 IMPORTS
     OBJECT-TYPE, Integer32, experimental,
     MODULE-IDENTITY                       FROM SNMPv2-SMI
@@ -13,21 +9,21 @@ IMPORTS
 -- A brief description and update information about this mib.
 --
 isaMIB MODULE-IDENTITY
-    LAST-UPDATED "200205290000Z"            -- 29 May 2002, midnight
+    LAST-UPDATED "202011180000Z"            -- 18 November 2020, midnight
     ORGANIZATION "net-snmp"
     CONTACT-INFO "login:    xholko02
                   email:    xholko02@stud.fit.vutbr.cz
                  "
     DESCRIPTION  "A mib for ISA project
                  "
-    REVISION      "200205290000Z"
+    REVISION      "202011180000Z"
     DESCRIPTION
-            "???"
+            "A mib for ISA project"
     ::= { experimental 22 }
 
 
 loginObject OBJECT-TYPE
-    SYNTAX      DisplayString (SIZE (0..255))
+    SYNTAX      DisplayString (SIZE (0..7))
     MAX-ACCESS  read-only
     STATUS      current
     DESCRIPTION
@@ -35,7 +31,7 @@ loginObject OBJECT-TYPE
     ::= { isaMIB 1 }
 
 currentTimeObject OBJECT-TYPE
-    SYNTAX      DisplayString (SIZE (0..255))
+    SYNTAX      DisplayString (SIZE (0..23))
     MAX-ACCESS  read-only
     STATUS      current
     DESCRIPTION
@@ -51,60 +47,11 @@ numberObject OBJECT-TYPE
     ::= { isaMIB 3 }
 
 operatingSystemObject OBJECT-TYPE
-    SYNTAX      DisplayString (SIZE (0..255))
+    SYNTAX      DisplayString
     MAX-ACCESS  read-only
     STATUS      current
     DESCRIPTION
 	"String representing information about operating system"
     ::= { isaMIB 4 }
 
---
--- The above definitions produce a section of the mib tree that looks
--- like this (including our parent node, printed using the
--- snmptranslate command):
---
---
--- % snmptranslate -M+. -mNET-SNMP-TUTORIAL-MIB -Tp -IR netSnmpTutorialMIB
--- +-netSnmpTutorialMIB(4)
---   |
---   +-nstMIBObjects(1)
---   | |
---   | +-nstAgentModules(1)
---   |   |
---   |   +- -RW- Integer32 nstAgentModuleObject(1)
---   |   +- -RW- Integer32 nstAgentSubagentObject(2)
---   |   +- -RW- Integer32 nstAgentPluginObject(3)
---   |
---   +-nstMIBConformance(2)
-
-
--- You can then use the snmptranslate command to get the numerical or
--- textual OID representation of any piece of the tree:
-
-
--- Getting a OID:
---   % snmptranslate -M+. -mNET-SNMP-TUTORIAL-MIB -IR nstSSSecondsSinceChanged
---   .1.3.6.1.4.1.2021.13.4242.1.1.2
-
-
--- Getting a textual OID:
---   % snmptranslate -On -M+. -mNET-SNMP-TUTORIAL-MIB -IR nstSSSecondsSinceChanged
---   enterprises.ucdavis.ucdExperimental.netSnmpTutorialMIB.nstMIBObjects.nstScalarSet.nstSSSecondsSinceChanged
-
-
--- Getting a description:
---   % snmptranslate -Td -M+. -mNET-SNMP-TUTORIAL-MIB -IR nstSSSecondsSinceChanged 
---   .1.3.6.1.4.1.2021.13.4242.1.1.2
---   SYNTAX  TimeTicks
---   UNITS   "1/100th Seconds"
---   MAX-ACCESS      read-only
---   STATUS  current
---   DESCRIPTION     "This object indicates the number of 1/100th seconds since the
---           nstSSSimpleString object has changed.  If it is has never been
---           modified, it will be the time passed since the start of the
---           agent."
-
-
-
--- END:  Don't forget this!
 END

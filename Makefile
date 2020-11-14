@@ -2,6 +2,7 @@ CC=gcc
 
 OBJ=isaMIB.o
 TARGETS=isaMIB.so
+TARNAME=xholko02.tar
 
 CFLAGS=-I. `net-snmp-config --cflags`
 BUILDLIBS=`net-snmp-config --libs`
@@ -17,5 +18,8 @@ isaMIB.so: isaMIB.c Makefile
 	$(CC) $(CFLAGS) $(DLFLAGS) -o isaMIB.so isaMIB.o
 
 clean:
-	rm $(OBJ) $(TARGETS)
+	rm $(OBJ) $(TARGETS) $(TARNAME)
+
+tar: isaMIB.c isaMIB.h ISA-MIB.txt manual.pdf README
+	tar -cvf $(TARNAME) isaMIB.c isaMIB.h ISA-MIB.txt Makefile manual.pdf README 
 
