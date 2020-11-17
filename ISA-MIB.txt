@@ -9,7 +9,7 @@ IMPORTS
 -- A brief description and update information about this mib.
 --
 isaMIB MODULE-IDENTITY
-    LAST-UPDATED "202011180000Z"            -- 18 November 2020, midnight
+    LAST-UPDATED "202011180000Z"            
     ORGANIZATION "net-snmp"
     CONTACT-INFO "login:    xholko02
                   email:    xholko02@stud.fit.vutbr.cz
@@ -31,7 +31,7 @@ loginObject OBJECT-TYPE
     ::= { isaMIB 1 }
 
 currentTimeObject OBJECT-TYPE
-    SYNTAX      DisplayString (SIZE (0..23))
+    SYNTAX      DisplayString (SIZE (0..24))
     MAX-ACCESS  read-only
     STATUS      current
     DESCRIPTION

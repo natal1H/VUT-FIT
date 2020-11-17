@@ -16,8 +16,8 @@
 #include <sys/utsname.h>
 #include "isaMIB.h"
 
-#define LOGIN_LEN 9
-#define TIME_STR_LEN 26
+#define LOGIN_LEN 8
+#define TIME_STR_LEN 25
 #define OS_STR_LEN 255
 
 static char loginObject[LOGIN_LEN] = "xholko02";
@@ -87,20 +87,23 @@ int handle_loginObject(netsnmp_mib_handler *handler,
 }
 
 /**
- * currentTimeObject handling
+ * currentTimeObject handling 
  */
 int handle_currentTimeObject(netsnmp_mib_handler *handler,
                           netsnmp_handler_registration *reginfo,
                           netsnmp_agent_request_info   *reqinfo,
                           netsnmp_request_info         *requests) {
 
+     /********************************************************************************
+      * Disclaimer: getting utc time was inspired by 
+      * https://stackoverflow.com/questions/13804095/get-the-time-zone-gmt-offset-in-c
+      ********************************************************************************/
     time_t t = time(NULL);
     struct tm lt = {0};
     localtime_r(&t, &lt);
     size_t len = strftime(currentTimeObject, TIME_STR_LEN, "%Y-%m-%dT%H:%M:%S%z", &lt);
     char minute[] = { currentTimeObject[len-2], currentTimeObject[len-1], '\0' };
     sprintf(currentTimeObject + len - 2 , ":%s", minute);
-    currentTimeObject[TIME_STR_LEN - 1] = '\0';
 
     switch(reqinfo->mode) {
 
@@ -188,17 +191,20 @@ int handle_operatingSystemObject(netsnmp_mib_handler *handler,
     
     struct utsname name;
     if (uname(&name)) {
-        // TODO - error if non-0 return
+        // error - could not get system name
+        strncpy(operatingSystemObject, "System name could not be detected", sizeof("System name could not be detected"));
     }  
-    strncpy(operatingSystemObject, name.sysname, sizeof(name.sysname));
-    operatingSystemObject[strlen(name.sysname)] = '\0';
+    else {
+        // system name successfully detected
+        strncpy(operatingSystemObject, name.sysname, sizeof(name.sysname));
+    }
 
     switch(reqinfo->mode) {
 
         case MODE_GET:
             snmp_set_var_typed_value(requests->requestvb, ASN_OCTET_STR,
                                      &operatingSystemObject, // a pointer to the scalar's data
-                                     sizeof(char)* (strlen(name.sysname) + 1)); // the length of the data in bytes
+                                     sizeof(char)* (strlen(name.sysname))); // the length of the data in bytes
             break;
 
 
