@@ -1,0 +1,57 @@
+ISA-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    OBJECT-TYPE, Integer32, experimental,
+    MODULE-IDENTITY                       FROM SNMPv2-SMI
+    DisplayString                         FROM SNMPv2-TC;
+
+--
+-- A brief description and update information about this mib.
+--
+isaMIB MODULE-IDENTITY
+    LAST-UPDATED "202011180000Z"            
+    ORGANIZATION "net-snmp"
+    CONTACT-INFO "login:    xholko02
+                  email:    xholko02@stud.fit.vutbr.cz
+                 "
+    DESCRIPTION  "A mib for ISA project
+                 "
+    REVISION      "202011180000Z"
+    DESCRIPTION
+            "A mib for ISA project"
+    ::= { experimental 22 }
+
+
+loginObject OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..7))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+	"String that represents login"
+    ::= { isaMIB 1 }
+
+currentTimeObject OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..24))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+	"String representing current time"
+    ::= { isaMIB 2 }
+
+numberObject OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+	"Represents a read/write number"
+    ::= { isaMIB 3 }
+
+operatingSystemObject OBJECT-TYPE
+    SYNTAX      DisplayString
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+	"String representing information about operating system"
+    ::= { isaMIB 4 }
+
+END
