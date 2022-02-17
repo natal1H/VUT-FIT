@@ -1,0 +1,65 @@
+<!--
+  ITU project 
+  Author: Martina Chripková (xchrip01)
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">    
+    <title>Time Tracker</title>
+    <link rel="shortcut icon" type="image/png" href="assets/images/favicon.ico"/>
+    <link rel="stylesheet" href="assets/css/profile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"><!-- Icons -->
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script><!-- Icons -->
+    <script src="assets/js/controller-profile.js"></script> 
+    <script src="assets/js/model.js"></script><!-- Model data --> 
+    <script src="https://unpkg.com/moment"></script><!-- Moment.js library -->
+  </head>
+  <body>
+    <!-- HEADER -->
+    <div class="header">
+      <h1 class="logo">Time tracker</h1>
+        <div class="header-right">
+          <a href="tasks.html">Tasks</a>
+          <a href="stats.html">Stats</a>
+          <a class="active" href="profile.html">Profile</a>
+          <a href="index.html">Logout</a>
+        </div>
+    </div>
+
+<div class="settings">
+  <div class="user">
+  </div>
+
+  <div class="edit">
+    <form id="change-pwd" onsubmit="return checkPwd(this)">
+    <p><input id="pwd" type="password" placeholder="Password" required ></p>
+    <p><input id="pwd1" type="password" placeholder="New password" required ></p>
+    <p><input id="pwd2" type="password" placeholder="Confirm new password" required ></p>
+      <input type = submit value = "Save">
+  </form>
+  </div>
+
+  <div class="notifications">
+  <input class="check" type="checkbox">
+    <label>Email notifications</label>
+    <input type="number" placeholder="Days before due" required/>
+
+  </div>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+</div>
+
+    <div class="footer">
+      <p>2019 &copy; <a href="mailto:xholko02@st ud.fit.vutbr.cz">xholko02</a>, <a href="mailto:xchrip01@stud.fit.vutbr.cz">xchrip01<a>, <a href="mailto:xnovak2f@stud.fit.vutbr.cz">xnovak2f</a></p>
+    </div>
+
+    <script>
+      displayUserInfo();
+      checkPwd(this);
+    </script>
+  </body>
+</html>

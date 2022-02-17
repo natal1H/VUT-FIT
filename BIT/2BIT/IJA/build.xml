@@ -1,0 +1,53 @@
+<project name="ija-app" basedir="." default="main">
+
+    <property name="src.dir"     value="src"/>
+
+    <property name="build.dir"   value="build"/>
+    <property name="jar.dir"     value="dest"/>
+    <property name="lib.dir"     value="lib"/>
+    <property name="images.dir"     value="${lib.dir}/images"/>
+    <property name="doc.dir"     value="doc"/>
+
+    <property name="main-class"  value="Main"/>
+
+
+    <target name="clean">
+        <delete dir="${build.dir}"/>
+        <delete dir="${jar.dir}"/>
+    </target>
+
+    <target name="compile" depends="copy-images">
+        <mkdir dir="${build.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${build.dir}"/>
+
+        <mkdir dir="${jar.dir}"/>
+        <jar destfile="${jar.dir}/${ant.project.name}.jar" basedir="${build.dir}">
+            <manifest>
+                <attribute name="Main-Class" value="${main-class}"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="copy-images">
+        <mkdir dir="${build.dir}"/>
+        <copy todir="${build.dir}" >
+            <fileset dir="${images.dir}" includes="**"/>
+        </copy>
+        <mkdir dir="${jar.dir}"/>
+        <copy todir="${jar.dir}" >
+            <fileset dir="${images.dir}" includes="**"/>
+        </copy>
+    </target>
+
+    <target name="run" depends="compile">
+        <java jar="${jar.dir}/${ant.project.name}.jar" fork="true"/>
+    </target>
+
+    <target name="doc" description="generate documentation">
+        <mkdir dir="${doc.dir}"/>
+        <javadoc sourcepath="${src.dir}" destdir="${doc.dir}"/>
+    </target>
+
+    <target name="main" depends="clean,run"/>
+
+</project>

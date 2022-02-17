@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <h2 class="page-title"><a href=/profile><i class="fa fa-angle-left" style="font-size: 55px"></i> </a>Edit profile</h2>
+
+    <div class="register-block">
+
+
+        <form method="POST">
+            {%csrf_token%}
+            <div class="form-class">
+                {{ form.as_p }}
+            </div>
+            <button class="button-black">Update</button>
+        </form>
+    </div>
+
+{% endblock %}

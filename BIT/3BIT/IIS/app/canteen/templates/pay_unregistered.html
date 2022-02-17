@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <h2 class="page-title">Enter your contact information</h2>
+
+    <div class="register-block" style="width: 800px">
+
+
+        <form action='' method='POST'>{% csrf_token %}
+            <div class="row" style="display: flex;">
+                <div class="column2-left"><label for="id_firstname">Firstname:</label></div>
+                <div class="column2-right"><input type="text" name="firstname" maxlength="50" required id="id_firstname"></div>
+            </div>
+            <div class="row" style="display: flex;">
+                <div class="column2-left"><label for="id_surname">Surname:</label></div>
+                <div class="column2-right"><input type="text" name="surname" maxlength="50" required id="id_surname"></div>
+            </div>
+            <div class="row" style="display: flex;">
+                <div class="column2-left"><label for="id_address">Address:</label></div>
+                <div class="column2-right"><input type="text" name="address" maxlength="150" required id="id_address"></div>
+            </div>
+            <div class="row" style="display: flex;">
+                <div class="column2-left"><label for="id_telephone">Telephone:</label></div>
+                <div class="column2-right"><input type="text" name="telephone" maxlength="25" required id="id_telephone"></div>
+            </div>
+            <input type='submit' value='Save' />
+        </form>
+    </div>
+
+
+{% endblock %}

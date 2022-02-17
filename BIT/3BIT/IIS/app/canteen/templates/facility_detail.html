@@ -1,0 +1,45 @@
+ {% extends "base.html" %}
+
+        {% block content %}
+
+        <div class="search-header">
+            <h2 class="page-title"><a href="/"><i class="fa fa-angle-left"></i></a> {{ object.name }}'s menus</h2>
+        </div> <!-- End search-header -->
+
+        <div class="menu-blocks">
+        {%if menu_objs %}
+        {% for instance_menu in menu_objs %}
+            <a clss="block-link" href="{%url 'menu' instance_menu.id_menu%}">
+                <div class="menu-block">
+                    <!--Menu #{{instance_menu.id_menu}}<br>-->
+
+                    {% if instance_menu.type == "d" %}
+                        Daily menu<br>
+                        {{ instance_menu.date}}<br>
+
+                        {% now "Y-m-d" as todays_date %}
+                        {% if todays_date == instance_menu.date|date:"Y-m-d" %}
+                            Today's menu<br>
+                        {% elif todays_date < instance_menu.date|date:"Y-m-d" %}
+                            Future menu<br>
+                        {% else %}
+                        <span style="color:red">Expired menu</span><br>
+                        {% endif %}
+                    {% else %}
+                        <br>
+                        Constant menu<br>
+                        <br>
+                    {% endif %}
+                </div><!-- End menu-block -->
+            </a>
+        {% endfor %}
+
+        {% endif %}
+        </div><!-- End menu-blocks -->
+        <div class="cart-block">
+                <button class="button-black" onclick="window.location='/cart';">
+                To checkout
+                </button>
+        </div><!-- End cart-block -->
+
+        {% endblock %}

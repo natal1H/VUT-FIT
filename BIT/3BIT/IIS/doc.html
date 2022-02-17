@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-2"/>
+    <title>Projekt IIS</title>
+    <style type="text/css">
+    	table { border-collapse: collapse; }
+    	td, th { border: 1px solid black; padding: 0.3em 0.5em; text-align: left; }
+    	dt { font-weight: bold; margin-top: 0.5em; }
+    </style>
+</head>
+<body>
+
+<!-- Zkontrolujte prosím nastavení kódování v hlavičce dokumentu
+     podle použitého editoru -->
+
+<h1>Jídelna: objednávka a rozvoz jídel</h1> <!-- Nahradte názvem svého zadání -->
+
+<dl>
+	<dt>Autori</dt>
+	<dd>Natália Holková <!-- Nahraďte skutečným jménem a e-mailem autora a popisem činnosti -->
+	    <a href="mailto:xholko02@stud.fit.vutbr.cz">xholko02@stud.fit.vutbr.cz</a> -
+		databáza, HTML templates, Docker, hosting
+	</dd>
+	<dd>Samuel Krempaský<!-- Nahraďte skutečným jménem a e-mailem autora a popisem činnosti -->
+	    <a href="mailto:xkremp01@stud.fit.vutbr.cz">xkremp01@stud.fit.vutbr.cz</a> -
+		backend
+	</dd>
+  <dd>Matej Novák<!-- Nahraďte skutečným jménem a e-mailem autora a popisem činnosti -->
+	    <a href="mailto:xnovak2f@stud.fit.vutbr.cz">xnovak2f@stud.fit.vutbr.cz</a> -
+		dizajn
+	</dd>
+	<dt>URL aplikace</dt>
+	<dd><a href="https://canteen-docker-gnb42qlp2a-uc.a.run.app/">https://canteen-docker-gnb42qlp2a-uc.a.run.app/</a></dd>
+</dl>
+
+<h2>Užívatelia systému pre testovanie</h2>
+<table>
+<tr><th>Login</th><th>Heslo</th><th>Role</th></tr>
+<tr><td>xmrkva</td><td>123456</td><td>Administrátor</td></tr>
+<tr><td>xkovac</td><td>123456</td><td>Operátor</td></tr>
+<tr><td>xbalaz</td><td>123456</td><td>Vodič</td></tr>
+<tr><td>xmolna</td><td>123456</td><td>Stravník</td></tr>
+</table>
+
+<h2>Implementácia</h2>
+<p>Stručná dokumentace k implementaci, která popisuje, které části projektu (např. PHP skripty) implementují jednotlivé případy použití.</p>
+<p>
+Projekt je možné rozdeliť do niekoľkých častí a to či už abstraktne, pomocou MVC, alebo podľa súborov. Django používa MVC, avšak Views sú v prípade Djanga sú Controllers a Controllers sú Views. Následne využívame templates - html súbory uložené v priečinku templates, v ktorých prezentujeme dáta.
+Hlavnými časťami projektu sú súbory models.py, views.py, forms.py a urls.py, kde sa rieši url routing.
+<p>
+V models.py je implementované databázovú schému, v ktorej sme si zadefinovali triedy, ktoré sú podtriedami models.Model a následne sme si pomocou dátových polí z nadtriedy vytvorili jednotlivé atribúty.
+Views.py je súbor, kde je spravená väčšina logiky IS. Funkcie v tomto súbore si môžeme rozdeliť na štyri  podcelky 
+tzv. ClassBasedView, ktoré nám poskytuje framework django. My využívame CreateView, UpdateView a DeleteView, ktoré nám slúžia na náhľad, editovanie, vytváranie a vymazávanie inštancií entít/modelov. Týmito views bola vytvorená väčšina administrácie na strane personálu. Formuláre k týmto views sú v súbore forms.py. Validácia prebieha automaticky pomocou frameworku.
+</p>
+<p>
+Bežné views, ktoré nám zobrazujú napríklad menu, prevádzky atď. Boli implementované nami, keďže sme často potrebovali užívateľovi prezentovať len potrebné dáta.
+</p>
+
+<p>Na manipuláciu s užívateľmi, čiže registrácia, login, zmena hesla a odhlásenie používame views dodané Djangom. Využívame pritom tzv. User Model, ktorý sme si rozšírili o vlastný model Person. Registráciu sme museli upraviť, keďže ukladáme rovnako do modelu User, ako aj do modelu Person. Tento spôsob implementácie sme si zvolili z dôvodu, že django User model nie je ľahko modifikovateľný, a preto sme si ho vzťahom 1:1 rozšírili, aby sme mohli v iných častiach implementácie jednoduchšie pracovať s užívateľmi a ich dátami.
+</p>
+
+<p>Posledná skupina views slúži na mazanie a pridávanie položiek do objednávok, menus, atd. Jedná sa napr. o views add_to_cart() a remove_from_cart(). V prípade neregistrovaných užívateľov v nich priamo využívame sessions. Tieto funkcie sú taktiež implementované aj pre registrovaných užívateľov
+</p>
+
+</p>
+<h3>Databáza</h3>
+
+<img src="db_schema.png">
+
+<h2>Inštalácia</h2>
+
+<h3>Inštalácia pomocou Docker</h3>
+
+Prerekvizity:
+<ul>
+	<li>Docker</li>
+</ul>
+
+Postup:
+<ol>
+	<li>Sťahnutie statický obrázkov - stiahnuť z <a href="https://drive.google.com/file/d/1uHsfpln8rxuFnZLN_9o6wJJKOpXe8hK4/view?usp=sharing">Google Drive</a> a prekopírovať obsah do app/static/</li>
+	<li>Presun do zložky s Dockerfile - <i>cd app/</i></li>
+	<li>Vytvorenie docker image (niekedy treba <i>sudo</i>) - <i>docker build -t canteen-docker .</i></li>
+	<i>Spustenie kontajneru (niekedy treba <i>sudo</i>) - <i>docker run -it -p 8888:8888 canteen-docker</i></li>
+	<li>Stránky bude dostupná na <a href="http://localhost:8888/">localhost:8888</a></li>
+</ol>
+
+<h3>Inštalácia bez Docker</h3>
+
+Prerekvizity:
+<ul>
+    <li>Python 3.6+</li>
+    <li>Django 2.2+</li>
+</ul>
+
+Postup:
+<ol>
+	<li>Sťahnutie statický obrázkov - stiahnuť z <a href="https://drive.google.com/file/d/1uHsfpln8rxuFnZLN_9o6wJJKOpXe8hK4/view?usp=sharing">Google Drive</a> a prekopírovať obsah do app/static/</li>
+	<li>Presun do zložky s <i>manage.py</i> - cd app/</li>
+	<li>Nastavanie databázy a naplnenie vstupnými údajmi - python3 manage.py migrate</li>
+	<li>Zozbieranie statický súborov - python3 manage.py collectstatic --noinput</li>
+	<li>Sputenie serveru - python3 manage.py runserver
+	<li>Stránka je teraz dostupná na <a href="http://127.0.0.1:8000/">127.0.0.1:8000</a></li>
+</ol>
+
+</body>
+</html>

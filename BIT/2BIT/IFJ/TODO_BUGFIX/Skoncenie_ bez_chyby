@@ -1,0 +1,29 @@
+FIXED
+Vstup:
+a = 5
+b = 3
+c = 2
+
+a += a+b+c
+
+print(a)
+
+Vystup:
+.IFJcode18
+JUMP $main
+LABEL $main
+CREATEFRAME
+PUSHFRAME
+DEFVAR LF@%a
+DEFVAR LF@%tmp1
+MOVE LF@%tmp1 int@5
+MOVE LF@%a LF@%tmp1
+DEFVAR LF@%b
+DEFVAR LF@%tmp2
+MOVE LF@%tmp2 int@3
+MOVE LF@%b LF@%tmp2
+DEFVAR LF@%c
+DEFVAR LF@%tmp3
+MOVE LF@%tmp3 int@2
+MOVE LF@%c LF@%tmp3
+Process finished with exit code 0

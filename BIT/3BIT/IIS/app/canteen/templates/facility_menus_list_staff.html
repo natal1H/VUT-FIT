@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2 class="page-title">Menus</h2>
+
+    <div class="register-block">
+
+
+        {% for instance in menu_list %}
+            <div style="display: flex;">
+                <div style=" width:40%; text-align: left; padding: 10px; display: inline-block">
+                    Menu #{{instance.id_menu}}
+                </div>
+                <div style="width:60%; padding: 10px; text-align: right;">
+                    <a class="hoverLink" href="{%url 'menu_update_view' instance.id_menu %}" class="">Update</a> |
+                    <a class="hoverLink" href="{%url 'menu_delete_view' instance.id_menu %}" class="">Delete</a> |
+                    <a class="hoverLink" href="{%url 'facility_menus_items_list_staff' instance.id_menu %}" class="">Foods</a>
+                </div>
+            </div>
+            <hr>
+        {% endfor %}
+    </div>
+
+{% endblock %}

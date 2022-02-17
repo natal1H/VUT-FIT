@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <h2 class="page-title"><a href="/operator_view"><i class="fa fa-angle-left"></i></a> Facilities</h2>
+
+
+    <div class="register-block">
+        {% for instance in facility_instance_list%}
+
+            <div style="display: flex;">
+                <div style=" width:40%; text-align: left; padding: 10px; display: inline-block">
+                    {{ instance.id_facility }}. {{instance.name}}
+                </div>
+                <div style="width:60%; padding: 10px; text-align: right;"><a class="hoverLink" href="{%url 'facility_update_view' instance.id_facility %}">Update</a> |
+                 <a class="hoverLink" href="{%url 'facility_delete_view' instance.id_facility %}">Delete</a> |
+                 <a class="hoverLink" href="{%url 'facility_menus_list_staff' instance.id_facility %}">Menus</a>
+                </div>
+            </div>
+            <hr>
+        {% endfor %}
+        <br>
+        <a href="facility_create_view"><button class="button-black">Add new facility</button></a>
+    </div>
+
+{% endblock %}

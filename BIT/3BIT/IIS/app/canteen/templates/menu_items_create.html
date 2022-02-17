@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <h2 class="page-title"><a href="/operator_view"><i class="fa fa-angle-left"></i></a> Assign food to Menu</h2>
+
+    <div class="register-block">
+
+
+        <form action='' method='POST' onsubmit="myFunction()">{% csrf_token %}
+            <div class="form-class">
+                {{ form.as_p }}
+            </div>
+            <input type='submit' class="button-black" value='Save'/>
+        </form>
+    </div>
+
+    <script>
+        function myFunction() {
+            alert("It was saved");
+        }
+    </script>
+
+{% endblock %}

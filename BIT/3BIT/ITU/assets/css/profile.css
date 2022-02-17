@@ -1,0 +1,159 @@
+/**
+ * ITU project 
+ * Author: Martina Chripková (xchrip01)
+ */
+
+@import url(https://fonts.googleapis.com/css?family=Roboto:300);
+
+* {
+  font-family: "Roboto", sans-serif;
+  margin: 0px;
+  padding: 0px;
+}
+
+body {
+  background-color: #f1f1f1;
+}
+h1 {
+  text-align: center;
+
+  color: #444444;
+}
+
+p {
+  text-align: center;
+}
+
+.edit{
+  text-align: center;
+  margin: auto;
+  border-spacing: 10px;
+  padding: 30px;
+}
+
+.user{
+  text-align: center;
+  margin: auto;
+}
+
+.notifications{
+  text-align: center;
+  padding: 10px;
+}
+/* Style the header with a grey background and some padding */
+.header {
+  position: fixed;
+  width: calc(100% - 10px);
+  overflow: hidden;
+  background-color: #3c8dbc;
+  padding: 5px 5px;
+}
+  
+/* Style the header links */
+.header a {
+  float: left;
+  color: black;
+  text-align: center;
+  padding: 12px;
+  text-decoration: none;
+  font-size: 18px;
+  line-height: 25px;
+  border-radius: 4px;
+}
+
+/* Style the header text */
+.header h1 {
+  margin: 0px;
+  float: left;
+  color: white;
+  text-align: center;
+  padding: 12px;
+  text-decoration: none;
+  font-size: 18px;
+  line-height: 25px;
+  border-radius: 4px;
+  font-size: 25px;
+  font-weight: bold;
+}
+    
+/* Change the background color on mouse-over */
+.header a:hover {
+  background-color: #00c2e0;
+  color: white;
+}
+
+.header a {
+  background-color: #659fc1;
+  color: white;
+  margin-left: 5px;
+}
+  
+/* Float the link section to the right */
+.header-right {
+  float: right;
+}
+
+.footer {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background-color: #d9d9d9;
+  color: black;
+  text-align: center;
+}
+  
+.footer a {
+  color: black;
+  text-decoration: none;
+}
+.settings{
+  text-align: center;
+  padding: 90px;
+}
+
+.settings input[type=submit] {
+  font-family: "Roboto", sans-serif;
+  text-transform: uppercase;
+  outline: 0;
+  background: #3c8dbc;
+  width: auto;
+  border: 0;
+  border-radius: 5px;
+  padding: 10px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.settings input[type=submit]:hover,.form input[type=submit]:active,.form input[type=submit]:focus {
+  background: #367fa9;
+  color: white;
+}
+
+
+.edit input {
+  text-align: center;
+  font-family: "Roboto", sans-serif;
+  outline: 0;
+  background:lightgray;
+  width: auto;
+  border: 0;
+  margin: 0 0 15px;
+  padding: 15px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.notifications input{
+  text-align: center;
+  font-family: "Roboto", sans-serif;
+  outline: 0;
+  background:lightgray;
+  width: auto;
+  border: 0;
+  margin: 0 0 15px;
+  padding: 15px;
+  box-sizing: initial;
+  font-size: 14px;
+}

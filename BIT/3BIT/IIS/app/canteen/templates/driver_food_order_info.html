@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <h2 class="page-title"><a href="/driver_view"><i class="fa fa-angle-left"></i></a> Order ID: {{food_order_instance.id_food_order}}</h2>
+
+    <div class="register-block" style="text-align: left">
+        <div style="margin-left: 15px; font-size: 18px">
+            Name: {{person_customer_instance.firstname}} {{person_customer_instance.surname}}<br>
+            Address: {{person_customer_instance.address}}<br>
+            Facility: {{food_order_instance.facility}}<br>
+        </div>
+        <hr style="margin: 10px 10px">
+
+        <div style="text-align: center">
+            <h2>Items to deliver:</h2>
+            {% for instance in food_order_items %}
+                {{instance.quantity}}x {{instance.id_item.name}} | ({{instance.id_item.price}}€)<br>
+            {% endfor %}<br>
+            <h2>Total:  {{price}}€<br></h2> <!--TODO ADD PRICE-->
+        </div>
+        <hr style="margin: 10px 10px">
+
+         <a class="hoverLink" href="{%url 'deliver_order_finally' food_order_instance.id_food_order %}"><h1 style="text-align: center">Deliver</h1></a><br>
+    </div>
+
+{% endblock %}

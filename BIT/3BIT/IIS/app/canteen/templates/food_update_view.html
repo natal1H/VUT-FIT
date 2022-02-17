@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <h2 class="page-title"><a href="/food_list_view"><i class="fa fa-angle-left"></i></a> Update food information</h2>
+
+    <div class="register-block">
+
+
+        <form action='' method='POST'>{% csrf_token %}
+            <div class="form-class">
+                {{ form.as_p }}
+            </div>
+            <input type='submit' class="button-black" value='Save' onclick="myFunction()"/>
+        </form>
+    </div>
+
+    <script>
+        function myFunction() {
+            alert("It was saved");
+        }
+    </script>
+
+{% endblock %}

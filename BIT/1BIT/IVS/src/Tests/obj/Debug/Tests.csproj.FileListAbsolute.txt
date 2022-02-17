@@ -1,0 +1,16 @@
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.dll
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Microsoft.VisualStudio.TestPlatform.MSTestAdapter.PlatformServices.Interface.dll
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Microsoft.VisualStudio.TestPlatform.MSTestAdapter.PlatformServices.dll
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Tests.dll
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Tests.pdb
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Calculator.exe
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Microsoft.VisualStudio.TestPlatform.TestFramework.dll
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Microsoft.VisualStudio.TestPlatform.TestFramework.Extensions.dll
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Calculator.pdb
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Microsoft.VisualStudio.TestPlatform.TestFramework.xml
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\bin\Debug\Microsoft.VisualStudio.TestPlatform.TestFramework.Extensions.xml
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\obj\Debug\Tests.csprojResolveAssemblyReference.cache
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\obj\Debug\Tests.csproj.CoreCompileInputs.cache
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\obj\Debug\Tests.csproj.CopyComplete
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\obj\Debug\Tests.dll
+C:\Users\NovákMatej(204334)\Desktop\gittt\IVS-Baseballka\src\Tests\obj\Debug\Tests.pdb

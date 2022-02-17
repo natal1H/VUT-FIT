@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+    {% block content %}
+
+
+    {% load static %}
+
+        <div class="search-header">
+            <h2 class="page-title"><a href="/facility/{{ facility.id_facility }}"><i class="fa fa-angle-left"></i></a> Menu items</h2>
+        </div> <!-- End search-header -->
+
+    <div>
+        <ul style="white-space:nowrap;margin-left:20px;font-weight:bold">
+            <li style="display:inline"><a href="{% url 'filter_menu' menu.id_menu 'n'%}">Normal</a></li> |
+            <li style="display:inline"><a href="{% url 'filter_menu' menu.id_menu 'v'%}">Vegetarian</a></li> |
+            <li style="display:inline"><a href="{% url 'filter_menu' menu.id_menu 'g'%}">Glueten-free</a></li> |
+            <li style="display:inline"><a href="{% url 'menu' menu.id_menu %}">All</a></li>
+        </ul>
+    </div>
+
+    <div class="food-blocks">
+    {%if item_objs%}
+
+        {% if menu.type == 's' %}
+            {% firstof "" as is_disabled %}
+        {% else %}
+            {% now "Y-m-d" as todays_date %}
+            {% if todays_date == menu.date|date:"Y-m-d" %}
+                {% firstof "" as is_disabled %}
+            {% else %}
+                {% firstof "disabled" as is_disabled %}
+            {% endif %}
+        {% endif %}
+
+        {% if is_disabled == "disabled" %}
+        <br><p style="font-weight:bold;color:red;margin-left:20px"><b>WARNING: You cannot order from this menu, it is not current!</b></p>
+        {% endif %}
+
+    {% for instance_item in item_objs %}
+        <div class="food-block">
+            {% if instance_item.image != None %}
+            <img src="{% static instance_item.image %}" width="100px" height="100px" style="float:left;margin-right:10px">
+            {% endif %}
+            <div style="float:left; max-width: 150px">
+                <b>{{instance_item.name}}</b><br>
+                {{instance_item.description}}<br>
+                {% if instance_item.diet_type == "n" %}
+                Diet: normal<br>
+                {% elif instance_item.diet_type == "g" %}
+                Diet: gluten-free<br>
+                {% else %}
+                Diet: Vegetarian<br>
+                {% endif %}
+                <b>{{instance_item.price}} €</b><br>
+                <!--<a href="{%url 'add_to_cart' instance_item.id_item id_facility%}" class="">Add to Cart</a><br>-->
+            </div>
+            <div style="float:right">
+                {% if is_disabled == "disabled" %}
+                <span style="font-weight:bold;color:red">Cannot order</span>
+                {% else %}
+                <a href="{%url 'add_to_cart' instance_item.id_item id_facility%}" class="">
+                    <button class="button-white" onclick="" style="float:right ">Add to Cart</button>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+    {% endfor %}
+
+    {%endif%}
+    </div><!-- End food-blocks -->
+
+    <div class="cart-block">
+        <button class="button-black" onclick="window.location='/cart';">
+        To checkout
+        </button>
+    </div><!-- End cart-block -->
+
+
+    {% endblock %}

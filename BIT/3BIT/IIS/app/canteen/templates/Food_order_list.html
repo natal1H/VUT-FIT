@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2 class="page-title"><a href="/operator_view"><i class="fa fa-angle-left"></i></a> Food orders</h2>
+
+    <div class="register-block" style="text-align: left">
+
+        <h2>Today's orders:</h2>
+        {% for instance in today_list%}
+            <div style="display: flex;">
+                <div style=" width:40%; text-align: left; padding: 10px; display: inline-block">
+                    Order ID: #{{ instance.id_food_order }}
+                </div>
+                <div style="width:60%; padding: 10px; text-align: right;">
+                    <a class="hoverLink" href="{%url 'food_order_update' instance.id_food_order %}">Update</a> |
+                    <a class="hoverLink" href="{%url 'food_order_delete' instance.id_food_order %}">Delete</a> |
+                    <a class="hoverLink" href="{%url 'food_order_assign' instance.id_food_order %}" >Assign driver</a>
+                </div>
+            </div>
+            <hr>
+        {% endfor %}
+        <br>
+        <br>
+
+        <h2>All orders:</h2>
+
+        {% for instance in food_order_list%}
+            <div style="display: flex;">
+                <div style=" width:40%; text-align: left; padding: 10px; display: inline-block">
+                    Order ID #{{ instance.id_food_order }}
+                </div>
+                <div style="width:60%; padding: 10px; text-align: right;">
+                    <a class="hoverLink" href="{%url 'food_order_update' instance.id_food_order %}">Update</a> |
+                    <a class="hoverLink" href="{%url 'food_order_delete' instance.id_food_order %}">Delete</a>
+                </div>
+            </div>
+            <hr>
+        {% endfor %}
+
+    </div>
+
+{% endblock %}

@@ -1,0 +1,72 @@
+README TestIFJ
+
+Popis programu:
+
+    Program spusti testovany program s danym vstupom, ulozi vystup, odstrani vsetky vypisy nad assemblerom a 
+    nasledne ulozi, spusti ic18int a ulozi vystup, potom s rovnakym vstupom prelozi v Ruby a porovna vystupy.
+    
+Umiestnenie:
+    Priecinok TestIFJ treba nakopirovat medzi subory programu, presne povedne kde sa nachadza main.c
+    Cesta musi vyzerat:
+    */<Subory Programu>/TestIFJ
+
+
+PRIKAZY SU VYKONAVANE V TERMINALE(Testovane na Ubuntu 18.04.1 LTS)
+
+Pre ziskanie prav k programu na linuxe v priencinku TestIFJ treba vykonat
+
+    Ziskat prava pre samotny skript
+    $ sudo chmod 766 GET_RIGHTS.sh
+    
+    Spustit GET_RIGHTS.sh
+    $ ./GET_RIGHTS.sh
+    
+    Ak prebehlo uspesne prava su ziskane
+    
+Skontrolovanie ci sa nachadza na linuxe ruby
+
+    Najde cestu ak existuje ruby
+    $ whereis ruby
+    Mozny vystup(Cesta sa moze lisit):
+    ruby: /usr/bin/ruby /usr/bin/ruby2.5 /usr/lib/x86_64-linux-gnu/ruby /usr/lib/ruby /usr/share/man/man1/ruby.1.gz
+    
+    Informuje o verzii ruby
+    $ ruby -v
+    Mozny vystup(Verzia sa moze lisit):
+    ruby 2.5.1p57 (2018-03-29 revision 63029) [x86_64-linux-gnu]
+    
+    Ak ruby nie je nainstalovane(dolezita je hlavne cesta pre binarku */bin/*/ruby), potom treba ruby nainstalova.
+    Pred instalaciou treba skontrolovat ci je nainstalovany gcc, g++, make, opat podobne
+    
+    $ whereis gcc
+    $ gcc -v
+    Ak nie potom(Ubuntu/Debian):
+    $ sudo apt install gcc
+    
+    $ whereis g++
+    $ g++ -v
+    Ak nie potom(Ubuntu/Debian):
+    $ sudo apt install g++
+    
+    $ whereis make
+    $ make -v
+    Ak nie potom(Ubuntu/Debian):
+    $ sudo apt install make
+    
+    Ak su vsetky predpoklady splnene, treba nainstalovat ruby spustenym skriptu InstallRuby.sh, moze trvat niekolko minut:
+    $ sudo ./InstallRuby.sh
+    
+    !Zanecha na ceste /~ zip a rozbaleny zip s ruby po instalacii, po instalacii sa mozu dana zlozka a zip zmazat pre vycistenie!
+
+Spustenie TestIFJ
+
+    Pre spustenie treba sa premiestnit do k programu testIFJ na ceste */<TestovanyProgram>/TestIFJ/cmake-build-debug/
+
+    Vytvorit binarku
+    $ make
+    Zadat pozadovany vstup v subore input.txt
+    Spustit len samotny program(vstup input.txt si najde sam)
+    $ ./TestIFJ
+
+    Ak vstup input.txt nebol najdeny a projekt je robeny v CLion, treba skontrolovat ze je v main.c testovaneho
+    programu zakomentovany freopen("input.txt","r",stdin);

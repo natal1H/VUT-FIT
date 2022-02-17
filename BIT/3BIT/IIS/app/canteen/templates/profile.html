@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="search-header">
+    <h2 class="page-title">Profile</h2>
+</div> <!-- End search-header -->
+
+</div>
+    <!-- Page content -->
+    <div class="main">
+        <div class="profile-window">
+            <div style="float: right; margin-top: 2px">
+                <a class="hoverLink" href="profile_edit">Edit profile</a> |
+                <a class="hoverLink" href="../change_password">Change password</a>
+            </div>
+            <br>
+            <hr style="margin: 4px 0 10px">
+            <div style="display:block">
+                Name: {{ person.firstname }}<br>
+                Surname: {{ person.surname }}<br>
+                Email: {{ person.email }}<br>
+                Telephone: {{ person.telephone }}<br>
+                Address: {{ person.address }}<br>
+                {% if role == "a" %}
+                Role: administrator<br>
+                {% elif role == "o" %}
+                Role: operator<br>
+                {% elif role == "d" %}
+                Role: driver<br>
+                {% else %}
+                Role: registered user<br>
+                {% endif %}
+            </div>
+            <hr style="margin: 10px 0 10px">
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

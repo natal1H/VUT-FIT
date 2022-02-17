@@ -1,0 +1,42 @@
+IVS - Projekt 2 - Team Baseballka
+
+clenovia:
+    xbalif00 - Bali Filip
+    xholko02 - Holkova Natalia - veduci
+    xnovak2f - Novak Matej
+    xshama00 - Shamardin Egor
+
+Stanovene terminy:
+    Zaciatok prace na projekte: 20.3.2018
+    Navrh projektu: ~ 20.3. - 27.3.2018
+    Implementacia projektu: ~ 28.3. - 10.4.2018
+    Dalsie testovanie, tvorba dokumentacie: ~ 11.4 - 15.4.2018
+    Zaverecne upravy: ~ 16.4 - 24.4.2018
+
+Rozdelenie uloh:
+    Matematicka kniznica: Holkova Natalia (xholko02)
+    GUI - Bali Filip (xbalif00)
+    Instalator - Bali Filip (xbalif00)
+    Testovanie - Novak Matej (xnovak2f)
+    Profiling - Holkova Natalia (xholko02), Shamardin Egor (xshama00)
+    Dokumentacia - Shamardin Egor (xshama00)
+    
+Komunikacne kanaly:
+    Discord - primarny komunikacny kanal
+    Facebook skupinovy chat - sekundarny komunikacny kanal, na riesenie "drobnosti"
+    Osobne stretnutia - v pripade potreby, idealne na zaciatku a konci kazdej fazy
+
+Pravidla komunikacie:
+    Discord:
+        - pravidelna kontrola prispevkov
+        - zaradenie prispevkov do prislusnych miestnosti
+        - archivacia dolezitych prispevkov ako pinned
+    Facebook:
+        - snazit sa udrziavat poriadok v konverzacii
+    Osobne stretnutia:
+        - vytvarat zapisky zo stretnutia o preberanych navrhoch, rozhodnutiach,...
+
+System pri spravu verzii:
+    github
+	- nazov repozitara: natal1H/IVS-Baseballka
+	- bolo pridelene oprávnenie pre uzivatela ivskontrola

@@ -1,0 +1,12 @@
+C:\Users\Natali\Downloads\IVS-Baseballka-master(4)\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\bin\Release\StandartDeviation.exe
+C:\Users\Natali\Downloads\IVS-Baseballka-master(4)\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\bin\Release\StandartDeviation.pdb
+C:\Users\Natali\Downloads\IVS-Baseballka-master(4)\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\obj\Release\StandartDeviation.csproj.CoreCompileInputs.cache
+C:\Users\Natali\Downloads\IVS-Baseballka-master(4)\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\obj\Release\StandartDeviation.exe
+C:\Users\Natali\Downloads\IVS-Baseballka-master(4)\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\obj\Release\StandartDeviation.pdb
+C:\Users\Natali\Downloads\IVS-Baseballka-master(4)\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\obj\Release\StandartDeviation.csprojResolveAssemblyReference.cache
+C:\Users\Natali\Desktop\IVS-profiling\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\bin\Release\StandartDeviation.exe
+C:\Users\Natali\Desktop\IVS-profiling\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\bin\Release\StandartDeviation.pdb
+C:\Users\Natali\Desktop\IVS-profiling\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\obj\Release\StandartDeviation.csprojResolveAssemblyReference.cache
+C:\Users\Natali\Desktop\IVS-profiling\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\obj\Release\StandartDeviation.csproj.CoreCompileInputs.cache
+C:\Users\Natali\Desktop\IVS-profiling\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\obj\Release\StandartDeviation.exe
+C:\Users\Natali\Desktop\IVS-profiling\IVS-Baseballka-master\src\StandartDeviation\StandartDeviation\obj\Release\StandartDeviation.pdb

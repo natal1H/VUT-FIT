@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <h2 class="page-title">Orders</h2>
+    {% if food_order_paid or food_order_ordered or food_order_approved or food_order_canceled or food_order_delivered %}
+
+    <div class="register-block">
+
+        {% comment %}
+        {% if food_order_ordered %}
+            <hr style="margin: 10px 10px">
+            <h1>Ordered</h1>
+            <hr style="margin: 10px 10px">
+            {% for order in food_order_ordered %}
+                {{order.date_created}} | {{order.facility}} | <a class="hoverLink" href="/detail_order_view/{{ order.id_food_order}}"><u>details</u></a>
+                <br>
+            {%endfor%}
+            <br>
+        {% endif %}
+        {% endcomment %}
+
+
+
+        {% if food_order_paid %}
+        <hr style="margin: 10px 10px">
+        <h1>Paid</h1>
+        <hr style="margin: 10px 10px">
+        {% for order in food_order_paid %}
+                {{order.date_created}} | {{order.facility}} | <a class="hoverLink" href="/detail_order_view/{{ order.id_food_order}}"><u>details</u></a>
+            <br>
+        {%endfor%}
+        <br>
+        {% endif %}
+
+        {% if food_order_approved %}
+            <hr style="margin: 10px 10px">
+            <h1>Approved</h1>
+            <hr style="margin: 10px 10px">
+            {% for order in food_order_approved %}
+                {{order.date_created}} | {{order.facility}} | <a class="hoverLink" href="/detail_order_view/{{ order.id_food_order}}"><u>details</u></a>
+                <br>
+            {%endfor%}
+            <br>
+        {% endif %}
+
+        {% if food_order_canceled %}
+            <hr style="margin: 10px 10px">
+            <h1>Canceled</h1>
+            <hr style="margin: 10px 10px">
+            {% for order in food_order_canceled %}
+                {{order.date_created}} | {{order.facility}} | <a class="hoverLink" href="/detail_order_view/{{ order.id_food_order}}"><u>details</u></a>
+                <br>
+            {%endfor%}
+            <br>
+        {% endif %}
+
+        {% if food_order_delivered %}
+            <hr style="margin: 10px 10px">
+            <h1>Delivered</h1>
+            <hr style="margin: 10px 10px">
+            {% for order in food_order_delivered %}
+                {{order.date_created}} | {{order.facility}} | <a class="hoverLink" href="/detail_order_view/{{ order.id_food_order}}"><u>details</u></a>
+                <br>
+            {%endfor%}
+            <br>
+        {% endif %}
+    </div>
+    {% endif  %}
+
+{% endblock %}

@@ -1,0 +1,4 @@
+PyQt5
+imutils
+opencv-python-headless
+opencv-contrib-python-headless

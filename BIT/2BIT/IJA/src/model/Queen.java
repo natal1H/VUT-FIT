@@ -1,0 +1,124 @@
+package model;
+
+import java.util.ArrayList;
+
+/**
+ * Queen is one classes implementing the Piece interface. It can move horizontally, vertically and diagonally.
+ * It can move through anyÂ number of squares as long as there aren't any pieces blocking the way.
+ *
+ * @author Natália Holková (xholko02)
+ */
+public class Queen implements Piece {
+    private Color color;
+    private Box position;
+
+    /**
+     * Initialize Queen object. Set color and position.
+     * @param color
+     */
+    public Queen(Color color) {
+        this.color = color;
+        this.position = null;
+    }
+
+    /**
+     * Get list of boxes, where piece can move
+     * @return List of possible boxes to move to
+     */
+    public ArrayList<Box> getValidMoveBoxes() {
+        // Expects that piece is on board - will crash if not
+        // Valid moves include those moves, where this piece could get captured
+
+        ArrayList<Box> possibleBoxes = new ArrayList<Box>();
+
+        // TODO - change to foreach cycle instead of manually typing directions
+
+        for (Box.Direction dir : Box.Direction.values()) {
+            // Check possible moves in dir direction
+            Box next = position.getNextBox(dir);
+            while (next != null) {
+                // Check if box is empty or has enemy piece on it
+                if (next.getPiece() == null) {
+                    possibleBoxes.add(next);
+                    next = next.getNextBox(dir);
+                }
+                else if (color != next.getPiece().getColor()) {
+                    possibleBoxes.add(next);
+                    break;
+                }
+                else
+                    break;
+            }
+        }
+
+        return possibleBoxes;
+    }
+
+    /**
+     * Piece gets captures, therefore is removed from position
+     * @return Success or failure in capturing the piece
+     */
+    public boolean getCaptured() {
+        // Note: PieceSet has to remove piece from active pieces and add him to captured pieces
+        if (position == null) return false; // Rook is not on board, therefore cannot be captured
+
+        position.setPiece(null); // Remove piece from box
+        position = null; // Remove box from piece
+        return true;
+    }
+
+    /**
+     * Set position of piece
+     * @param position Box where piece will be standing
+     */
+    public void setPosition(Box position) {
+        this.position = position;
+    }
+
+    /**
+     * Returns box, where piece currently resides
+     * @return Box or null
+     */
+    public Box getPosition() {
+        return position;
+    }
+
+    /**
+     * Returns color of piece
+     * @return Piece color
+     */
+    public Color getColor() {
+        return color;
+    }
+
+    /**
+     * Move piece to new position if possible.
+     * @param newPosition New position of piece
+     * @return Move object or null if move not possible
+     */
+    public Move moveToPosition(Box newPosition) {
+        ArrayList<Box> validPositions = getValidMoveBoxes();
+        if (validPositions.contains(newPosition)) {
+            Box oldPosition = position; // Copy old position for Move object
+
+            // Find out if any piece was captured
+            Piece capturedPiece = newPosition.getPiece();
+            if (!(capturedPiece != null && color != capturedPiece.getColor()))
+                capturedPiece = null;
+            else
+                capturedPiece.setPosition(null);
+
+            // Change positions
+            position.setPiece(null); // Remove piece from old box
+            position = newPosition; // Set new position where pawn moved to
+            position.setPiece(this); // Set piece on new position
+
+            // Create new move object
+            Move move = new Move(oldPosition, newPosition, this, capturedPiece);
+
+            return move;
+        }
+        else // Not valid move
+            return null;
+    }
+}

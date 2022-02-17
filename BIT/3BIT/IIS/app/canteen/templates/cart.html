@@ -1,0 +1,49 @@
+ {% extends "base.html" %}
+
+        {% block content %}
+
+        {% if food_order_instance %}
+            <h2 class="page-title">Checkout</h2>
+            <div class="checkout-block">
+
+                <div class="side-order-block">
+                    <h2><a href=/facility/{{ facility_instance.id_facility }}><i class="fa fa-angle-left" style="font-size: 30px"></i></a> Ordering from: {{ facility_instance.name }}</h2>
+                    <hr style="margin: 8px 0 4px">
+
+                    {% for instance_item in food_order_items_list %}
+                        <p style="float:left">{{instance_item.id_item.name}} ({{ instance_item.id_item.price }}€)</p>
+                        <p style="float:right">{{instance_item.quantity}}x | <a href="{%url 'add_to_cart' instance_item.id_item.id_item food_order_instance.facility.id_facility%}" class="">+1 </a>/<a href="{%url 'remove_from_cart' instance_item.id_item.id_item food_order_instance.facility.id_facility%}" class=""> -1</a></p>
+                        <br>
+                    {%endfor%}
+
+                        <hr style="margin: 4px 0 20px">
+                        <p style="text-align: center; font-size: 40px"><b>Total:  {{price}} €</b></p><br>
+                </div>
+
+                <form action="/pay" id="pay_submit">
+                    <input type="submit" class="button-black" style="margin-left: auto; margin-right: auto; display:block" value="Pay">
+                </form>
+                <br>
+                {%if unregistered%}
+                    <input type="checkbox" id="RBP" value="RBP" onchange="selectionChanged(this)"/><label>&nbsp;I want to register before payment</label>
+                    <br>
+                {%endif%}
+            </div>
+
+            <script>
+            function selectionChanged(element){
+                if (element.checked){
+                    document.getElementById('pay_submit').action = 'register_with_pay';
+                }
+                else{
+                    document.getElementById('pay_submit').action = 'pay';
+                }
+            }
+            </script>
+
+
+        {% else %}
+        <h2 class="notice">Cart is empty</h2>
+        {% endif %}
+
+       {% endblock %}

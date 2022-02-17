@@ -1,0 +1,37 @@
+<!--
+  ITU project 
+  Author: Natália Holková (xholko02)
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Time Tracker</title>
+    <link rel="shortcut icon" type="image/png" href="assets/images/favicon.ico"/>
+    <link rel="stylesheet" href="assets/css/index.css">
+    <script src="assets/js/controller-index.js"></script> 
+    <script src="assets/js/model.js"></script> 
+  </head>
+  <body>
+    <h1>Time tracker</h1>
+    
+    <div class="login-page">
+        <div class="form">
+          <form id="login-form" class="login-form" onsubmit="event.preventDefault(); redirect()">
+            <input type="text" placeholder="Username" name="login-username" required>
+            <input type="password" placeholder="Password" name="login-pass" required>
+            <input type="submit" value="Login">
+            <p class="message">Not registered? <a onclick="createAccountClick()">Create an account</a></p>
+          </form>
+          <form id="register-form" class="register-form" onsubmit="event.preventDefault(); redirectRegister()">
+            <input type="text" placeholder="Name" name="register-username" required>
+            <input type="password" placeholder="Password" name="register-pass" required>
+            <input type="text" placeholder="Email address" name="register-email" required>
+            <input type="submit" value="Create">
+            <p class="message">Already registered? <a onclick="signInClick()">Sign In</a></p>  
+          </form>
+        </div>
+      </div>
+  </body>
+</html>

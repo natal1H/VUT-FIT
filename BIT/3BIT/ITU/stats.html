@@ -1,0 +1,95 @@
+<!--
+  ITU project 
+  Author: Matej Novák (xnovak2f)
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">    
+    <title>Time Tracker</title>
+    <link rel="shortcut icon" type="image/png" href="assets/images/favicon.ico"/>
+    <link rel="stylesheet" href="assets/css/stats.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"><!-- Icons -->
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script><!-- Icons -->
+    <script src="assets/js/controller-stats.js"></script> 
+    <script src="assets/js/model.js"></script><!-- Model data --> 
+    <script src="https://unpkg.com/moment"></script><!-- Moment.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+
+  </head>
+  <body>
+    <!-- HEADER -->
+    <div class="header">
+      <h1 class="logo">Time tracker</h1>
+      <div class="header-right">
+        <div class="links-div">
+        <a class="active" href="tasks.html">Tasks</a>
+        <a href="stats.html">Stats</a>
+        <a href="profile.html">Profile</a>
+        <a href="index.html">Logout</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDE MENU -->
+    <div class="side-menu">
+      <ul>
+      <li onclick="generalStatsClick()">General</li>
+      <li onclick="graphsStatsClick()">Graphs</li>
+      <li onclick="tarificationStatsClick()">Tarification</li>
+      </ul>
+    </div>
+
+    <div class="content-wrapper">
+        <div class="from-to-date">
+            <form>
+              From: <input type="date" class="from" onchange="createPieChart1();createPieChart2();"> To: <input type="date" class="to" onchange="createPieChart1();createPieChart2();">
+            </form>
+        </div>
+
+      <!-- Content for "General" -->
+      <div class="general-content">
+        <h2>General</h2>
+        <h3>Completed tasks</h3>
+	    <p class="totalDone"></p>
+        <h3>Remaining tasks</h3>
+        <p class="totalTasks"></p>
+	    <p class="totalTasksPriority"></p>
+        <p>Number of remaining tasks past due: <span class="NOfLate"></span></p>
+      </div>
+
+      <!-- Content for "Graphs" -->
+      <div class="graphs-content" style="display:none">
+        <h2>Graphs</h2>
+        <div style="height: 500px; width:500px; display: inline-block; position: absolute; left: 170px;">
+          <canvas id="myChart1"></canvas>
+        </div>
+        <div style="height: 500px; width:500px; display: inline-block; position: absolute; left: 620px;">
+          <canvas id="myChart2"></canvas>
+        </div>
+      </div>
+
+
+      <!-- Content for "Tarification" -->
+      <div class="tarification-content" style="display:none">
+        <h2>Tarification</h2>
+        <p class="tarifTotal"></p>
+      </div>
+
+    </div>
+
+
+    <div class="footer">
+      <p>2019 &copy; <a href="mailto:xholko02@stud.fit.vutbr.cz">xholko02</a>, <a href="mailto:xchrip01@stud.fit.vutbr.cz">xchrip01<a>, <a href="mailto:xnovak2f@stud.fit.vutbr.cz">xnovak2f</a></p>
+    </div>
+	<script>getTotal("Done", "Completed");</script>
+	<script>getTotal("Tasks", "Remaining");</script>
+	<script>getPriority("Tasks", "Remaining");</script>
+    <script>createPieChart1();</script>
+    <script>createPieChart2();</script>
+	<script>tarifTotal();</script>
+    <script>getNOfLateTasks();</script>
+  </body>
+</html>

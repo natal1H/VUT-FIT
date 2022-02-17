@@ -1,0 +1,84 @@
+Architektury Výpočetních Systémů (AVS 2021)
+Projekt č. 2 (PMC)
+Login: xlogin00
+
+Úloha 1: Paralelizace původního řešení
+===============================================================================
+
+1) Kterou ze smyček (viz zadání) je vhodnější paralelizovat a co způsobuje 
+   neefektivitu paralelizaci té druhé?
+   - je vhodné paralelizovať smyčku vo funkcii "marchCubes", pretože táto smyčka je na vyššej úrovni
+   - neefektivita paralelizácie druhej smyčke je pretože táto smyčka je vnorená v prvej, teda hneď
+     je menej výpočetne náročná a zároveň rieši iba jednoduchú úlohu 
+
+2) Jaké plánování (rozdělení práce mezi vlákna) jste zvolili a proč? 
+   Jaký vliv má velikost "chunk" při dynamickém plánování (8, 16, 32, 64)?
+   - zvolila som guided plánovanie, lebo začína s väčšou veľkosťou chunk a postupne znižuje.
+
+   - pri malej veľosti chunk je vyššia réžia, so zvyšovaním chunk sa znižuje réžia, ale implementácia
+     sa môže spomaľovať lebo vlákna nebudú rovnako vyťažené
+
+3) Jakým způsobem zajišťujete ukládání trojúhelníků z několika vláken současně?
+   - pomocou #pragma omp critical, ktorá zabezpečí výlučný prístup a konzistenciu pri zápise
+
+Úloha 2: Paralelní průchod stromem
+===============================================================================
+
+1) Stručně popište použití OpenMP tasků ve vašem řešení.
+   - #pragma omp single aby sa najprv spustilo iba jedným jadrom
+   - kocka sa rozdelí na ďalších 8 kociek, u ktorých sa sa môžu paralelne vykonávať úlohy, lebo
+     zdieľajú iba premennú totalTriangles -> #pragma omp task shared(totalTriangles)
+   - #pragma omp taskwait na počkanie, kým sa všetky paralelné úlohy dokončia, aby sa mohol
+     vypočítať celkový totalTriangles
+
+2) Jakým způsobem jste realizovali sesbírání celkového počtu trojúhelníků?
+   - pokiaľ je hrana kocky menšia ako 1, ukončuje sa rekurzívne volanie funkcie recEvalCube a vracia
+     sa počet trojuholníkov
+   - ak hrana väčšia ako 1, ďalej sa volá rekurzívna funkcia recEvalCube na podkocku
+   - #pragma omp taskwait aby sa počkalo kvôli konečnému počtu totalTriangles
+
+3) Jaký vliv má na vaše řešení tzv. "cut-off"? Je vhodné vytvářet nový 
+   task pro každou krychli na nejnižší úrovni?
+   - vďaka cut-off sa neprehľadávajú zbytočné kocky, čo prináša zrýchlenie
+   - je dobré vytvárať nový task pre každú kocku na najnižšej úrovni, lebo sa potom dá počítať paralelne
+
+4) Jakým způsobem zajišťujete ukládání trojúhelníků z několika vláken současně?
+   - pomocou #pragma omp critical, ktorá zabezpečí výlučný prístup a konzistenciu pri zápise
+
+Úloha 3: Grafy škálování všech řešení
+===============================================================================
+
+1) Stručně zhodnoťte efektivitu vytvořených řešení (na základě grafů škálování).
+   - zo začiatku potrebuje octree implementácia viac času, ale niekde okolo 2^16 sa to obráti a je rýchlejšia ako loop
+   - rozdiel medzi loop a octree pri vysokom počte prvkov je ale malý
+   - pri malý počtoch prvkov zvoliť loop, pri veľkom octree
+
+2) V jakém případě (v závislosti na počtu bodů ve vstupním souboru a velikosti 
+   mřížky) bude vaše řešení 1. úlohy neefektivní? (pokud takový případ existuje)
+   - pokiaľ je malý počet prvkov a veľa vlákien
+
+3) Je (nebo není) stromový algoritmus efektivnější z pohledu slabého škálování 
+   vzhledem ke vstupu?
+   - z hľadiska slabého škálovania dosahuje octree lepšie výsledky ako loop pri malom počte prvkov,
+     no so zvyšovaním prvkov prestáva by efektívnejší až je nakoniec horší ako loop
+
+
+Úloha 4: Analýza využití jader pomocí VTune
+================================================================================
+
+1) Jaké bylo průměrné využití jader pro všechny tři implementace s omezením na 
+   18 vláken? Na kolik procent byly využity?
+   
+   ref:   2,8%
+   loop: 47,7%
+   tree: 36,5%
+
+2) Jaké bylo průměrné využití jader pro všechny tři implementace s využitím 
+   všech jader? Na kolik procent se podařilo využít obě CPU?
+   
+   ref:   2,8%
+   loop: 75,8%
+   tree: 25,3%
+
+3) Jaké jsou závěry z těchto měření?
+   - loop implementácia využíva jadrá procesoru podstatne efektívnejšie.

@@ -1,0 +1,434 @@
+* {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    font-family: arial;
+}
+
+a {
+    text-decoration: none;
+    color: #000000;
+}
+
+ul li a {
+    color: #000;
+}
+
+.main-header {
+  background-color: #d42626;
+  overflow: hidden;
+  color: #fff;
+  height: 40px;
+}
+
+.main-header h1 {
+    display: inline;
+    margin-left: 15px;
+}
+
+.main-header h1:hover {
+    color: #fff;
+}
+
+.main-header ul li a:hover {
+    color: #000;
+}
+
+h3{
+    font-size: 24px;
+}
+
+.main-header ul {
+    float: right;
+    list-style-type: none;
+    margin: 0;
+    padding: 4px 14px;
+}
+
+.main-header ul li {
+    float:left;
+    padding: 5px;
+}
+
+.main-header ul a {
+    color: #fff;
+}
+
+.search-header form input[type=text] {
+    padding: 10px;
+    position:absolute;
+    right: 6%;
+    top: 56px;
+    font-size: 17px;
+    border: 1px solid grey;
+    float: right;
+    width: 20%;
+    background: #f1f1f1;
+}
+
+.search-header form button {
+    padding: 10px;
+    position:absolute;
+    right: 20px;
+    top: 56px;
+    font-size: 17px;
+    border: 1px solid grey;
+    border-left: none; /* Prevent double borders */
+    width: 5%;
+    background: #999999;
+    color: white;
+    cursor: pointer;
+}
+
+.footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: #d42626;
+    color: white;
+    text-align: center;
+    height: 20px;
+}
+
+.facility-block {
+    margin: 20px;
+    width: 400px;
+    background: #ffcccc;
+    display: inline-block;
+    float: center;
+    text-align: center;
+}
+
+.facility-block:hover {
+    background: #ff6666;
+}
+
+.page-title {
+    text-align: center;
+    font-size: 50px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.menu-block {
+    margin: 20px;
+    width: 350px;
+    min-height: 60px;
+    background: #ffcccc;
+    display: inline-block;
+    float: center;
+    text-align: center;
+}
+
+.menu-block:hover {
+    background: #ff6666;
+}
+
+.menu-blocks {
+    float: left;
+    width: 70%;
+}
+
+.cart-block {
+    margin: 20px;
+    width: 250px;
+    background: #ffcccc;
+    display: inline-block;
+    float: right;
+    text-align: center;
+    padding:10px;
+}
+
+.food-blocks {
+    float: left;
+    width: 80%;
+}
+
+.food-block {
+    margin: 20px;
+    width: 450px;
+    background: #ffcccc;
+    display: inline-block;
+    float: left;
+    text-align: left;
+    padding:10px;
+}
+
+.button-black {
+    background-color: #333333;
+    border: none;
+    color: white;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    padding: 10px 32px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.button-white {
+    background-color: #fff;
+    border: none;
+    color: black;
+    padding: 10px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.login-block {
+    width: 460px;
+    background: #f2f2f2;
+    display:block;
+    margin-right: auto;
+    margin-left: auto;
+    text-align: center;
+    padding:10px;
+}
+
+.register-block {
+    width: 600px;
+    background: #f2f2f2;
+    display:block;
+    margin-right: auto;
+    margin-left: auto;
+    text-align: center;
+    padding:20px;
+}
+
+.column2-left{
+    width:40%;
+    text-align: right;
+    padding: 20px;
+}
+
+.column2-right{
+    width:60%;
+    text-align: left;
+}
+
+.checkout-block {
+    width: 600px;
+    display:block;
+    margin-right: auto;
+    margin-left: auto;
+    background: #f2f2f2;
+    text-align: left;
+    padding: 10px;
+}
+
+.side-order-block {
+    float: left;
+    width: 580px;
+    font-size:18px;
+}
+
+input[type=text]{
+    padding: 10px 10px;
+    margin-bottom:6px;
+    margin-top:6px;
+}
+
+input[type=email]{
+    padding: 10px 10px;
+    margin-bottom:6px;
+    margin-top:6px;
+}
+
+input[type=password]{
+    padding: 10px 10px;
+    margin-bottom:6px;
+    margin-top:6px;
+}
+
+input[type=number]{
+    padding: 10px 10px;
+    margin-bottom:6px;
+    margin-top:6px;
+}
+
+.column{
+    float: left;
+    padding-bottom: 10px;
+}
+.left{
+    margin-right: 40px;
+}
+.row:after{
+    clear: both;
+}
+
+.column label{
+    float:left;
+    margin-left: 5px;
+    margin-bottom: 4px;
+}
+
+input[type=submit]{
+    background-color: #333333;
+    border: none;
+    color: white;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    padding: 10px 32px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+cancel-button{
+    background-color: #333333;
+    border: none;
+    color: white;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    padding: 10px 32px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 16px;
+}
+
+select{
+    padding: 10px 10px;
+    margin-bottom:6px;
+    margin-top:6px;
+}
+
+ /* The sidebar menu */
+.sidenav {
+    width: 160px; /* Set the width of the sidebar */
+    position: fixed; /* Fixed Sidebar (stay in place on scroll) */
+    z-index: 1; /* Stay on top */
+    top: 0; /* Stay at the top */
+    left: 0;
+    background-color: #e6e6e6;
+    overflow-x: hidden; /* Disable horizontal scroll */
+    padding-top: 20px;
+    margin-top:84px;
+    margin-bottom:20px;
+}
+
+/* The navigation menu links */
+.sidenav a {
+    padding: 6px 8px 6px 16px;
+    text-decoration: none;
+    font-size: 25px;
+    color: #000000;
+    display: block;
+}
+
+/* When you mouse over the navigation links, change their color */
+.sidenav a:hover {
+  color: #f1f1f1;
+}
+
+/* Style page content */
+.main {
+    width: 800px;
+    display:block;
+    margin-right: auto;
+    margin-left: auto;
+    background: #f2f2f2;
+    text-align: left;
+   /* margin-left: 160px; /* Same as the width of the sidebar */
+    padding: 2px 10px;
+}
+
+.employee-panel{
+    width: 800px;
+    display:block;
+    margin-right: auto;
+    margin-left: auto;
+    background-color: #BBBBBB;
+    text-align: center;
+    font-size: 20px;
+    padding-bottom: 2px;
+}
+
+/* On smaller screens, where height is less than 450px, change the style of the sidebar (less padding and a smaller font size) */
+@media screen and (max-height: 450px) {
+  .sidenav {padding-top: 15px;}
+  .sidenav a {font-size: 18px;}
+}
+
+.notice{
+    position: absolute;
+    font-size: 60px;
+    top: 45%;
+    left: 50%;
+    margin-right: -50%;
+    transform: translate(-50%, -50%)
+}
+
+.tmpclass{
+    padding: 10px 10px;
+    margin-bottom:6px;
+    margin-top:6px;
+}
+
+.form-class label{
+    width:40%;
+    text-align: right;
+    padding: 20px;
+}
+.form-class input{
+    width:45%;
+    text-align: left;
+}
+
+.form-class p{
+    display: flex;
+}
+
+.helptext{
+    font-size: 0px;
+}
+
+.form-class ul:not(.errorlist){
+    font-size: 0px;
+    list-style-type: none;
+}
+
+.errorlist{
+    color: red;
+    list-style-type: none;
+    margin: 10px 0 10px;
+    font-size: 20px;
+}
+
+.register-block-choice {
+    width: 600px;
+    background: #f2f2f2;
+    display:block;
+    margin-right: auto;
+    margin-left: auto;
+    text-align: center;
+    padding:20px;
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%)
+}
+
+li{
+    list-style-type: none;
+}
+
+.hoverLink:hover {
+    color: #808080;
+}
+
+.button-white:hover {
+    background-color: #000;
+    color: #fff;
+}
+
+.button-black:hover {
+    background-color: #fff;
+    color: #000;
+}

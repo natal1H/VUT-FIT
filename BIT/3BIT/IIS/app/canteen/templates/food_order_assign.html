@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <h2 class="page-title"><a href=/food_order><i class="fa fa-angle-left" style="font-size: 55px"></i> </a>Assign driver</h2>
+
+    {% for instance in person_qs%}
+        <div class="register-block" style="font-size: 20px">
+            ID: {{instance.user.id}}<br>
+            <p style="margin-bottom: 4px">{{instance.surname}} {{instance.firstname}} ({{instance.user.username}})</p>
+            <b><p style="text-align: center; font-size: 32px"><a class="hoverLink" href="../food_order_assign_button_view/{{food_order_instance.id_food_order}}/{{instance.id_person}}">ASSIGN</a></p></b>
+            <hr style="margin: 10px 10px">
+        </div>
+    {% endfor %}
+{% endblock %}

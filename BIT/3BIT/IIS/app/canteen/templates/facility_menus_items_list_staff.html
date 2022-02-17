@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+     <h2 class="page-title">Foods</h2>
+
+    <div class="register-block">
+
+
+        {% for instance in item_list%}
+            <div style="display: flex;">
+                <div style=" width:40%; text-align: left; padding: 10px; display: inline-block">
+                    Item #{{ instance.id_item }}: {{ instance.name }}
+                </div>
+                <div style="width:60%; padding: 10px; text-align: right;">
+                    <a href="{%url 'food_update_view' instance.id_item %}">update</a> ||
+                    <a href="{%url 'food_delete_view' instance.id_item %}">delete</a> ||
+                    <a href="{%url 'delete_from_menu' id_menu instance.id_item %}">Delete from menu</a>
+                </div>
+            </div>
+            <hr>
+        {% endfor %}
+    </div>
+
+{% endblock %}

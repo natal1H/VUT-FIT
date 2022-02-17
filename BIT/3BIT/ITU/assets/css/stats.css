@@ -1,0 +1,170 @@
+/**
+ * ITU project 
+ * Author: Matej Novák (xnovak2f)
+ */
+
+@import url(https://fonts.googleapis.com/css?family=Roboto:300);
+
+* {
+  font-family: "Roboto", sans-serif;
+  margin: 0px;
+  padding: 0px;
+}
+
+body {
+  background-color: #ecf0f5;
+}
+
+h1 {
+  font-size: 2em;
+}
+
+h2 {
+  font-size: 1.5em;
+  width: 75%;
+}
+
+h3 {
+  font-size: 1.17em;
+}
+
+
+/* Style the header with a grey background and some padding */
+.header {
+  position: fixed;
+  width: calc(100% - 10px);
+  overflow: hidden;
+  background-color: #3c8dbc;
+  padding: 5px 5px;
+  margin: 0x;
+}
+
+  /* Style the header links */
+.header a {
+  float: left;
+  color: black;
+  text-align: center;
+  padding: 12px;
+  text-decoration: none;
+  font-size: 18px;
+  line-height: 25px;
+  border-radius: 4px;
+}
+
+/* Style the header text */
+.header h1 {
+  margin: 0px;
+  float: left;
+  color: white;
+  text-align: center;
+  padding: 12px;
+  text-decoration: none;
+  font-size: 18px;
+  line-height: 25px;
+  border-radius: 4px;
+  font-size: 25px;
+  font-weight: bold;
+}
+  
+/* Change the background color on mouse-over */
+.header a:hover {
+  background-color: #00c2e0;
+  color: white;
+}
+
+.header a {
+  background-color: #659fc1;
+  color: white;
+  margin-left: 5px;
+}
+
+/* Float the link section to the right */
+.header-right {
+  height: 50px;
+  float: right;
+}
+
+.footer {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background-color: white;
+  color: #2a2a2a;
+  text-align: center;
+  height: 21px;
+}
+
+.footer a {
+  color: #2a2a2a;
+  text-decoration: none;
+}
+
+.side-menu {
+  height: calc(100% - 60px - 21px - 20px);
+  width: 160px;
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  background-color: #222d32;
+  overflow-x: hidden;
+  padding-top: 20px;
+  margin-top: 60px;
+  margin-bottom: 21px;
+}
+
+.side-menu li {
+  padding: 6px 8px 6px 16px;
+  text-decoration: none;
+  font-size: 25px;
+  color: #b8c7ce;
+  display: block;
+  list-style-type: none;
+}
+
+.side-menu li:hover {
+  color: #f1f1f1;
+  background-color: #2c3b41;
+}
+
+.content-wrapper {
+  margin-top: 60px;
+  margin-left: 160px;
+  padding: 10px;
+  display: inline-block;
+  /*width: calc(100% - 160px);*/
+}
+
+.content-wrapper h2 {
+  padding: 15px 0 5px 0
+}
+
+.content-wrapper h3 {
+  padding: 10px 0 5px 0
+}
+
+.content-wrapper p {
+  padding: 3px;
+  margin-bottom: 5px;
+}
+
+.general-content ul, .tarification-content ul {
+  margin-left: 20px;
+}
+
+.general-content ul li, .tarification-content ul li {
+  list-style-type: none;
+}
+
+.from-to-date {
+  position: fixed;
+  right: 0px;
+  top: 65px;
+}
+
+.from-to-date form {
+  float: right;
+  font-weight: bold;
+  padding-right: 5px;
+}

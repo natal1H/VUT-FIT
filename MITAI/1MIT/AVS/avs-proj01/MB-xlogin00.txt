@@ -1,0 +1,38 @@
+#### Stručně odpovězte na následující otázky: ######
+
+1. Proč je nutné určovat, zda má výpočet pokračovat?
+==============================================================================
+Pokiiaľ by sa neurčovalo, či má výpočet pokračovať keď vektorizujeme po
+riadkoch, celý riadok by sa zbytočne ďalej iteroval, čo samozrejme znižovalo
+rýchlosť. Navyše je potrebné vykonávať kontrolu priamo pri jednotlivých prvkoch
+kde by inak mohlo dôjsť k tomu, že by sme prepísali správne hodnoty.
+
+2. Byla "Line" vektorizace efektivní? Proč?
+==============================================================================
+"Line" vektorizácia bola efektívna. Pri "line" sa postupovalo po jednotlivých
+riadkoch, nie po jednotlivých elementoch, čím sme mohli využiť pomocné polia na
+ukladanie hodnôt reálnej a imaginárnej zložky a tým odstrániť závislosť a
+vektorizovať.
+
+
+3. Jaká byla dosažena výkonnost v Intel Advisoru pro jednotlivé implementace 
+(v GFLOPS)?
+==============================================================================
+Výkonnosť "line" implementácie (pri -s 4000): 16.773 GFLOPS
+Výkonnosť "batch" implementácie (pri -s 4000): 19.997 GFLOPS
+
+4. Jaká část kódu byla paralizována v "Line" implementaci? Vyčteme tuto 
+informaci i u batch kalkulátoru?
+==============================================================================
+V "line" bola vektorizovaná najzanorenejšia smyčka, ktorá prechádzala prvky
+v riadku, počiatočné nastavovanie výsledného poľa a priebežná úprava pomocných
+polí. U "batch" bola vektorizácia v rovnakých častiach kódu s rozdielom, že sa
+nešlo po celom riadku, alebo iba po častiach riadku.
+
+5. Co vyčteme z Roofline modelu pro obě vektorizované implementace?
+==============================================================================
+Pre "line" vektorizáciu vidíme, že sa efektívne využíva L3 cache.
+Pre "batch" vektorizáciu vidíme, že sa efektívne využíva L3 cache, ale je bližšie
+k maximálnej možnej vektorizácii ako "line".
+
+

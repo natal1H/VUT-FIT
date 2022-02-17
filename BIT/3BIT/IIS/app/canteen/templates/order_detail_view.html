@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <h2 class="page-title"><a href="/order"><i class="fa fa-angle-left"></i></a> Order ID: {{food_order.id_food_order}}</h2>
+
+    <div class="register-block">
+        <h2>From: {{food_order.facility}}</h2>
+        <hr><br>
+        {% for instance in food_order_items %}
+            {{instance.quantity}}x {{instance.id_item.name}} | ({{instance.id_item.price}}€)<br>
+        {% endfor %}
+    <br><hr><br>
+    <h2>Total: {{price}} €<br></h2>
+    </div>
+
+{% endblock %}

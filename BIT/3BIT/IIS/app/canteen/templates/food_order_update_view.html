@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <h2 class="page-title"><a href="/food_order"><i class="fa fa-angle-left"></i></a> Food order update</h2>
+
+    <div class="register-block">
+
+        <form action='' method='POST'>    {% csrf_token %}
+            <div class="form-class">
+                <div style="width: 400px; margin-left: 15px; font-size: 18px">
+                    {% if view.get_instance.status == "o" %}
+                        <p>Status: ordered</p>
+                    {% endif %}
+                    {% if view.get_instance.status == "p" %}
+                        <p>Status: paid</p>
+                    {% endif %}
+                    {% if view.get_instance.status == "a" %}
+                        <p>Status: approved</p>
+                    {% endif %}
+                    {% if view.get_instance.status == "c" %}
+                        <p>Status: canceled</p>
+                    {% endif %}
+                    {% if view.get_instance.status == "d" %}
+                        <p>Status: delivered</p>
+                    {% endif %}
+                    <p>Person: {{view.get_instance.person}}</p>
+                    <p>Username: {{view.get_instance.person.user.username}}</p>
+                    <p>Facility: {{view.get_instance.facility}}</p>
+                    {% if view.get_instance.delivered_by.user.username %}
+                    <p>Delivered by: {{view.get_instance.delivered_by.user.username}}</p>
+                    {% endif %}
+                    <br>
+                </div>
+                <hr style="margin: 10px 10px">
+                {{ form.as_p }}
+            </div>
+            
+            <input type='submit' class="button-black" value='Save' onclick="myFunction()"/>
+        </form>
+    </div>
+
+
+    <script>
+        function myFunction() {
+            alert("It was saved");
+        }
+        </script>
+
+
+    
+    
+{% endblock %}

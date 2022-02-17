@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <h2 class="page-title">Create new menu</h2>
+
+    <div class="register-block">
+        Date input:YYYY-MM-DD
+        <hr>
+
+        <form action='' method='POST'>{% csrf_token %}
+            <div class="form-class">
+                {{ form.as_p }}
+            </div>
+        <input type='submit' value='Save' />
+        </form>
+    </div>
+
+{% endblock %}

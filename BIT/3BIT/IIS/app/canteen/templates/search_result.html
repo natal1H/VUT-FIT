@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    {% load static %}
+
+    {% for instance in objects%}
+            <a clss="block-link" href='{{instance.get_absolute_url}}'>
+                <div class="facility-block">
+                    {% if instance.image != None %}
+                    <img src="{% static instance.image %}" width="400px" height="200px">
+                    {% endif %}
+                    <b>{{ instance.name}}</b><br>
+                    {{ instance.address }}<br>
+                    Order deadline: {{ instance.deadline|date:"G:i" }}
+                </div>
+            </a>
+        {% endfor %}
+{% endblock %}
